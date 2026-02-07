@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# Project-specific
+subagents_outputs/
+
+# HMD data (licensed CC BY 4.0, do not redistribute)
+# Download from www.mortality.org
+backend/data/hmd/
