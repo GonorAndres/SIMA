@@ -23,6 +23,9 @@ Thumbs.db
 *.swo
 *~
 
+# HMD data (CC BY 4.0 -- do not redistribute, download from www.mortality.org)
+backend/data/hmd/
+
 # Symlinked docs
 docs/
 
