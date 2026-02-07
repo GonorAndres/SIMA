@@ -114,6 +114,8 @@ All documentation goes in `docs/` with two subfolders:
 
 ```
 docs/
+├── project/               # Session logs, what was done and why
+│   └── ##_topic_project.md
 ├── technical/              # Formal definitions, formulas, reference material
 │   └── ##_topic_reference.md
 │
@@ -143,10 +145,33 @@ docs/
 | 04 | Fundamental Identity (A_x + d*a_x = 1) | `technical/04_fundamental_identity_reference.md` | `intuitive_reference/04_fundamental_identity_intuition.md` |
 | 05 | Commutation Deep Insights (N_x/D_x, O(n) recursion) | `technical/05_commutation_deep_insights_reference.md` | `intuitive_reference/05_commutation_deep_insights_intuition.md` |
 | 06 | Python Class Mechanics (self, @classmethod, @property, dunder) | `technical/06_python_class_mechanics_reference.md` | `intuitive_reference/06_python_class_mechanics_intuition.md` |
+| 07 | Lee-Carter Foundations (model, SVD, identifiability) | `technical/07_lee_carter_foundations_reference.md` | `intuitive_reference/07_lee_carter_foundations_intuition.md` |
+| 08 | Lee-Carter Full Pipeline (estimation, diagnostics) | `technical/08_lee_carter_full_pipeline_reference.md` | `intuitive_reference/08_lee_carter_pipeline_estimation_intuition.md` |
+| 09 | Whittaker-Henderson Graduation | `technical/09_whittaker_henderson_reference.md` | `intuitive_reference/09_whittaker_henderson_graduation_intuition.md` |
+| 10 | Lee-Carter Implementation (code, tests, architecture) | `technical/10_lee_carter_implementation_reference.md` | `intuitive_reference/10_lee_carter_implementation_intuition.md` |
+
+**Project Docs:**
+
+| # | Topic | Location |
+|:--|:------|:---------|
+| 01 | Python Class Mechanics Session | `project/01_python_class_mechanics_project.md` |
+| 02 | Lee-Carter Foundations Session | `project/02_lee_carter_foundations_project.md` |
+| 03 | Lee-Carter Deep Dive Session | `project/03_lee_carter_deep_dive_project.md` |
+| 04 | Graduation, Quadratic Forms & HMD Session | `project/04_graduation_quadratic_hmd_project.md` |
+| 05 | Lee-Carter Implementation Session (7feb branch) | `project/05_lee_carter_implementation_project.md` |
+
+**Additional Docs:**
+
+| Folder | File | Content |
+|:-------|:-----|:--------|
+| `latex/` | `quadratic_minimization_matrix.md` | Matrix calculus for Whittaker-Henderson |
+| `latex/` | `svd_bilinear_identifiability_lee_carter.md` | SVD and identifiability proofs |
+| `latex/` | `whittaker_henderson_graduation.md` | Graduation formula derivations |
+| root | `portfolio_roadmap.md` | Project roadmap overview |
 
 ---
 
-## Project Status (Updated: 2025-01-27)
+## Project Status (Updated: 2026-02-07)
 
 ### Completed
 
@@ -157,19 +182,22 @@ docs/
 | Phase 2 | Actuarial Values (A_x, a_x, nE_x) | `backend/engine/a03_actuarial_values.py` |
 | Phase 2 | Net Premiums (whole life, term, endowment) | `backend/engine/a04_premiums.py` |
 | Phase 2 | Reserves (prospective method) | `backend/engine/a05_reserves.py` |
-| Phase 2 | Integration Tests (38 passing) | `backend/tests/` |
+| Phase 1 | HMD Data Loading (USA, Spain) | `backend/engine/a06_mortality_data.py` |
+| Phase 1 | Whittaker-Henderson Graduation | `backend/engine/a07_graduation.py` |
+| Phase 1 | Lee-Carter Model (SVD + k_t re-estimation) | `backend/engine/a08_lee_carter.py` |
+| Phase 1 | Mortality Projection (RWD + LifeTable bridge) | `backend/engine/a09_projection.py` |
+| All | Integration Tests (106 passing) | `backend/tests/` |
 
 ### Next Steps (In Order)
 
-1. **Phase 1: Lee-Carter Mortality Model**
+1. **Phase 1 (continued): Mexican Data & Validation**
    - Get real Mexican mortality data (INEGI/CONAPO)
-   - Graduate raw rates (Whittaker-Henderson smoothing)
-   - Implement Lee-Carter (a_x, b_x, k_t parameters)
-   - Validate against EMSSA-2009
+   - Validate Lee-Carter against EMSSA-2009
+   - Compare HMD-based projections with Mexican experience
 
 2. **Phase 2 (continued): Sensitivity Analysis**
    - Interest rate sensitivity on reserves
-   - Mortality shock analysis
+   - Mortality shock analysis (using Lee-Carter projections)
 
 3. **Phase 3: Capital Requirements**
    - Risk mapping (mortality, longevity, interest rate)
@@ -192,11 +220,19 @@ Read the engine modules in this order (dependencies build progressively):
 | 03 | `a03_actuarial_values.py` | All methods are ratio formulas using `self.comm.get_X()` | A_x = M_x / D_x |
 | 04 | `a04_premiums.py` | Creates ActuarialValues inside, D_x cancels in formulas | P = SA * M_x / N_x |
 | 05 | `a05_reserves.py` | Creates both `self.av` and `self.pc`, prospective formula | tV = SA*A_{x+t} - P*a_{x+t} |
+| 06 | `a06_mortality_data.py` | HMD file loading, age capping, matrix validation | m_x = d_x / L_x |
+| 07 | `a07_graduation.py` | Whittaker-Henderson, sparse matrices, log-space smoothing | z = (W + lambda*D'D)^{-1} * W * m |
+| 08 | `a08_lee_carter.py` | SVD decomposition, identifiability constraints, brentq re-estimation | ln(m_{x,t}) = a_x + b_x * k_t |
+| 09 | `a09_projection.py` | RWD projection, stochastic simulation, `to_life_table()` bridge | k_{T+h} = k_T + h*drift + sigma*Z |
 
 **Dependency Flow:**
 ```
-a01_life_table --> a02_commutation --> a03_actuarial_values
-                                   |-> a04_premiums (uses a03)
+a06_mortality_data --> a07_graduation --> a08_lee_carter --> a09_projection
+                                                                |
+                                                          to_life_table()
+                                                                |
+a01_life_table --> a02_commutation --> a03_actuarial_values     |
+                                   |-> a04_premiums (uses a03)  |
                                    |-> a05_reserves (uses a03 + a04)
 ```
 
@@ -209,10 +245,17 @@ backend/
 │   ├── a02_commutation.py      # D, N, C, M (backward recursion)
 │   ├── a03_actuarial_values.py # A_x, a_x, nE_x
 │   ├── a04_premiums.py         # Equivalence principle
-│   └── a05_reserves.py         # Prospective method
+│   ├── a05_reserves.py         # Prospective method
+│   ├── a06_mortality_data.py   # HMD data loading -> matrices
+│   ├── a07_graduation.py       # Whittaker-Henderson smoothing
+│   ├── a08_lee_carter.py       # Lee-Carter SVD fitting
+│   └── a09_projection.py       # RWD projection + LifeTable bridge
 ├── data/
 │   ├── mini_table.csv          # Validation (ages 60-65)
-│   └── sample_mortality.csv    # Full range (ages 20-110)
+│   ├── sample_mortality.csv    # Full range (ages 20-110)
+│   └── hmd/                    # Human Mortality Database files
+│       ├── usa/                # USA: Mx, Deaths, Exposures (1x1)
+│       └── spain/              # Spain: Mx, Deaths, Exposures (1x1)
 └── tests/
-    └── test_*.py               # 38 tests
+    └── test_*.py               # 106 tests
 ```
