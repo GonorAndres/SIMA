@@ -1,0 +1,66 @@
+==============================================================================
+  SIMA - SENSITIVITY ANALYSIS: EXECUTIVE SUMMARY
+  Generated: 2026-02-08 20:27
+==============================================================================
+
+OVERVIEW
+--------------------------------------------------
+  This report summarizes sensitivity analyses across three dimensions:
+  1. Interest rate:  i = 2% to 8% (Mexico, projected year 2029)
+  2. Mortality shock: q_x x 0.70 to 1.30 (Mexico, i=5%)
+  3. Cross-country:  Mexico vs USA vs Spain (1990-2019)
+
+A. INTEREST RATE SENSITIVITY (Mexico)
+--------------------------------------------------
+  Whole life premium at age 40:
+    i=2%: $      17,910
+    i=5%: $      10,765  (base)
+    i=8%: $       7,014
+    Range: +101% spread around base
+
+  Most interest-rate sensitive product: whole life
+  (101% spread from i=2% to i=8% at age 40)
+
+B. MORTALITY SHOCK SENSITIVITY (Mexico)
+--------------------------------------------------
+  Whole life premium at age 40 (i=5%):
+    0.70x (30% improvement): $       8,807  (-18.2%)
+    1.00x (base):            $      10,765
+    1.30x (30% deterioration): $      12,506  (+16.2%)
+
+
+C. CROSS-COUNTRY COMPARISON
+--------------------------------------------------
+  Lee-Carter drift (mortality improvement speed):
+      Mexico: -1.0764
+         USA: -1.1920
+       Spain: -2.8949
+
+  Whole life premium at age 40 (i=5%):
+      Mexico: $      10,765
+         USA: $      10,178
+       Spain: $       8,191
+
+  Lee-Carter model fit:
+      Mexico: explained variance = 77.7%
+         USA: explained variance = 86.7%
+       Spain: explained variance = 94.8%
+
+D. KEY TAKEAWAYS
+--------------------------------------------------
+  1. Interest rate is the DOMINANT sensitivity factor for long-duration
+     products (whole life, endowment). A 3% rate change can shift
+     premiums by 30-60%.
+
+  2. Mortality shocks have a SMALLER but ASYMMETRIC effect. A 30%
+     mortality deterioration hurts more than a 30% improvement helps.
+     This justifies regulatory capital buffers.
+
+  3. Cross-country comparison shows that while all three countries
+     exhibit improving mortality, the SPEED and LEVEL differ. Mexico's
+     base mortality profile differs from developed-country HMD patterns,
+     reinforcing the need for country-specific calibration.
+
+  4. For CNSF regulatory compliance, stress testing should combine
+     interest rate AND mortality shocks simultaneously (joint stress),
+     as these risks can correlate during economic crises.

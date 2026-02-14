@@ -1,0 +1,202 @@
+==============================================================================
+  SIMA - CAPITAL REQUIREMENTS: SCR UNDER CNSF / SOLVENCY II
+  Generated: 2026-02-08 23:33
+==============================================================================
+
+1. PORTFOLIO SUMMARY
+--------------------------------------------------
+  Total policies: 12
+  Death products: 9
+  Annuity products: 3
+
+      ID         Type  Issue   Att  Dur     SA/Pension   n
+  ------ ------------ ------ ----- ---- -------------- ---
+   WL-01   whole_life     25    35   10  $   2,000,000  --
+   WL-02   whole_life     35    40    5  $   1,500,000  --
+   WL-03   whole_life     45    50    5  $   1,000,000  --
+   WL-04   whole_life     55    55    0  $     500,000  --
+   TM-05         term     30    35    5  $   3,000,000  20
+   TM-06         term     40    50   10  $   2,000,000  20
+   TM-07         term     50    53    3  $   1,000,000  20
+   EN-08    endowment     30    38    8  $   1,500,000  20
+   EN-09    endowment     40    45    5  $   1,000,000  20
+   AN-10      annuity     60    60    0   $ 120,000/yr  --
+   AN-11      annuity     65    65    0   $ 150,000/yr  --
+   AN-12      annuity     70    70    0   $ 100,000/yr  --
+
+  Total sum assured:    $    13,500,000 MXN
+  Total annual pension: $       370,000 MXN/yr
+
+2. BASELINE BEL DECOMPOSITION
+--------------------------------------------------
+  Interest rate: 5.0%
+  Life table: Mexico projected, year 2029 (pre-COVID)
+
+      ID         Type  Att Age              BEL
+  ------ ------------ -------- ----------------
+   WL-01   whole_life       35 $    109,573.49
+   WL-02   whole_life       40 $     59,036.75
+   WL-03   whole_life       50 $     60,992.81
+   WL-04   whole_life       55 $          0.00
+   TM-05         term       35 $     10,579.13
+   TM-06         term       50 $     36,838.95
+   TM-07         term       53 $     14,529.04
+   EN-08    endowment       38 $    430,464.04
+   EN-09    endowment       45 $    167,060.19
+   AN-10      annuity       60 $  1,548,606.27
+   AN-11      annuity       65 $  1,726,894.48
+   AN-12      annuity       70 $    995,593.00
+
+  Death product BEL:   $    889,074.40
+  Annuity product BEL: $  4,271,093.76
+  Total BEL:           $  5,160,168.15
+
+3. MORTALITY RISK SCR
+--------------------------------------------------
+  Shock: +15% permanent q_x increase
+  Affected: 9 death products only
+  Regulatory basis: Solvency II standard formula (99.5% VaR)
+
+  BEL base (death):     $    889,074.40
+  BEL stressed (death): $    912,793.23
+  SCR_mortality:        $     23,718.84
+  Impact: +2.7% of death BEL
+
+4. LONGEVITY RISK SCR
+--------------------------------------------------
+  Shock: -20% permanent q_x decrease
+  Affected: 3 annuity products only
+  Rationale: Lower mortality = longer life = more pension payments
+
+  BEL base (annuity):     $  4,271,093.76
+  BEL stressed (annuity): $  4,523,427.94
+  SCR_longevity:          $    252,334.18
+  Impact: +5.9% of annuity BEL
+
+5. INTEREST RATE RISK SCR
+--------------------------------------------------
+  Shock: +/- 100 bps parallel shift
+  Affected: ALL products (12 policies)
+  Base rate: 5160168.15 -> Up: 6.00%, Down: 4.00%
+
+  BEL base:   $  5,160,168.15  (i=5.0%)
+  BEL up:     $  4,766,588.10  (i=6.0%)
+  BEL down:   $  5,613,557.86  (i=4.0%)
+  SCR_ir:     $    453,389.71
+  Dominant scenario: DOWN (lower rates => higher PV of obligations)
+
+6. CATASTROPHE RISK SCR (COVID-CALIBRATED)
+--------------------------------------------------
+  Shock: +35% one-year mortality spike
+  Affected: 9 death products only
+  Calibration: COVID-19 impact on Mexican mortality (INEGI/CONAPO)
+    - Pre-COVID k_t drift: -1.076/year
+    - COVID k_t reversal: ~6.76 units above trend
+    - Conservative factor: 1.35x
+
+  SCR_catastrophe:    $     13,757.11
+
+  Per-policy catastrophe impact:
+      ID   Age     q_base    q_shock    delta_q    Extra Claim
+  ------ ----- ---------- ---------- ---------- --------------
+   WL-01    35   0.001705   0.002302   0.000597 $    1,136.71
+   WL-02    40   0.002167   0.002926   0.000759 $    1,083.70
+   WL-03    50   0.004680   0.006319   0.001638 $    1,560.15
+   WL-04    55   0.007051   0.009519   0.002468 $    1,175.17
+   TM-05    35   0.001705   0.002302   0.000597 $    1,705.07
+   TM-06    50   0.004680   0.006319   0.001638 $    3,120.29
+   TM-07    53   0.006153   0.008306   0.002153 $    2,050.87
+   EN-08    38   0.001851   0.002499   0.000648 $      925.50
+   EN-09    45   0.002999   0.004049   0.001050 $      999.64
+
+7. LIFE UNDERWRITING AGGREGATION
+--------------------------------------------------
+  Correlation matrix (Solvency II Article 136):
+                    Mort       Long        Cat
+        Mort      1.00     -0.25      0.25
+        Long     -0.25      1.00      0.00
+         Cat      0.25      0.00      1.00
+
+  Individual SCR components:
+    SCR_mortality:       $     23,718.84
+    SCR_longevity:       $    252,334.18
+    SCR_catastrophe:     $     13,757.11
+    Sum (undiversified): $    289,810.13
+
+  Aggregated SCR_life:   $    248,183.39
+  Diversification:       $     41,626.74
+  Diversification pct:            14.4%
+
+8. TOTAL SCR AGGREGATION (Life + Market)
+--------------------------------------------------
+  SCR_life:              $    248,183.39
+  SCR_ir (market):       $    453,389.71
+  Correlation rho:                 0.25
+  Sum (undiversified):   $    701,573.10
+
+  SCR_total:             $    568,699.50
+  Diversification:       $    132,873.60
+
+9. RISK MARGIN (Margen de Riesgo)
+--------------------------------------------------
+  Cost-of-Capital rate:  6%
+  Portfolio duration:    15 years
+  Discount rate:         5.0%
+  Annuity factor:        10.3797
+  SCR_total:             $    568,699.50
+
+  Risk Margin (MdR):     $    354,174.38
+  Formula: MdR = CoC x SCR x annuity_factor
+           = 0.06 x 568,699 x 10.3797
+
+10. TECHNICAL PROVISIONS (Reservas Tecnicas)
+--------------------------------------------------
+  BEL (Mejor Estimacion):    $  5,160,168.15
+  Risk Margin (MdR):         $    354,174.38
+  ----------------------------------------
+  Technical Provisions (TP):  $  5,514,342.53
+
+11. SOLVENCY RATIO AT MULTIPLE CAPITAL LEVELS
+--------------------------------------------------
+  SCR_total: $    568,699.50
+
+       Capital (MXN)    Ratio       Status
+  ------------------ -------- ------------
+  $       1,000,000   175.8%       STRONG
+  $       2,000,000   351.7%       STRONG
+  $       3,000,000   527.5%       STRONG
+  $       5,000,000   879.2%       STRONG
+  $      10,000,000  1758.4%       STRONG
+
+  CNSF minimum: 100% (Indice de Solvencia >= 1.0)
+  Best practice: 150-200%
+
+12. SCR DECOMPOSITION SUMMARY
+--------------------------------------------------
+               Component            SCR   % of Total    % Undiv
+  ---------------------- -------------- ------------ ----------
+          Mortality risk $   23,718.84         4.2%       3.2%
+          Longevity risk $  252,334.18        44.4%      34.0%
+        Catastrophe risk $   13,757.11         2.4%       1.9%
+      Interest rate risk $  453,389.71        79.7%      61.0%
+  ---------------------- --------------
+     Sum (undiversified) $  743,199.84
+        Life aggregation $  248,183.39
+               Total SCR $  568,699.50
+   Diversification saved $  174,500.34
+
+INTERPRETATION
+--------------------------------------------------
+  Largest risk component: Interest rate risk ($453,390)
+
+  Key observations:
+  1. Interest rate risk is typically the LARGEST component because it
+     affects ALL products (every discounted cash flow changes).
+  2. Mortality and longevity risks offset partially (rho = -0.25),
+     creating a 14.4% diversification benefit in the life module.
+  3. The catastrophe module uses COVID-calibrated shocks (+35%),
+     which is specific to the Mexican mortality experience.
+  4. Technical provisions = BEL + MdR ensures the insurer can
+     transfer the portfolio to a third party if needed.
+  5. The diversification benefit rewards insurers for writing
+     BOTH death products and annuities (natural hedge).
