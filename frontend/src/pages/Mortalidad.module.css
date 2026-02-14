@@ -1,0 +1,71 @@
+/* === Mortalidad Page === */
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+
+.section {
+  padding: 32px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.sectionTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.errorText {
+  color: #C41E3A;
+}
+
+.validationSection {
+  padding: 32px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.narrative {
+  color: #424242;
+  max-width: 720px;
+  line-height: 1.75;
+  margin: 0 0 24px 0;
+}
+
+.validationTabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.validationTab {
+  padding: 8px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9E9E9E;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.validationTabActive {
+  border-bottom-color: #C41E3A;
+  color: #000;
+}
+
+@media (max-width: 900px) {
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}

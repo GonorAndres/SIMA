@@ -1,0 +1,80 @@
+/* === Methodology Page: Swiss Design Storytelling === */
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px;
+}
+
+.header {
+  margin-bottom: 64px;
+}
+
+.headerTitle {
+  font-size: 2.441rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.headerSubtitle {
+  color: #9E9E9E;
+  font-size: 1rem;
+  margin-top: 8px;
+}
+
+/* --- Individual methodology section --- */
+.section {
+  padding: 48px 0;
+  border-bottom: 1px solid #E0E0E0;
+  position: relative;
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionNumber {
+  font-size: 6rem;
+  font-weight: 700;
+  color: #F0F0F0;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-family: "JetBrains Mono", monospace;
+  user-select: none;
+}
+
+.sectionTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 24px 0;
+}
+
+.narrative {
+  color: #424242;
+  max-width: 720px;
+  line-height: 1.75;
+  font-size: 1rem;
+  margin: 0 0 24px 0;
+}
+
+.highlight {
+  color: #C41E3A;
+  font-weight: 500;
+}
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.formulaContainer {
+  margin: 24px 0;
+}
+
+.linkRow {
+  margin-top: 16px;
+}

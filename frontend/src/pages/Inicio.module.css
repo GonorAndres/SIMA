@@ -1,0 +1,131 @@
+/* === Inicio (Landing) Page === */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+  margin-bottom: 48px;
+}
+
+.heroLeft {
+  padding-right: 24px;
+}
+
+.projectTitle {
+  font-size: 2.441rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  line-height: 1.2;
+}
+
+.projectDesc {
+  color: #424242;
+  font-size: 1rem;
+  line-height: 1.75;
+  margin: 0 0 32px 0;
+  max-width: 540px;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.statItem {
+  padding: 16px;
+  border: 1px solid #E0E0E0;
+}
+
+.statNumber {
+  font-size: 1.953rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  color: #000;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9E9E9E;
+  font-weight: 500;
+}
+
+.heroRight {
+  border-left: 2px solid #E0E0E0;
+  padding-left: 48px;
+}
+
+.liveLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #C41E3A;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.sectionBlock {
+  padding: 48px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.sectionTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.sectionDesc {
+  color: #424242;
+  max-width: 720px;
+  line-height: 1.65;
+  margin: 0 0 16px 0;
+}
+
+.covidTeaser {
+  padding: 32px 0 32px 24px;
+  border-left: 3px solid #C41E3A;
+  margin: 48px 0;
+}
+
+.covidTeaserTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.covidTeaserDesc {
+  color: #424242;
+  max-width: 720px;
+  line-height: 1.65;
+  margin: 0 0 16px 0;
+}
+
+.covidTeaserMetrics {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroRight {
+    border-left: none;
+    border-top: 2px solid #E0E0E0;
+    padding-left: 0;
+    padding-top: 32px;
+  }
+
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+}

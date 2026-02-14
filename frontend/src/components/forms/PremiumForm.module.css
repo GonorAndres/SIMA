@@ -1,0 +1,73 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #9E9E9E;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.input {
+  padding: 10px 12px;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  font-size: 0.875rem;
+  font-family: "JetBrains Mono", monospace;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus {
+  border-color: #000;
+}
+
+.select {
+  padding: 10px 12px;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  font-size: 0.875rem;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.select:focus {
+  border-color: #000;
+}
+
+.submitBtn {
+  padding: 12px 24px;
+  background-color: #C41E3A;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  margin-top: 8px;
+}
+
+.submitBtn:hover {
+  background-color: #a3182f;
+}
+
+.submitBtn:disabled {
+  background-color: #E0E0E0;
+  cursor: not-allowed;
+}

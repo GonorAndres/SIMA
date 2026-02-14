@@ -1,0 +1,113 @@
+/* === Sensibilidad Page === */
+
+.tabRow {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid #E0E0E0;
+  margin-bottom: 32px;
+}
+
+.tab {
+  padding: 12px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9E9E9E;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.tab:hover {
+  color: #000;
+}
+
+.tabActive {
+  border-bottom-color: #C41E3A;
+  color: #000;
+}
+
+.controls {
+  max-width: 400px;
+  margin-bottom: 24px;
+}
+
+.fieldGroup {
+  margin-bottom: 16px;
+}
+
+.fieldLabel {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #9E9E9E;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.numberInput {
+  padding: 10px 12px;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.875rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.numberInput:focus {
+  border-color: #000;
+}
+
+.runBtn {
+  padding: 12px 24px;
+  background: #C41E3A;
+  color: #fff;
+  border: none;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.runBtn:hover {
+  background-color: #a3182f;
+}
+
+.runBtn:disabled {
+  background-color: #E0E0E0;
+  cursor: not-allowed;
+}
+
+.section {
+  margin-top: 32px;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.narrative {
+  color: #424242;
+  max-width: 720px;
+  line-height: 1.75;
+  font-size: 1rem;
+  margin: 0 0 24px 0;
+  text-align: justify;
+}

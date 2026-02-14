@@ -1,0 +1,119 @@
+/* === Swiss Design Utility Classes === */
+
+.uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.label {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: #9E9E9E;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.mono {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+}
+
+.section {
+  padding: 48px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.sectionTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.btnPrimary {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #C41E3A;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btnPrimary:hover {
+  background-color: #a3182f;
+}
+
+.btnSecondary {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: transparent;
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.btnSecondary:hover {
+  border-color: #000;
+}
+
+.card {
+  padding: 24px;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  background: #fff;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #E0E0E0;
+  margin: 24px 0;
+}
+
+.textRight {
+  text-align: right;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.flexRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.flexBetween {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}

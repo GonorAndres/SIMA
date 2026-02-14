@@ -1,0 +1,110 @@
+/* === SCR Page === */
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.section {
+  padding: 32px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.sectionTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.portfolioHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.splitLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.computeCenter {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.computeBtn {
+  padding: 16px 48px;
+  background: #C41E3A;
+  color: #fff;
+  border: none;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.computeBtn:hover {
+  background-color: #a3182f;
+}
+
+.computeBtn:disabled {
+  background-color: #E0E0E0;
+  cursor: not-allowed;
+}
+
+.resetBtn {
+  padding: 8px 16px;
+  background: transparent;
+  color: #9E9E9E;
+  border: 1px solid #E0E0E0;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.resetBtn:hover {
+  border-color: #000;
+  color: #000;
+}
+
+.addPolicyToggle {
+  padding: 8px 16px;
+  background: transparent;
+  color: #C41E3A;
+  border: 1px solid #C41E3A;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.addPolicyToggle:hover {
+  background-color: #F5E6E8;
+}
+
+.btnRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .splitLayout {
+    grid-template-columns: 1fr;
+  }
+}
