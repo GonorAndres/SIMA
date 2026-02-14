@@ -1,3 +1,39 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(wc:*)",
+      "Bash(git -C /home/andtega349/SIMA log --oneline)",
+      "Bash(./venv/bin/python -m pytest:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(pip3 list:*)",
+      "Bash(conda list:*)",
+      "WebSearch",
+      "Bash(venv/bin/python3:*)",
+      "Bash(/home/andtega349/SIMA/venv/bin/python:*)",
+      "Bash(ls:*)",
+      "Bash(venv/bin/python:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(npm create vite@latest:*)",
+      "Bash(apt list:*)",
+      "Bash(curl:*)",
+      "Bash(sudo -E bash -)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout 8 python:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(npx vite build)",
+      "Bash(echo:*)",
+      "Bash(/home/andtega349/SIMA/venv/bin/pip list:*)",
+      "Bash(/home/andtega349/SIMA/venv/bin/uvicorn:*)",
+      "Bash(npx vite:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  },
   "outputStyle": "Explanatory"
 }

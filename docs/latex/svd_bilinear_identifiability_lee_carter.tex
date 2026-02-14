@@ -1,0 +1,554 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+% Three-box system
+\newtcolorbox{formaldef}[1][]{
+  colback=blue!5!white,
+  colframe=blue!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{intuition}[1][]{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{application}[1][]{
+  colback=orange!5!white,
+  colframe=orange!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{dimcheck}{
+  colback=gray!8!white,
+  colframe=gray!50!black,
+  fonttitle=\bfseries,
+  title={Dimension Check},
+  sharp corners,
+  boxrule=0.6pt
+}
+
+\title{\textbf{SVD, Bilinear Decomposition, and Identifiability Constraints} \\[0.5em]
+\large A Bridge Document for SIMA -- Lee-Carter Mortality Modeling}
+\author{SIMA Project}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document develops the mathematical foundations connecting Singular Value Decomposition (SVD),
+bilinear parameter estimation, and identifiability constraints, culminating in the Lee-Carter
+mortality model. Each concept is presented in three layers: formal definition (blue), geometric
+intuition (green), and actuarial application (orange). The treatment is at graduate level,
+emphasizing the structural reasons why SVD is the natural estimator for bilinear models and
+why constraints are mathematically necessary for unique parameterization.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Notation and Conventions}
+% ============================================================
+
+\begin{tabular}{@{} l l l @{}}
+\toprule
+\textbf{Symbol} & \textbf{Space} & \textbf{Meaning} \\
+\midrule
+$\bm{A} \in \mathbb{R}^{m \times n}$ & matrix & Arbitrary real matrix \\
+$\bm{Z} \in \mathbb{R}^{A \times T}$ & matrix & Lee-Carter residual matrix \\
+$\bm{U} \in \mathbb{R}^{m \times m}$ & orthogonal & Left singular vectors \\
+$\bm{V} \in \mathbb{R}^{n \times n}$ & orthogonal & Right singular vectors \\
+$\bm{\Sigma} \in \mathbb{R}^{m \times n}$ & diagonal & Singular values $\sigma_1 \geq \sigma_2 \geq \cdots \geq 0$ \\
+$\bm{u}_i \in \mathbb{R}^{m}$ & column of $\bm{U}$ & $i$-th left singular vector \\
+$\bm{v}_i \in \mathbb{R}^{n}$ & column of $\bm{V}$ & $i$-th right singular vector \\
+$\sigma_i$ & scalar $\geq 0$ & $i$-th singular value \\
+$\|\cdot\|_F$ & norm & Frobenius norm: $\|\bm{A}\|_F = \sqrt{\sum_{ij} a_{ij}^2}$ \\
+$\|\cdot\|_2$ & norm & Spectral (operator) norm: $\|\bm{A}\|_2 = \sigma_1(\bm{A})$ \\
+$\mathrm{rank}(\bm{A})$ & integer & Number of nonzero singular values \\
+$m_{x,t}$ & scalar $> 0$ & Central death rate, age $x$, year $t$ \\
+$a_x, b_x, k_t$ & scalars & Lee-Carter parameters \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+Convention: boldface lowercase for vectors ($\bm{u}$), boldface uppercase for matrices ($\bm{A}$),
+italic for scalars ($\sigma$). Ages indexed by $x \in \{x_1, \ldots, x_A\}$,
+years by $t \in \{t_1, \ldots, t_T\}$.
+
+% ============================================================
+\section{Bilinear Forms and the Parameter Product Problem}
+% ============================================================
+
+\begin{formaldef}[Definition: Bilinear Parametric Model]
+A \emph{bilinear parametric model} for a data matrix $\bm{Z} \in \mathbb{R}^{m \times n}$ is a model of the form:
+\[
+Z_{ij} = \sum_{r=1}^{R} \beta_i^{(r)} \, \gamma_j^{(r)} + \varepsilon_{ij}
+\]
+where $\bm{\beta}^{(r)} \in \mathbb{R}^m$ and $\bm{\gamma}^{(r)} \in \mathbb{R}^n$ are unknown parameter vectors,
+$R$ is the number of factors, and $\varepsilon_{ij}$ is noise.
+
+In matrix form:
+\[
+\bm{Z} = \bm{B} \bm{G}^\top + \bm{E}
+\]
+where $\bm{B} = [\bm{\beta}^{(1)} \cdots \bm{\beta}^{(R)}] \in \mathbb{R}^{m \times R}$
+and $\bm{G} = [\bm{\gamma}^{(1)} \cdots \bm{\gamma}^{(R)}] \in \mathbb{R}^{n \times R}$.
+\end{formaldef}
+
+\begin{intuition}[Why ``Bilinear''?]
+The model is \emph{linear in each factor separately}, but the factors enter as a product.
+
+Fix $\bm{\gamma}$: the model $Z_{ij} = \beta_i \gamma_j$ is linear in $\beta_i$.
+Fix $\bm{\beta}$: the model is linear in $\gamma_j$.
+Together: \emph{bilinear} --- linear in each, nonlinear jointly.
+
+This is why OLS fails. Ordinary least squares assumes $\bm{y} = \bm{X}\bm{\beta}$ where
+$\bm{X}$ is known. Here both $\bm{B}$ and $\bm{G}$ are unknown. The ``design matrix''
+is itself a parameter. There is no closed-form normal equation.
+\end{intuition}
+
+\begin{application}[Lee-Carter as a Rank-1 Bilinear Model]
+The Lee-Carter model:
+\[
+\ln(m_{x,t}) = a_x + b_x \, k_t + \varepsilon_{x,t}
+\]
+After centering (subtracting $a_x = \bar{y}_x$), the residual satisfies:
+\[
+Z_{x,t} = b_x \, k_t + \varepsilon_{x,t}
+\]
+This is a bilinear model with $R = 1$, $\bm{\beta} = \bm{b} = (b_{x_1}, \ldots, b_{x_A})^\top$,
+$\bm{\gamma} = \bm{k} = (k_{t_1}, \ldots, k_{t_T})^\top$.
+
+In matrix form: $\bm{Z} \approx \bm{b}\,\bm{k}^\top$, a rank-1 outer product.
+\end{application}
+
+\subsection{The Fundamental Indeterminacy of Bilinear Products}
+
+\begin{formaldef}[Proposition: Scale Indeterminacy]
+Let $\bm{Z} = \bm{b}\,\bm{k}^\top$. For any $c \neq 0$, define $\bm{b}^* = c\,\bm{b}$ and
+$\bm{k}^* = \bm{k}/c$. Then:
+\[
+\bm{b}^* (\bm{k}^*)^\top = c\,\bm{b} \cdot \frac{\bm{k}^\top}{c} = \bm{b}\,\bm{k}^\top = \bm{Z}
+\]
+The factorization is invariant under reciprocal scaling. The data cannot distinguish
+$(\bm{b}, \bm{k})$ from $(c\,\bm{b}, \bm{k}/c)$ for any $c \neq 0$.
+\end{formaldef}
+
+\begin{formaldef}[Proposition: Location Indeterminacy in Lee-Carter]
+In the uncentered model $\ln(m_{x,t}) = a_x + b_x k_t$, define for any constant $d$:
+\[
+a_x^* = a_x + d \cdot b_x, \qquad k_t^* = k_t - d
+\]
+Then:
+\[
+a_x^* + b_x \, k_t^* = (a_x + d\,b_x) + b_x(k_t - d) = a_x + b_x\,k_t
+\]
+The constant $d$ shifts freely between $a_x$ and $k_t$ without changing the model output.
+\end{formaldef}
+
+\begin{intuition}[Geometric Picture of Indeterminacy]
+A rank-1 matrix $\bm{b}\,\bm{k}^\top$ defines a \emph{line} in parameter space, not a point.
+The line passes through the origin in $(\bm{b}, \bm{k})$-space, parameterized by $c$.
+
+Every point on the line produces the same matrix $\bm{Z}$. Without a constraint to pick
+one point on the line, the solution is a one-dimensional family, not unique.
+
+Scale indeterminacy: a line through the origin (choose magnitude).
+Location indeterminacy: a plane (choose where $a_x$ ends and $k_t$ begins).
+Together: a two-parameter family of equivalent solutions.
+\end{intuition}
+
+% ============================================================
+\section{Singular Value Decomposition}
+% ============================================================
+
+\begin{formaldef}[Theorem: Existence of SVD]
+For any $\bm{A} \in \mathbb{R}^{m \times n}$ with $r = \mathrm{rank}(\bm{A})$, there exist:
+\begin{itemize}[nosep]
+  \item An orthogonal matrix $\bm{U} \in \mathbb{R}^{m \times m}$ (columns $\bm{u}_1, \ldots, \bm{u}_m$)
+  \item An orthogonal matrix $\bm{V} \in \mathbb{R}^{n \times n}$ (columns $\bm{v}_1, \ldots, \bm{v}_n$)
+  \item Singular values $\sigma_1 \geq \sigma_2 \geq \cdots \geq \sigma_r > 0 = \sigma_{r+1} = \cdots$
+\end{itemize}
+such that:
+\[
+\bm{A} = \bm{U}\bm{\Sigma}\bm{V}^\top = \sum_{i=1}^{r} \sigma_i \, \bm{u}_i \, \bm{v}_i^\top
+\]
+The outer product form shows $\bm{A}$ as a sum of $r$ rank-1 matrices, each weighted by $\sigma_i$.
+\end{formaldef}
+
+\begin{dimcheck}
+\[
+\underbrace{\bm{A}}_{m \times n} = \underbrace{\bm{U}}_{m \times m} \; \underbrace{\bm{\Sigma}}_{m \times n} \; \underbrace{\bm{V}^\top}_{n \times n}
+\]
+Outer product form: each $\bm{u}_i \bm{v}_i^\top$ is $(m \times 1)(1 \times n) = m \times n$.
+
+In Lee-Carter: $m = A$ (number of ages), $n = T$ (number of years).
+\[
+\underbrace{\bm{Z}}_{A \times T} = \sum_{i=1}^{r} \sigma_i \; \underbrace{\bm{u}_i}_{A \times 1} \; \underbrace{\bm{v}_i^\top}_{1 \times T}
+\]
+\end{dimcheck}
+
+\begin{intuition}[SVD as Sequential Best Rank-1 Extraction]
+Think of SVD as a greedy algorithm for pattern extraction:
+
+\textbf{Round 1:} Find the single rank-1 matrix $\sigma_1 \bm{u}_1 \bm{v}_1^\top$ that captures
+the maximum possible variance (Frobenius norm) of $\bm{A}$. Subtract it from $\bm{A}$.
+
+\textbf{Round 2:} From the residual, find the next best rank-1 matrix $\sigma_2 \bm{u}_2 \bm{v}_2^\top$,
+constrained to be orthogonal to the first. Subtract.
+
+\textbf{Round $i$:} Continue until the residual is zero ($i = r$) or negligible.
+
+Each $\sigma_i$ measures ``how much pattern'' was extracted in round $i$.
+If $\sigma_1 \gg \sigma_2$, the first round captured almost everything.
+\end{intuition}
+
+\subsection{The Eckart-Young-Mirsky Theorem}
+
+\begin{formaldef}[Theorem: Eckart-Young-Mirsky (1936)]
+Let $\bm{A} \in \mathbb{R}^{m \times n}$ with SVD $\bm{A} = \sum_{i=1}^{r} \sigma_i \bm{u}_i \bm{v}_i^\top$.
+Define the rank-$k$ truncation:
+\[
+\bm{A}_k = \sum_{i=1}^{k} \sigma_i \, \bm{u}_i \, \bm{v}_i^\top, \qquad k \leq r
+\]
+Then for any matrix $\bm{B}$ with $\mathrm{rank}(\bm{B}) \leq k$:
+\[
+\|\bm{A} - \bm{A}_k\|_F \leq \|\bm{A} - \bm{B}\|_F
+\]
+with equality if and only if $\bm{B} = \bm{A}_k$ (up to components in the null space of the truncation).
+
+The approximation error is:
+\[
+\|\bm{A} - \bm{A}_k\|_F = \sqrt{\sigma_{k+1}^2 + \sigma_{k+2}^2 + \cdots + \sigma_r^2}
+\]
+\end{formaldef}
+
+\begin{formaldef}[Proof Sketch (Frobenius norm)]
+Since $\bm{U}$ and $\bm{V}$ are orthogonal, the Frobenius norm is invariant under orthogonal transformation:
+\[
+\|\bm{A} - \bm{B}\|_F^2 = \|\bm{U}^\top(\bm{A} - \bm{B})\bm{V}\|_F^2 = \|\bm{\Sigma} - \bm{U}^\top\bm{B}\bm{V}\|_F^2
+\]
+Let $\bm{C} = \bm{U}^\top \bm{B} \bm{V}$. Since $\mathrm{rank}(\bm{C}) = \mathrm{rank}(\bm{B}) \leq k$, at least
+$r - k$ diagonal entries of $\bm{\Sigma}$ cannot be matched by $\bm{C}$. The minimum of
+$\sum_{i} (\sigma_i - C_{ii})^2 + \sum_{i \neq j} C_{ij}^2$ is achieved by setting
+$C_{ii} = \sigma_i$ for $i \leq k$ and $C_{ij} = 0$ otherwise, giving the truncated SVD.
+\end{formaldef}
+
+\begin{intuition}[Eckart-Young: Optimality Guarantee]
+Eckart-Young says: ``You cannot do better than SVD truncation for low-rank approximation.''
+
+It is not merely \emph{a} solution. It is \emph{the} optimal solution.
+
+For $k = 1$ (Lee-Carter): among all possible outer products $\bm{b}\bm{k}^\top$, the one that
+minimizes $\|\bm{Z} - \bm{b}\bm{k}^\top\|_F^2$ is exactly $\sigma_1 \bm{u}_1 \bm{v}_1^\top$.
+
+The proportion of variance explained:
+\[
+\rho = \frac{\sigma_1^2}{\sum_{i=1}^{r} \sigma_i^2} = 1 - \frac{\|\bm{Z} - \bm{A}_1\|_F^2}{\|\bm{Z}\|_F^2}
+\]
+When $\rho \geq 0.90$, retaining one factor is strongly justified.
+\end{intuition}
+
+\begin{application}[Lee-Carter: Rank-1 Optimality]
+For the Lee-Carter residual matrix $\bm{Z}$ (ages $\times$ years):
+\[
+\min_{\bm{b}, \bm{k}} \sum_{x,t} \left(Z_{x,t} - b_x k_t\right)^2 \quad \Longleftrightarrow \quad \min_{\mathrm{rank}(\bm{M})=1} \|\bm{Z} - \bm{M}\|_F^2
+\]
+The solution is $\bm{M}^* = \sigma_1 \bm{u}_1 \bm{v}_1^\top$, and we set:
+\begin{align*}
+b_x^{\text{raw}} &= u_{1,x} \quad \text{(first left singular vector, age component)} \\
+k_t^{\text{raw}} &= \sigma_1 \cdot v_{1,t} \quad \text{(scaled first right singular vector, time component)}
+\end{align*}
+This is the least-squares bilinear estimator. SVD is not an ad hoc choice ---
+it is the unique solution to the optimization problem.
+\end{application}
+
+% ============================================================
+\section{Identifiability Constraints}
+% ============================================================
+
+\begin{formaldef}[Definition: Identifiability]
+A parametric model $f(\bm{\theta})$ is \emph{identifiable} if distinct parameter values produce
+distinct model outputs:
+\[
+f(\bm{\theta}_1) = f(\bm{\theta}_2) \implies \bm{\theta}_1 = \bm{\theta}_2
+\]
+A model that is not identifiable has an \emph{equivalence class} of parameters that all
+produce the same fit. The set of equivalent parameters forms a manifold in parameter space.
+\end{formaldef}
+
+\begin{formaldef}[Theorem: Lee-Carter Indeterminacy is Two-Dimensional]
+The Lee-Carter model $\ln(m_{x,t}) = a_x + b_x k_t$ has a two-parameter family of equivalent
+solutions. Given any solution $(a_x, b_x, k_t)$, the full equivalence class is:
+\[
+\mathcal{E} = \left\{ (a_x + d \cdot c \, b_x, \; c \, b_x, \; k_t/c - d) \;\middle|\; c \neq 0, \; d \in \mathbb{R} \right\}
+\]
+\textbf{Proof.} Substituting:
+\begin{align*}
+a_x^* + b_x^* k_t^* &= (a_x + dc\,b_x) + (c\,b_x)(k_t/c - d) \\
+&= a_x + dc\,b_x + b_x k_t - dc\,b_x \\
+&= a_x + b_x k_t
+\end{align*}
+The parameter $c$ controls scale (rescaling $\bm{b}$ and $\bm{k}$ inversely).
+The parameter $d$ controls location (shifting between $\bm{a}$ and $\bm{k}$).
+Two free parameters, hence a two-dimensional equivalence class.
+\end{formaldef}
+
+\begin{formaldef}[Lee-Carter Normalization Constraints]
+To select a unique representative from $\mathcal{E}$, impose:
+\begin{align}
+\sum_{x} b_x &= 1 \tag{C1: scale constraint} \\
+\sum_{t} k_t &= 0 \tag{C2: location constraint}
+\end{align}
+\textbf{C1} fixes $c$: if $\sum_x b_x^{\text{raw}} = s$, then $c = 1/s$ gives $\sum_x c\,b_x^{\text{raw}} = 1$.
+
+\textbf{C2} fixes $d$: if $\bar{k} = \frac{1}{T}\sum_t k_t$, then $d = \bar{k}$ gives $\sum_t (k_t - d) = 0$, with compensation $a_x \mapsto a_x + b_x \bar{k}$.
+
+Two constraints for two degrees of freedom yields a unique solution.
+\end{formaldef}
+
+\begin{intuition}[Constraints as Coordinate Choices]
+Think of the equivalence class as an infinite line of equivalent parameter sets.
+Each constraint slices away one degree of freedom:
+
+$\sum b_x = 1$ chooses a specific ``length'' for $\bm{b}$, pinning a point on the scale axis.
+
+$\sum k_t = 0$ chooses a specific ``origin'' for the time index, pinning a point on the location axis.
+
+Together they select exactly one point from the two-dimensional equivalence manifold.
+
+The choice is conventional, not unique. Alternative valid constraints exist
+(e.g., $\sum b_x^2 = 1$, or $k_{t_1} = 0$). Different constraints give different parameter
+values but identical model output. The Lee-Carter convention ($\sum b_x = 1$, $\sum k_t = 0$)
+is chosen for interpretability: $b_x$ become proportions and $a_x$ become true time-averages.
+\end{intuition}
+
+\begin{application}[Implementation: Constraint Enforcement]
+After SVD gives raw estimates:
+\begin{enumerate}[nosep]
+\item $b_x^{\text{raw}} = u_{1,x}$, \quad $k_t^{\text{raw}} = \sigma_1 \cdot v_{1,t}$
+\item $s = \sum_x b_x^{\text{raw}}$
+\item $b_x = b_x^{\text{raw}} / s$, \quad $k_t = k_t^{\text{raw}} \cdot s$ \hfill (C1 enforced)
+\item $\bar{k} = \frac{1}{T}\sum_t k_t$
+\item $k_t \leftarrow k_t - \bar{k}$, \quad $a_x \leftarrow a_x + b_x \cdot \bar{k}$ \hfill (C2 enforced)
+\end{enumerate}
+Note: step 5 modifies $a_x$. After this, $a_x$ is no longer the simple row mean of $\ln(m_{x,t})$
+--- it has absorbed the mean level of $k_t$.
+\end{application}
+
+% ============================================================
+\section{Variance Decomposition and the One-Factor Justification}
+% ============================================================
+
+\begin{formaldef}[Variance Partition via Singular Values]
+The total variance (sum of squared entries) of the residual matrix $\bm{Z}$ satisfies:
+\[
+\|\bm{Z}\|_F^2 = \sum_{i=1}^{r} \sigma_i^2
+\]
+The proportion attributed to factor $i$ is:
+\[
+\rho_i = \frac{\sigma_i^2}{\sum_{j=1}^{r} \sigma_j^2}
+\]
+For Lee-Carter, one retains only factor 1. The unexplained proportion is $1 - \rho_1 = \sum_{i \geq 2} \rho_i$.
+\end{formaldef}
+
+\begin{intuition}[Why Does One Factor Suffice for Mortality?]
+Mortality improvement across ages is driven by shared macro-level forces:
+advances in medicine, sanitation, nutrition, public health infrastructure.
+
+If each age improved independently (age 40 from antibiotics, age 70 from cardiac surgery,
+with no correlation), the residual matrix would have several large singular values.
+No single factor would dominate.
+
+But empirically, $\rho_1 \geq 0.90$ for virtually all national populations. This reflects a
+biological and sociological reality: the forces that reduce mortality are broad, systemic,
+and correlated across ages. One underlying process drives most of the change.
+
+When this assumption breaks (HIV epidemic affecting ages 20--40 disproportionately,
+or infant mortality declining while elderly mortality stagnates), extended models with
+$R = 2$ or more factors (Renshaw-Haberman, Cairns-Blake-Dowd) become necessary.
+\end{intuition}
+
+% ============================================================
+\section{From SVD to the Full Lee-Carter Procedure}
+% ============================================================
+
+\begin{application}[Complete Estimation Pipeline]
+\textbf{Input:} Matrix $\bm{M} \in \mathbb{R}^{A \times T}$ of observed central death rates $m_{x,t} > 0$.
+
+\begin{enumerate}[nosep]
+\item \textbf{Log transform:} $Y_{x,t} = \ln(m_{x,t})$
+\item \textbf{Estimate} $\hat{a}_x$: $\hat{a}_x = \frac{1}{T}\sum_{t=1}^{T} Y_{x,t}$
+\item \textbf{Compute residuals:} $Z_{x,t} = Y_{x,t} - \hat{a}_x$
+\item \textbf{SVD:} $\bm{Z} = \bm{U}\bm{\Sigma}\bm{V}^\top$
+\item \textbf{Extract rank-1:} $b_x^{\text{raw}} = u_{1,x}$, \; $k_t^{\text{raw}} = \sigma_1 \cdot v_{1,t}$
+\item \textbf{Normalize:} enforce $\sum b_x = 1$, $\sum k_t = 0$ (adjust $a_x$)
+\item \textbf{Re-estimate $k_t$} (optional but recommended): solve
+\[
+\sum_x d_{x,t} = \sum_x L_{x,t} \cdot \exp(\hat{a}_x + \hat{b}_x \, k_t)
+\]
+for each $t$, so that total predicted deaths match observed deaths.
+\item \textbf{Forecast $k_t$}: fit ARIMA (typically random walk with drift) to $\{k_t\}$
+\item \textbf{Project:} $\ln(\hat{m}_{x,t^*}) = \hat{a}_x + \hat{b}_x \, \hat{k}_{t^*}$ for future $t^*$
+\item \textbf{Convert:} $\hat{q}_{x,t^*} = 1 - \exp(-\hat{m}_{x,t^*})$
+\end{enumerate}
+\end{application}
+
+\begin{dimcheck}
+Full dimension trace through the pipeline:
+\begin{align*}
+\bm{M} &\in \mathbb{R}^{A \times T}_{>0}  & \text{(raw rates)} \\
+\bm{Y} &\in \mathbb{R}^{A \times T}        & \text{(log rates)} \\
+\hat{\bm{a}} &\in \mathbb{R}^{A}           & \text{(one per age)} \\
+\bm{Z} &\in \mathbb{R}^{A \times T}        & \text{(residuals, same shape as } \bm{Y}\text{)} \\
+\bm{U} &\in \mathbb{R}^{A \times A}        & \text{(age singular vectors)} \\
+\bm{\Sigma} &\in \mathbb{R}^{A \times T}   & \text{(diagonal, } \min(A,T) \text{ values)} \\
+\bm{V} &\in \mathbb{R}^{T \times T}        & \text{(year singular vectors)} \\
+\hat{\bm{b}} &\in \mathbb{R}^{A}           & \text{(one per age, from } \bm{u}_1\text{)} \\
+\hat{\bm{k}} &\in \mathbb{R}^{T}           & \text{(one per year, from } \sigma_1 \bm{v}_1\text{)} \\
+\hat{\bm{b}} \, \hat{\bm{k}}^\top &\in \mathbb{R}^{A \times T} & \text{(rank-1 approximation of } \bm{Z}\text{)}
+\end{align*}
+\end{dimcheck}
+
+% ============================================================
+\section{The Observable: Why $m_x$, Not $q_x$}
+% ============================================================
+
+\begin{formaldef}[Definition: Central Death Rate]
+\[
+m_{x,t} = \frac{d_{x,t}}{L_{x,t}}
+\]
+where $d_{x,t}$ is the count of deaths at age $x$ in year $t$, and $L_{x,t}$ is the person-years
+of exposure at age $x$ in year $t$.
+
+Unit: deaths per person-year. Domain: $(0, +\infty)$.
+\end{formaldef}
+
+\begin{formaldef}[Conversion to Probability]
+Under the constant force of mortality assumption ($\mu_{x+s} = m_x$ for $0 \leq s < 1$):
+\[
+q_x = 1 - e^{-m_x}
+\]
+Under the Uniform Distribution of Deaths (UDD) assumption:
+\[
+q_x = \frac{m_x}{1 + \frac{1}{2} m_x}
+\]
+For $m_x < 0.1$ both yield $q_x \approx m_x$ with relative error $< 5\%$.
+\end{formaldef}
+
+\begin{intuition}[The Observation Hierarchy]
+\begin{center}
+\begin{tabular}{@{} c c c @{}}
+\toprule
+\textbf{Level} & \textbf{Quantity} & \textbf{Status} \\
+\midrule
+1 & Deaths $d_{x,t}$ and exposure $L_{x,t}$ & Raw data (certificates, census) \\
+2 & $m_{x,t} = d_{x,t} / L_{x,t}$ & Direct calculation \\
+3 & $q_{x,t} = f(m_{x,t})$ & Requires distributional assumption \\
+4 & $l_x, d_x, D_x, N_x, \ldots$ & Requires full life table construction \\
+\bottomrule
+\end{tabular}
+\end{center}
+Each level adds assumptions. Lee-Carter models at level 2: the closest to raw data
+that still produces a clean mathematical object. This minimizes modeling risk and
+maximizes connection to what is actually observed.
+\end{intuition}
+
+\begin{application}[Transformation Guarantees]
+The chain $\ln(m_x) \xrightarrow{\exp} m_x \xrightarrow{1 - e^{-(\cdot)}} q_x$ provides:
+\begin{itemize}[nosep]
+  \item $\ln(m_x) \in \mathbb{R}$: unconstrained for SVD, ARIMA, any linear method
+  \item $m_x = e^{\ln(m_x)} > 0$: positivity guaranteed
+  \item $q_x = 1 - e^{-m_x} \in (0, 1)$: valid probability guaranteed
+\end{itemize}
+No post-processing, clipping, or projection needed. The transformation chain
+is structurally safe for any output of the Lee-Carter model.
+\end{application}
+
+% ============================================================
+\section{Summary Table}
+% ============================================================
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{} p{3.2cm} p{4.5cm} p{2.5cm} p{3.5cm} @{}}
+\toprule
+\textbf{Operation} & \textbf{Mathematics} & \textbf{Dimensions} & \textbf{Purpose} \\
+\midrule
+Log transform & $Y_{x,t} = \ln(m_{x,t})$ & $A \times T$ & Unconstrained space \\
+Row centering & $Z_{x,t} = Y_{x,t} - \bar{Y}_x$ & $A \times T$ & Extract $a_x$, isolate trend \\
+SVD & $\bm{Z} = \bm{U}\bm{\Sigma}\bm{V}^\top$ & $A\!\times\!A$, diag, $T\!\times\!T$ & Optimal decomposition \\
+Rank-1 truncation & $\bm{Z} \approx \sigma_1 \bm{u}_1 \bm{v}_1^\top$ & $A \times T$ & Single-factor approx. \\
+Extract $b_x$ & $b_x = u_{1,x} / \sum u_{1,x}$ & $A \times 1$ & Age sensitivity \\
+Extract $k_t$ & $k_t = \sigma_1 v_{1,t} \cdot \sum u_{1,x}$ & $1 \times T$ & Time index \\
+Normalize & $\sum b_x = 1$, $\sum k_t = 0$ & --- & Unique identification \\
+Forecast $k_t$ & $k_{t+1} = k_t + \delta + \varepsilon$ & scalar series & Project mortality \\
+Back-transform & $m_x = e^{a_x + b_x k_t}$ & $A \times T$ & Recover rates \\
+Convert & $q_x = 1 - e^{-m_x}$ & $A \times T$ & Probability for life table \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Key Identities and Properties}
+% ============================================================
+
+\begin{enumerate}[nosep]
+\item \textbf{SVD existence:} Every real matrix has an SVD (not unique if singular values coincide).
+\item \textbf{Eckart-Young:} $\bm{A}_k = \arg\min_{\mathrm{rank}(\bm{B}) \leq k} \|\bm{A} - \bm{B}\|_F$.
+\item \textbf{Frobenius norm via singular values:} $\|\bm{A}\|_F^2 = \sum \sigma_i^2$.
+\item \textbf{Orthogonal invariance:} $\|\bm{Q}\bm{A}\bm{R}\|_F = \|\bm{A}\|_F$ for orthogonal $\bm{Q}, \bm{R}$.
+\item \textbf{Bilinear indeterminacy:} $\bm{b}\bm{k}^\top = (c\bm{b})(\bm{k}/c)^\top$ for all $c \neq 0$.
+\item \textbf{Constraint count = indeterminacy dimension:} 2 constraints for 2 free parameters.
+\item \textbf{Positivity guarantee:} $\exp(\cdot): \mathbb{R} \to \mathbb{R}_{>0}$ and $1 - e^{-x}: \mathbb{R}_{>0} \to (0,1)$.
+\end{enumerate}
+
+% ============================================================
+\section{What This Document Does Not Cover (Yet)}
+% ============================================================
+
+\begin{itemize}[nosep]
+\item \textbf{$k_t$ re-estimation:} Newton-Raphson adjustment to match observed death counts (Section~5 step~7).
+\item \textbf{ARIMA forecasting of $k_t$:} random walk with drift, confidence intervals, fan charts.
+\item \textbf{Poisson GLM alternative:} maximum likelihood estimation under Poisson death counts
+      (Brouhns, Denuit, Vermunt, 2002), which relaxes the equal-variance assumption of SVD.
+\item \textbf{Multi-factor extensions:} Renshaw-Haberman (cohort effect), CBD (logit of $q_x$),
+      Age-Period-Cohort models.
+\item \textbf{Whittaker-Henderson graduation:} smoothing raw $m_x$ before Lee-Carter estimation.
+\item \textbf{Mexican regulatory context:} CNSF/LISF requirements for mortality projection.
+\end{itemize}
+
+\end{document}

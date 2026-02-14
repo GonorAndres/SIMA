@@ -1,0 +1,460 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- Packages ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+% --- Three-Box System ---
+\newtcolorbox{formaldef}[1][]{
+  colback=blue!5!white,
+  colframe=blue!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{intuition}[1][]{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{application}[1][]{
+  colback=orange!5!white,
+  colframe=orange!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt
+}
+
+% --- Custom commands ---
+\newcommand{\mx}{m_{x,t}}
+\newcommand{\ax}{a_x}
+\newcommand{\bx}{b_x}
+\newcommand{\kt}{k_t}
+
+% =====================================================================
+\begin{document}
+
+\title{\textbf{Why Our Model Couldn't Count Deaths} \\[0.5em]
+\large Graduation, Negative $\bx$, and the Re-estimation Paradox \\[0.3em]
+\normalsize An Intuitive Guide}
+\author{SIMA -- Sistema Integral de Modelaci\'{o}n Actuarial}
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+When we applied Lee-Carter to real Mexican mortality data, the standard
+re-estimation step failed. This short document explains \emph{why} it failed
+using pictures and analogies first, with the math as supporting evidence.
+The core story: smoothing mortality rates (graduation) creates a world
+where death counts no longer add up, and a few ``rebel'' ages make
+the problem unsolvable.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{The Setup: Two Steps That Don't Mix}
+% =====================================================================
+
+Our pipeline has two key steps, each sensible on its own but
+incompatible when combined.
+
+\begin{intuition}[Analogy: The Photo and the Census]
+Imagine you take a blurry photo of a crowd and use Photoshop to
+sharpen it (graduation). Now the faces look cleaner. But if someone
+asks ``How many people are in the photo?''\ and you count the sharpened
+faces, you get 427. The original blurry photo had 472 faces---some were
+hidden behind blur that sharpening removed, and some overlapping faces
+got merged.
+
+\medskip
+\textbf{Sharpening changed the picture but not reality.} The real
+headcount is still 472. Your sharpened model says 427.
+
+\medskip
+This is exactly what happens: graduation smooths mortality rates
+(sharpens the picture), but the real death count stays the same.
+Re-estimation tries to force the sharpened picture to match the
+real headcount---and can't.
+\end{intuition}
+
+\begin{formaldef}[The Two Steps]
+\textbf{Step 1 -- Graduation} (Whittaker-Henderson): Smooth raw rates
+$m_{x,t}^{\text{raw}}$ across ages to get $m_{x,t}^{\text{grad}}$.
+Minimizes roughness while staying close to data.
+
+\medskip
+\textbf{Step 2 -- Re-estimation}: For each year $t$, solve for $k$:
+\[
+\underbrace{\sum_x E_{x,t} \cdot \exp(\ax + \bx \cdot k)}_{\text{model deaths (graduated world)}}
+\;=\;
+\underbrace{D_t}_{\text{real deaths (raw world)}}
+\]
+where $\ax, \bx$ come from graduated data but $D_t$ is the raw
+observed count.
+\end{formaldef}
+
+\begin{application}[Mexican Data, 1990]
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Source} & \textbf{Implied deaths} \\
+\midrule
+Raw INEGI death count ($D_{1990}$) & 472{,}000 \\
+Graduated rates summed ($\sum E_x \cdot m_x^{\text{grad}}$) & $\approx 427{,}000$ \\
+\midrule
+\textbf{Gap} & $\approx 45{,}000$ (10\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+Re-estimation must bridge this 10\% gap by adjusting $\kt$.
+This is already hard. The next section shows why it becomes \emph{impossible}.
+\end{application}
+
+
+% =====================================================================
+\section{The Rebel Ages: Negative $\bx$}
+% =====================================================================
+
+In Lee-Carter, each age has a sensitivity coefficient $\bx$ that says
+\emph{how much that age responds to the general mortality trend}.
+
+\begin{intuition}[Analogy: A Rowing Team]
+Think of mortality improvement as a rowing team. The time index $\kt$
+is the boat speed. Each age $x$ is a rower:
+
+\begin{itemize}[nosep]
+\item \textbf{Positive $\bx$}: This rower pulls \emph{with} the team.
+  When $\kt$ drops (boat moves forward), this age's mortality drops too.
+\item \textbf{$\bx \approx 0$}: This rower barely contributes. Age
+  barely changes regardless of the trend.
+\item \textbf{Negative $\bx$}: This rower pulls \emph{backwards}.
+  When everyone else improves, this age gets \emph{worse}.
+\end{itemize}
+
+\medskip
+In our data, ages 77, 78, and 85 are backward rowers.
+Out of 101 ages, only 3 rebel---but they break the math.
+\end{intuition}
+
+\begin{formaldef}[Why Negative $\bx$ Appears]
+Lee-Carter decomposes the residual matrix via SVD. The sign of $\bx$
+depends on whether age $x$'s temporal pattern aligns with the dominant
+trend. When graduation smooths each year's age profile independently,
+it can distort the temporal pattern at specific ages:
+
+\medskip
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& Year 1990 & Year 2010 & \textbf{Trend} \\
+\midrule
+Age 76 (graduated) & 0.040 & 0.032 & Improving \\
+Age 77 (graduated) & 0.043 & 0.040 & \textbf{Barely changing} \\
+Age 78 (graduated) & 0.046 & 0.038 & Improving \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+Age 77's stagnation (possibly from noise, age heaping, or cause-of-death
+structure) gives it a negative $\bx$ because it moves \emph{opposite}
+to the dominant downward trend.
+\end{formaldef}
+
+\begin{application}[SIMA: Which Ages Are Rebels?]
+After fitting Lee-Carter on graduated Mexican data (1990--2019):
+
+\begin{center}
+\begin{tabular}{crl}
+\toprule
+\textbf{Age} & $\bx$ & \textbf{Likely cause} \\
+\midrule
+77 & $-0.0041$ & Random noise in time dimension \\
+78 & $-0.0023$ & Random noise in time dimension \\
+85 & $-0.0059$ & Age heaping (rounding to 85) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Graduation smooths across ages (horizontal), but these ages have noise
+across \emph{time} (vertical)---a dimension graduation doesn't touch.
+\end{application}
+
+
+% =====================================================================
+\section{The U-Shape: Why Root-Finding Fails}
+% =====================================================================
+
+The re-estimation equation asks us to find $k$ such that $f(k) = D_t$,
+where:
+\[
+f(k) = \sum_x E_{x,t} \cdot \exp(\ax + \bx \cdot k)
+\]
+
+\begin{intuition}[Analogy: The Tug of War]
+$f(k)$ is a sum of exponentials. Each age contributes a term
+$E_x \cdot \exp(\ax + \bx \cdot k)$:
+
+\begin{itemize}[nosep]
+\item Ages with $\bx > 0$ contribute terms that \textbf{grow} as $k$ increases
+  (exponential going up-right).
+\item Ages with $\bx < 0$ contribute terms that \textbf{shrink} as $k$ increases
+  (exponential going down-right).
+\end{itemize}
+
+When all $\bx > 0$: every term grows, so $f(k)$ is a monotone escalator
+going up forever. Any horizontal target line $D_t$ gets crossed exactly once.
+
+When some $\bx < 0$: the growing and shrinking terms fight.
+At extreme negative $k$, the rebels dominate (their exponentials blow up).
+At extreme positive $k$, the normal ages dominate.
+In between, neither side wins---$f(k)$ dips to a \textbf{valley} (U-shape).
+
+\medskip
+If the valley floor is above $D_t$: the curve crosses the target twice
+(two solutions exist).
+
+If the valley floor is below $D_t$: \textbf{no crossing, no solution.}
+\end{intuition}
+
+\begin{formaldef}[The Math Behind the U-Shape]
+The second derivative is always positive:
+\[
+f''(k) = \sum_x E_{x,t} \cdot \bx^2 \cdot \exp(\ax + \bx \cdot k) > 0
+\]
+because $\bx^2 \geq 0$. So $f$ is \textbf{always convex} (bowl-shaped).
+
+\medskip
+The first derivative:
+\[
+f'(k) = \sum_x E_{x,t} \cdot \bx \cdot \exp(\ax + \bx \cdot k)
+\]
+When all $\bx > 0$: $f'(k) > 0$ always (monotone, no U-shape).
+
+When some $\bx < 0$: $f'(k^*) = 0$ at exactly one point $k^*$
+(the valley minimum). Whether $f(k^*) \lessgtr D_t$ determines
+if solutions exist.
+\end{formaldef}
+
+\begin{application}[What Happens in SIMA]
+
+\begin{center}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{6cm}p{6cm}}
+\toprule
+\textbf{All $\bx > 0$ (ideal case)} & \textbf{Some $\bx < 0$ (our case)} \\
+\midrule
+$f(k)$ rises monotonically &
+$f(k)$ dips then rises (U-shape) \\[0.3em]
+Brent's method always finds root &
+Valley minimum $\approx 427{,}000$ \\[0.3em]
+One unique solution &
+Target $D_t = 472{,}000$ is \emph{above} valley \\[0.3em]
+ &
+$\Rightarrow$ \textbf{No solution exists} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The graduation gap (valley at ${\sim}427\text{k}$ vs.\ target at
+${\sim}472\text{k}$) combines with the U-shape to make the equation
+unsolvable.
+\end{application}
+
+
+% =====================================================================
+\section{The Two Problems Reinforce Each Other}
+% =====================================================================
+
+\begin{intuition}[The Double Whammy]
+Two things go wrong simultaneously, and each makes the other worse:
+
+\begin{enumerate}[nosep]
+\item \textbf{Graduation creates the U-shape} (via negative $\bx$):
+  The function has a valley instead of being a simple ramp.
+\item \textbf{Graduation creates the death-count gap}:
+  The target $D_t$ sits above the valley floor.
+\end{enumerate}
+
+If only one problem existed, re-estimation would still work:
+\begin{itemize}[nosep]
+\item U-shape but no gap $\Rightarrow$ valley floor below target $\Rightarrow$ two crossings exist
+\item Gap but no U-shape $\Rightarrow$ monotone function always crosses any target
+\end{itemize}
+
+\textbf{Both problems together} = valley too high + target too high = no crossing.
+Both originate from the same source: graduation.
+\end{intuition}
+
+
+% =====================================================================
+\section{Our Solution: Stay in One World}
+% =====================================================================
+
+\begin{intuition}[Analogy: Don't Mix Currencies]
+Re-estimation fails because it mixes two ``currencies'':
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Left side:} & graduated rates (smoothed pesos) \\
+\textbf{Right side:} & raw death counts (real pesos) \\
+\end{tabular}
+\end{center}
+
+You can't balance an equation where one side is in smoothed pesos
+and the other in real pesos. The exchange rate doesn't exist.
+
+\medskip
+\textbf{Our fix:} stay entirely in the graduated world.
+Use SVD's $\kt$ directly (estimated in log-space from graduated rates).
+Everything is internally consistent---all ``smoothed pesos.''
+\end{intuition}
+
+\begin{formaldef}[Why SVD $\kt$ Is Consistent]
+SVD minimizes:
+\[
+\sum_{x,t} \left[\ln m_{x,t}^{\text{grad}} - \ax - \bx \cdot \kt \right]^2
+\]
+All three quantities ($m^{\text{grad}}$, $\ax$, $\kt$) live in the
+graduated world. The resulting $\kt$ captures the true mortality trend
+with explained variance of 77.7\%.
+\end{formaldef}
+
+\begin{application}[Practical Impact]
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Approach} & \textbf{Drift} & \textbf{Result} \\
+\midrule
+SVD $\kt$ (our choice) & $-1.076$ & Sensible projections \\
+Re-estimated $\kt$ (forced) & $-17.6$ & Wildly wrong \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+Forcing re-estimation doesn't just fail silently---when the adaptive
+bracket search finds approximate roots, the resulting $\kt$ values
+are nonsensical. A drift of $-17.6$ would imply mortality halving
+every few years, which is biologically impossible.
+
+\medskip
+\textbf{The theoretically ``better'' method produces worse results.}
+Internal consistency beats theoretical optimality.
+\end{application}
+
+
+% =====================================================================
+\section{What About the Accuracy We Lose?}
+% =====================================================================
+
+\begin{intuition}[How Much Does It Matter?]
+Without re-estimation, model-implied deaths don't match observed deaths
+exactly. But for \emph{pricing}, what matters is the \textbf{trend}
+of $\kt$, not whether historical deaths match perfectly.
+
+\medskip
+Think of it this way: if you're predicting tomorrow's temperature,
+it matters more that your thermometer consistently reads 1 degree
+high every day (predictable bias, same trend) than that each reading
+is exactly correct. The forecast accuracy depends on the slope,
+not the intercept.
+
+\medskip
+Both SVD and re-estimated $\kt$ follow nearly the same downward
+slope. Re-estimation shifts the level but barely changes the
+drift. Since premiums depend on projected rates 10--30 years
+out, the level shift washes out---the trend dominates.
+\end{intuition}
+
+\begin{application}[Quantified Impact on Premiums]
+Estimated accuracy loss from skipping re-estimation: $\sim$1--2\% on
+premiums. For comparison:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Source of variation} & \textbf{Premium impact} \\
+\midrule
+COVID inclusion (5 extra years) & +3\% to +10\% \\
+Interest rate $\pm$1\% & +8\% to +15\% \\
+Skipping re-estimation & $\sim$1--2\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+The re-estimation loss is dwarfed by other modeling choices.
+\end{application}
+
+
+% =====================================================================
+\section{Summary: The Story in One Page}
+% =====================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{>{\raggedright}p{3.5cm} p{9cm}}
+\toprule
+\textbf{Step} & \textbf{What happens} \\
+\midrule
+Raw data &
+INEGI deaths + CONAPO population give noisy $m_{x,t}$ rates. \\
+
+Graduation &
+Whittaker-Henderson smooths across ages. Rates become clean,
+but total implied deaths drop $\sim$10\%. \\
+
+Lee-Carter SVD &
+Decomposes smooth rates into $\ax + \bx \cdot \kt$.
+Three ages get negative $\bx$ (noise in time dimension). \\
+
+Re-estimation attempt &
+Tries to match graduated model to raw deaths.
+Negative $\bx$ creates U-shaped function;
+graduation gap puts target above the valley.
+\textbf{No solution exists.} \\
+
+Our solution &
+Keep SVD $\kt$ (internally consistent).
+Skip re-estimation. Lose $\sim$1--2\% accuracy,
+gain stable, sensible projections. \\
+
+Alternative &
+Poisson log-bilinear model (Brouhns et al., 2002)
+avoids the problem entirely by modeling deaths
+directly---no SVD, no re-estimation needed. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\begin{intuition}[The One-Sentence Summary]
+Graduation and re-estimation live in different worlds---one smooths
+rates, the other counts deaths---and when three rebel ages create
+a U-shaped function, those worlds cannot be reconciled.
+\end{intuition}
+
+\end{document}

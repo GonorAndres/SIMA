@@ -1,0 +1,443 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+
+\newtcolorbox{formaldef}[1][]{colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{intuition}[1][]{colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{application}[1][]{colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{dimcheck}{colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
+
+\title{\textbf{Quadratic Minimization in Matrix Form:\\From Sums to Systems}\\[0.5em]
+\large A Bridge Document for SIMA --- The Engine Behind OLS, Ridge, and Graduation}
+\author{SIMA Project}
+\date{}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%=============================================================================
+\section{Notation and Conventions}
+%=============================================================================
+
+Throughout this document we use a consistent notation to distinguish scalars, vectors, and matrices. Refer to this table whenever a symbol is unclear.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{c l l}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Example} \\
+\midrule
+$x, a, \lambda$ & Scalar (lowercase, plain) & $x \in \mathbb{R}$ \\
+$\bm{x}, \bm{a}, \bm{b}$ & Column vector (lowercase, bold) & $\bm{x} \in \mathbb{R}^{n}$ \\
+$\bm{A}, \bm{X}, \bm{W}$ & Matrix (uppercase, bold) & $\bm{A} \in \mathbb{R}^{n \times n}$ \\
+$f(x)$ & Scalar-valued function & $f : \mathbb{R} \to \mathbb{R}$ \\
+$f(\bm{x})$ & Scalar-valued function of a vector & $f : \mathbb{R}^n \to \mathbb{R}$ \\
+$\nabla f$ & Gradient vector & $\nabla f \in \mathbb{R}^n$ \\
+$\bm{H}$ & Hessian matrix & $H_{ij} = \frac{\partial^2 f}{\partial x_i \partial x_j}$ \\
+$\bm{A} \succ 0$ & $\bm{A}$ is positive definite & $\bm{x}'\bm{A}\bm{x} > 0$ for all $\bm{x} \neq \bm{0}$ \\
+$\bm{A}'$ or $\bm{A}^\top$ & Transpose of $\bm{A}$ & rows become columns \\
+$\bm{I}$ & Identity matrix & $\bm{I}\bm{x} = \bm{x}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\noindent\textbf{Convention:} All vectors are column vectors. A row vector is written $\bm{x}'$ (the transpose of a column). The product $\bm{a}'\bm{x}$ is a scalar (dot product). The product $\bm{x}'\bm{A}\bm{x}$ is also a scalar (quadratic form).
+
+%=============================================================================
+\section{Scalar Warm-Up: Minimizing $f(x) = ax^2 + bx + c$}
+%=============================================================================
+
+Before any matrices, let us solve the simplest optimization problem.
+
+\begin{formaldef}[Scalar Quadratic Minimum]
+Given $f(x) = ax^2 + bx + c$ with $a > 0$:
+\[
+f'(x) = 2ax + b = 0 \quad \Longrightarrow \quad x^* = -\frac{b}{2a}.
+\]
+The second derivative is $f''(x) = 2a > 0$, confirming this is a minimum.
+\end{formaldef}
+
+\begin{intuition}[The Parabola Picture]
+The function $f(x) = ax^2 + bx + c$ is a parabola. When $a > 0$ the parabola opens upward, so it has a unique minimum at its vertex. Taking the derivative and setting it to zero locates that vertex. If $a < 0$ the parabola opens downward and the critical point is a \emph{maximum} --- there is no minimum.
+\end{intuition}
+
+\begin{application}[The Template]
+This is the entire strategy. Every problem in this document follows the same three steps:
+\begin{enumerate}[nosep]
+\item Write the objective as a quadratic function of the unknowns.
+\item Take the derivative and set it to zero.
+\item Solve the resulting equation for the unknowns.
+\end{enumerate}
+The only thing that changes is the dimension: scalar, then 2D, then $n$-dimensional.
+\end{application}
+
+%=============================================================================
+\section{Two Variables: The Step to Linear Algebra}
+%=============================================================================
+
+Consider a function of two variables:
+\[
+f(x,y) = ax^2 + by^2 + cxy + dx + ey + f_0.
+\]
+
+\begin{formaldef}[System of Two Equations]
+Setting both partial derivatives to zero:
+\begin{align}
+\frac{\partial f}{\partial x} &= 2ax + cy + d = 0, \label{eq:partial_x}\\[4pt]
+\frac{\partial f}{\partial y} &= 2by + cx + e = 0. \label{eq:partial_y}
+\end{align}
+This is a system of two linear equations in two unknowns. We can write it in matrix form:
+\[
+\underbrace{\begin{pmatrix} 2a & c \\ c & 2b \end{pmatrix}}_{\bm{A}}
+\underbrace{\begin{pmatrix} x \\ y \end{pmatrix}}_{\bm{x}}
+=
+\underbrace{\begin{pmatrix} -d \\ -e \end{pmatrix}}_{\bm{r}}
+\]
+so the solution is $\bm{x}^* = \bm{A}^{-1}\bm{r}$, provided $\bm{A}$ is invertible.
+\end{formaldef}
+
+\begin{intuition}[A Bowl in 3D]
+The graph of $f(x,y)$ is a surface in three dimensions. When the quadratic part forms an elliptic paraboloid (a bowl), there is a unique minimum at the bottom. The two partial derivatives being zero means the surface is flat in both the $x$-direction and the $y$-direction simultaneously. The shape of the bowl (round vs.\ elongated) depends on the coefficients $a$, $b$, and $c$.
+\end{intuition}
+
+Notice how the two scalar equations \eqref{eq:partial_x}--\eqref{eq:partial_y} become a single matrix equation $\bm{A}\bm{x} = \bm{r}$. This is the key transition: \emph{many equations become one matrix equation.}
+
+%=============================================================================
+\section{The General Case: $f(\bm{x}) = \bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x} + c$}
+%=============================================================================
+
+Now we state the general result that covers all dimensions at once.
+
+\begin{formaldef}[General Quadratic Minimization]
+Let $\bm{x} \in \mathbb{R}^n$, let $\bm{A}$ be an $n \times n$ symmetric matrix, let $\bm{b} \in \mathbb{R}^n$, and let $c$ be a scalar. Define
+\[
+f(\bm{x}) = \bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x} + c.
+\]
+The gradient is
+\[
+\nabla f(\bm{x}) = 2\bm{A}\bm{x} + \bm{b}.
+\]
+Setting the gradient to zero:
+\[
+2\bm{A}\bm{x} + \bm{b} = \bm{0} \quad \Longrightarrow \quad \bm{x}^* = -\frac{1}{2}\bm{A}^{-1}\bm{b}.
+\]
+\textbf{Condition for a minimum:} $\bm{A}$ must be positive definite ($\bm{A} \succ 0$).
+\end{formaldef}
+
+\begin{intuition}[Same Parabola, More Dimensions]
+This is exactly the scalar result $x^* = -b/(2a)$, but with bold letters. The matrix $\bm{A}$ plays the role of the scalar $a$, the vector $\bm{b}$ plays the role of the scalar $b$, and the inverse $\bm{A}^{-1}$ plays the role of dividing by $a$. Positive definite means ``the bowl opens upward in every direction'' --- the $n$-dimensional analogue of $a > 0$.
+\end{intuition}
+
+\begin{dimcheck}
+\begin{itemize}[nosep]
+\item $\bm{x}$ is $n \times 1$.
+\item $\bm{A}$ is $n \times n$, so $\bm{A}\bm{x}$ is $n \times 1$.
+\item $\bm{b}$ is $n \times 1$.
+\item The gradient $2\bm{A}\bm{x} + \bm{b}$ is $n \times 1$. Every term matches.
+\item $\bm{A}^{-1}$ is $n \times n$, so $\bm{A}^{-1}\bm{b}$ is $n \times 1$. The solution $\bm{x}^*$ is $n \times 1$. Consistent.
+\end{itemize}
+\end{dimcheck}
+
+%=============================================================================
+\section{Matrix Calculus: The Key Rules}
+\label{sec:matrix_calculus}
+%=============================================================================
+
+This section is the bridge that many students find difficult. We state just three rules; they are all we need.
+
+\begin{formaldef}[Three Differentiation Rules]
+Let $\bm{x} \in \mathbb{R}^n$, $\bm{a} \in \mathbb{R}^n$ (constant), and $\bm{A} \in \mathbb{R}^{n \times n}$ (constant, symmetric). Then:
+
+\medskip
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{c l l}
+\toprule
+\textbf{Rule} & \textbf{Function} & \textbf{Gradient w.r.t.\ $\bm{x}$} \\
+\midrule
+1 & $f(\bm{x}) = \bm{a}'\bm{x}$ & $\nabla f = \bm{a}$ \\
+2 & $f(\bm{x}) = \bm{x}'\bm{A}\bm{x}$ & $\nabla f = 2\bm{A}\bm{x}$ \\
+3 & $f(\bm{x}) = \bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x}$ & $\nabla f = 2\bm{A}\bm{x} + \bm{b}$ \\
+\bottomrule
+\end{tabular}
+\end{formaldef}
+
+\begin{intuition}[They Are the Same Rules You Already Know]
+Compare to the scalar case:
+\[
+\begin{aligned}
+\frac{d}{dx}(ax) &= a &\longleftrightarrow&\quad \frac{\partial}{\partial \bm{x}}(\bm{a}'\bm{x}) = \bm{a} &&\text{(Rule 1)}\\[4pt]
+\frac{d}{dx}(ax^2) &= 2ax &\longleftrightarrow&\quad \frac{\partial}{\partial \bm{x}}(\bm{x}'\bm{A}\bm{x}) = 2\bm{A}\bm{x} &&\text{(Rule 2)}\\[4pt]
+\frac{d}{dx}(ax^2 + bx) &= 2ax + b &\longleftrightarrow&\quad \frac{\partial}{\partial \bm{x}}(\bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x}) = 2\bm{A}\bm{x} + \bm{b} &&\text{(Rule 3)}
+\end{aligned}
+\]
+The structure is identical. Replace $a$ with $\bm{A}$, $x$ with $\bm{x}$, $b$ with $\bm{b}$. The calculus works the same way --- just with bold letters.
+\end{intuition}
+
+\subsection*{Verification of Rule 2 with a 2$\times$2 Example}
+
+Let us verify Rule~2 by brute force. Take
+\[
+\bm{x} = \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}, \qquad
+\bm{A} = \begin{pmatrix} a_{11} & a_{12} \\ a_{12} & a_{22} \end{pmatrix}.
+\]
+Expand the quadratic form:
+\[
+\bm{x}'\bm{A}\bm{x}
+= a_{11}x_1^2 + 2a_{12}x_1 x_2 + a_{22}x_2^2.
+\]
+Differentiate component by component:
+\[
+\frac{\partial}{\partial x_1}\bigl(\bm{x}'\bm{A}\bm{x}\bigr) = 2a_{11}x_1 + 2a_{12}x_2, \qquad
+\frac{\partial}{\partial x_2}\bigl(\bm{x}'\bm{A}\bm{x}\bigr) = 2a_{12}x_1 + 2a_{22}x_2.
+\]
+In vector form:
+\[
+\nabla(\bm{x}'\bm{A}\bm{x}) = 2\begin{pmatrix} a_{11} & a_{12} \\ a_{12} & a_{22} \end{pmatrix}\begin{pmatrix} x_1 \\ x_2 \end{pmatrix} = 2\bm{A}\bm{x}. \quad \checkmark
+\]
+This confirms Rule~2. The matrix formula gives exactly the same result as differentiating term by term.
+
+%=============================================================================
+\section{OLS as Quadratic Minimization}
+%=============================================================================
+
+Ordinary Least Squares (OLS) regression is the most common application of this framework.
+
+\begin{formaldef}[OLS Derivation]
+\textbf{Data:} observations $\bm{y} \in \mathbb{R}^n$, design matrix $\bm{X} \in \mathbb{R}^{n \times p}$.\\
+\textbf{Objective:} minimize the sum of squared residuals:
+\[
+S(\bm{\beta}) = \|\bm{y} - \bm{X}\bm{\beta}\|^2 = (\bm{y} - \bm{X}\bm{\beta})'(\bm{y} - \bm{X}\bm{\beta}).
+\]
+\textbf{Expand:}
+\begin{align*}
+S(\bm{\beta}) &= \bm{y}'\bm{y} - 2\bm{y}'\bm{X}\bm{\beta} + \bm{\beta}'\bm{X}'\bm{X}\bm{\beta}.
+\end{align*}
+This is quadratic in $\bm{\beta}$ with:
+\[
+\bm{A} = \bm{X}'\bm{X}, \qquad \bm{b} = -2\bm{X}'\bm{y}, \qquad c = \bm{y}'\bm{y}.
+\]
+\textbf{Gradient} (using Rule~3):
+\[
+\nabla_{\bm{\beta}} S = 2\bm{X}'\bm{X}\bm{\beta} - 2\bm{X}'\bm{y}.
+\]
+\textbf{Set to zero and solve:}
+\[
+2\bm{X}'\bm{X}\bm{\beta} - 2\bm{X}'\bm{y} = \bm{0} \quad \Longrightarrow \quad \boxed{\bm{\beta}^* = (\bm{X}'\bm{X})^{-1}\bm{X}'\bm{y}}
+\]
+These are the \textbf{normal equations}.
+\end{formaldef}
+
+\begin{intuition}[The Bowl of Residuals]
+The function $S(\bm{\beta})$ is the total squared error as a function of the regression coefficients. Its graph is a bowl (paraboloid) in $p$-dimensional coefficient space. The OLS solution sits at the bottom of this bowl --- the coefficient values that make the total squared error as small as possible.
+\end{intuition}
+
+\begin{dimcheck}
+\begin{itemize}[nosep]
+\item $\bm{y}$: $n \times 1$ (one observation per row).
+\item $\bm{X}$: $n \times p$ ($n$ observations, $p$ predictors).
+\item $\bm{\beta}$: $p \times 1$ (one coefficient per predictor).
+\item $\bm{X}'\bm{X}$: $(p \times n)(n \times p) = p \times p$.
+\item $\bm{X}'\bm{y}$: $(p \times n)(n \times 1) = p \times 1$.
+\item $(\bm{X}'\bm{X})^{-1}\bm{X}'\bm{y}$: $(p \times p)(p \times 1) = p \times 1$. Matches $\bm{\beta}$.
+\end{itemize}
+\end{dimcheck}
+
+%=============================================================================
+\section{Whittaker--Henderson as Quadratic Minimization}
+%=============================================================================
+
+In actuarial science, Whittaker--Henderson graduation smooths observed mortality rates. The objective balances \emph{fidelity to data} against \emph{smoothness}.
+
+\begin{formaldef}[Whittaker--Henderson Derivation]
+\textbf{Data:} observed rates $\bm{m} \in \mathbb{R}^n$, weight matrix $\bm{W} \in \mathbb{R}^{n \times n}$ (diagonal, positive), difference matrix $\bm{D} \in \mathbb{R}^{(n-z) \times n}$ (order $z$), smoothing parameter $\lambda > 0$.
+
+\textbf{Objective:} minimize
+\[
+S(\bm{g}) = \underbrace{(\bm{g} - \bm{m})'\bm{W}(\bm{g} - \bm{m})}_{\text{fidelity: stay close to data}} + \underbrace{\lambda\,\bm{g}'\bm{D}'\bm{D}\bm{g}}_{\text{smoothness: penalize roughness}}.
+\]
+\textbf{Expand:}
+\begin{align*}
+S(\bm{g}) &= \bm{g}'\bm{W}\bm{g} - 2\bm{m}'\bm{W}\bm{g} + \bm{m}'\bm{W}\bm{m} + \lambda\,\bm{g}'\bm{D}'\bm{D}\bm{g} \\
+&= \bm{g}'\bigl(\bm{W} + \lambda\bm{D}'\bm{D}\bigr)\bm{g} - 2\bm{m}'\bm{W}\bm{g} + \text{constant}.
+\end{align*}
+This is quadratic in $\bm{g}$ with:
+\[
+\bm{A} = \bm{W} + \lambda\bm{D}'\bm{D}, \qquad \bm{b} = -2\bm{W}\bm{m}.
+\]
+\textbf{Gradient} (using Rule~3):
+\[
+\nabla_{\bm{g}} S = 2\bigl(\bm{W} + \lambda\bm{D}'\bm{D}\bigr)\bm{g} - 2\bm{W}\bm{m}.
+\]
+\textbf{Set to zero and solve:}
+\[
+\boxed{\bm{g}^* = \bigl(\bm{W} + \lambda\bm{D}'\bm{D}\bigr)^{-1}\bm{W}\bm{m}}
+\]
+\end{formaldef}
+
+\begin{intuition}[Same Bowl, Different Ingredients]
+The minimization machinery is identical to OLS. The only difference is \emph{what} the matrix $\bm{A}$ contains:
+\begin{itemize}[nosep]
+\item In OLS, $\bm{A} = \bm{X}'\bm{X}$ encodes the geometry of the data.
+\item In Whittaker--Henderson, $\bm{A} = \bm{W} + \lambda\bm{D}'\bm{D}$ combines two forces: the weight matrix $\bm{W}$ says ``trust the data'' and the penalty $\lambda\bm{D}'\bm{D}$ says ``be smooth.'' The parameter $\lambda$ controls the trade-off.
+\end{itemize}
+Both problems are bowls. Both solutions are found by taking a gradient and setting it to zero. The template is the same.
+\end{intuition}
+
+\begin{dimcheck}
+\begin{itemize}[nosep]
+\item $\bm{g}$: $n \times 1$ (graduated rates, one per age).
+\item $\bm{m}$: $n \times 1$ (observed rates).
+\item $\bm{W}$: $n \times n$ (diagonal weight matrix).
+\item $\bm{D}$: $(n-z) \times n$ (difference operator of order $z$).
+\item $\bm{D}'\bm{D}$: $(n \times (n-z))((n-z) \times n) = n \times n$.
+\item $\bm{W} + \lambda\bm{D}'\bm{D}$: $n \times n$. Invertible (positive definite).
+\item $\bm{W}\bm{m}$: $(n \times n)(n \times 1) = n \times 1$.
+\item Solution: $(n \times n)^{-1}(n \times 1) = n \times 1$. Matches $\bm{g}$.
+\end{itemize}
+\end{dimcheck}
+
+%=============================================================================
+\section{Ridge Regression as Quadratic Minimization}
+%=============================================================================
+
+Ridge regression adds an $L^2$ penalty to OLS, preventing overfitting when predictors are correlated.
+
+\begin{formaldef}[Ridge Derivation]
+\textbf{Objective:}
+\[
+S(\bm{\beta}) = \|\bm{y} - \bm{X}\bm{\beta}\|^2 + \lambda\|\bm{\beta}\|^2.
+\]
+\textbf{Expand:}
+\[
+S(\bm{\beta}) = \bm{\beta}'\bigl(\bm{X}'\bm{X} + \lambda\bm{I}\bigr)\bm{\beta} - 2\bm{y}'\bm{X}\bm{\beta} + \bm{y}'\bm{y}.
+\]
+\textbf{Solution:}
+\[
+\boxed{\bm{\beta}^* = \bigl(\bm{X}'\bm{X} + \lambda\bm{I}\bigr)^{-1}\bm{X}'\bm{y}}
+\]
+\end{formaldef}
+
+\begin{application}[The Unified View: Three Methods, One Template]
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Method} & \textbf{System matrix $\bm{A}$} & \textbf{Right-hand side} & \textbf{Solution} \\
+\midrule
+OLS & $\bm{X}'\bm{X}$ & $\bm{X}'\bm{y}$ & $(\bm{X}'\bm{X})^{-1}\bm{X}'\bm{y}$ \\
+Ridge & $\bm{X}'\bm{X} + \lambda\bm{I}$ & $\bm{X}'\bm{y}$ & $(\bm{X}'\bm{X}+\lambda\bm{I})^{-1}\bm{X}'\bm{y}$ \\
+WH Graduation & $\bm{W} + \lambda\bm{D}'\bm{D}$ & $\bm{W}\bm{m}$ & $(\bm{W}+\lambda\bm{D}'\bm{D})^{-1}\bm{W}\bm{m}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+All three are instances of the same template: given a quadratic objective in some vector of unknowns, take the gradient, set it to zero, and solve the resulting linear system $\bm{A}\bm{x} = \bm{r}$. The mathematics does not care whether $\bm{x}$ represents regression coefficients or graduated mortality rates.
+\end{application}
+
+%=============================================================================
+\section{Positive Definiteness: Why It Guarantees a Minimum}
+%=============================================================================
+
+\begin{formaldef}[Positive Definiteness]
+A symmetric matrix $\bm{A} \in \mathbb{R}^{n \times n}$ is \textbf{positive definite} if
+\[
+\bm{x}'\bm{A}\bm{x} > 0 \quad \text{for all } \bm{x} \neq \bm{0}.
+\]
+Equivalent characterizations:
+\begin{itemize}[nosep]
+\item All eigenvalues of $\bm{A}$ are strictly positive.
+\item $\bm{A}$ is invertible (so the solution $\bm{A}^{-1}\bm{r}$ exists and is unique).
+\item The quadratic form $\bm{x}'\bm{A}\bm{x}$ is strictly convex.
+\end{itemize}
+
+\medskip
+\textbf{Key facts for our applications:}
+\begin{itemize}[nosep]
+\item $\bm{X}'\bm{X}$ is always positive \emph{semi}-definite. It is positive definite when $\bm{X}$ has full column rank (more observations than predictors, no perfect collinearity).
+\item $\bm{X}'\bm{X} + \lambda\bm{I}$ is always positive definite for $\lambda > 0$, even when $\bm{X}'\bm{X}$ is singular. This is why Ridge regression ``fixes'' collinearity.
+\item $\bm{W} + \lambda\bm{D}'\bm{D}$ is positive definite when $\bm{W}$ has enough positive diagonal entries, which is always the case in practice (we observe data at those ages).
+\end{itemize}
+\end{formaldef}
+
+\begin{intuition}[The Bowl Must Open Upward]
+Positive definite means the bowl opens upward \emph{in every direction}. There is exactly one bottom point, and the gradient equation finds it.
+
+If $\bm{A}$ were \emph{not} positive definite, the surface could have:
+\begin{itemize}[nosep]
+\item A saddle point (opens up in some directions, down in others) --- no minimum.
+\item A flat valley (zero eigenvalue) --- infinitely many minima, no unique solution.
+\end{itemize}
+Positive definiteness rules out both pathologies and guarantees a unique minimum.
+\end{intuition}
+
+%=============================================================================
+\section{Summary Table}
+%=============================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{l l c c c}
+\toprule
+\textbf{Problem} & \textbf{Objective} & $\bm{A}$ \textbf{matrix} & \textbf{RHS} & \textbf{Solution} \\
+\midrule
+Scalar & $ax^2 + bx$ & $a$ & $-b/2$ & $-b/(2a)$ \\[4pt]
+OLS & $\|\bm{y}-\bm{X}\bm{\beta}\|^2$ & $\bm{X}'\bm{X}$ & $\bm{X}'\bm{y}$ & $(\bm{X}'\bm{X})^{-1}\bm{X}'\bm{y}$ \\[4pt]
+Ridge & $\|\bm{y}-\bm{X}\bm{\beta}\|^2 + \lambda\|\bm{\beta}\|^2$ & $\bm{X}'\bm{X}+\lambda\bm{I}$ & $\bm{X}'\bm{y}$ & $(\bm{X}'\bm{X}+\lambda\bm{I})^{-1}\bm{X}'\bm{y}$ \\[4pt]
+WH Grad. & $(\bm{g}-\bm{m})'\bm{W}(\bm{g}-\bm{m})+\lambda\bm{g}'\bm{D}'\bm{D}\bm{g}$ & $\bm{W}+\lambda\bm{D}'\bm{D}$ & $\bm{W}\bm{m}$ & $(\bm{W}+\lambda\bm{D}'\bm{D})^{-1}\bm{W}\bm{m}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\noindent Every row is the same algorithm: identify the quadratic structure, differentiate, set to zero, solve. The column headings are the only things that change.
+
+%=============================================================================
+\section{Key Identities}
+%=============================================================================
+
+For quick reference, the identities used throughout this document:
+
+\begin{enumerate}[nosep,label=(\roman*)]
+\item $\displaystyle\frac{\partial}{\partial \bm{x}}\bigl(\bm{a}'\bm{x}\bigr) = \bm{a}$ \hfill (gradient of linear form)
+
+\item $\displaystyle\frac{\partial}{\partial \bm{x}}\bigl(\bm{x}'\bm{A}\bm{x}\bigr) = 2\bm{A}\bm{x}$ \hfill ($\bm{A}$ symmetric; gradient of quadratic form)
+
+\item $(\bm{A}\bm{B})' = \bm{B}'\bm{A}'$ \hfill (transpose of a product reverses order)
+
+\item $\bm{A} \succ 0 \;\Longrightarrow\; \bm{A}$ is invertible \hfill (positive definite implies invertible)
+
+\item The quadratic $\bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x} + c$ with $\bm{A} \succ 0$ has its unique minimum at
+\[
+\bm{x}^* = -\tfrac{1}{2}\bm{A}^{-1}\bm{b}.
+\]
+\end{enumerate}
+
+%=============================================================================
+\section{What This Document Does Not Cover}
+%=============================================================================
+
+This document is deliberately limited to \emph{unconstrained quadratic minimization with a closed-form solution}. The following related topics are important but outside our scope:
+
+\begin{itemize}[nosep]
+\item \textbf{Non-quadratic optimization.} When the objective is not quadratic (e.g., maximum likelihood with non-normal distributions), there is no closed-form solution. Iterative methods such as Newton's method or gradient descent are needed.
+
+\item \textbf{Constrained optimization.} When the unknowns must satisfy constraints (e.g., probabilities summing to 1, non-negative rates), the method of Lagrange multipliers or KKT conditions applies. The gradient-equals-zero condition must be modified.
+
+\item \textbf{Numerical methods for solving the linear system.} We write $\bm{x}^* = \bm{A}^{-1}\bm{r}$, but in practice one does not compute $\bm{A}^{-1}$ explicitly. Efficient algorithms include Cholesky decomposition (exploiting symmetry and positive definiteness), LU factorization, and banded solvers (exploiting the sparsity of $\bm{D}'\bm{D}$ in Whittaker--Henderson).
+\end{itemize}
+
+\end{document}

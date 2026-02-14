@@ -1,0 +1,1068 @@
+\documentclass[11pt,a4paper]{article}
+
+% ── Packages ────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{theorems, breakable}
+
+% ── Box Environments ────────────────────────────────────────
+\newtcolorbox{formaldef}[1][]{
+  colback=blue!5!white,
+  colframe=blue!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt,
+  breakable
+}
+
+\newtcolorbox{intuition}[1][]{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt,
+  breakable
+}
+
+\newtcolorbox{application}[1][]{
+  colback=orange!5!white,
+  colframe=orange!60!black,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  boxrule=0.8pt,
+  breakable
+}
+
+\newtcolorbox{dimcheck}{
+  colback=gray!8!white,
+  colframe=gray!50!black,
+  fonttitle=\bfseries,
+  title={Dimension Check},
+  sharp corners,
+  boxrule=0.6pt,
+  breakable
+}
+
+% ── Theorem Environments ────────────────────────────────────
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+% ── Code Style ──────────────────────────────────────────────
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{orange!70!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  frame=single,
+  breaklines=true,
+  captionpos=b
+}
+
+% ── Notation shortcuts ──────────────────────────────────────
+\newcommand{\mx}{\bm{m}}
+\newcommand{\ax}{\bm{a}}
+\newcommand{\bx}{\bm{b}}
+\newcommand{\kt}{\bm{k}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\anmark}[1]{\overline{#1}\kern-0.4em\raisebox{0.4ex}{\scriptsize$|$}}
+
+% ════════════════════════════════════════════════════════════
+\title{\textbf{Lee--Carter Mortality Modeling: \\
+From SVD to Insurance Premiums} \\[0.5em]
+\large A Graduate-Level Bridge Document for the SIMA Project \\[0.3em]
+\normalsize Covering the $k_t$ Re-estimation Problem, Graduation Compatibility, \\
+and the COVID-19 Impact on Mexican Mortality}
+\author{SIMA -- Sistema Integral de Modelaci\'{o}n Actuarial}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document provides a rigorous, self-contained treatment of the complete
+mortality modeling pipeline as implemented in the SIMA project: from raw
+INEGI/CONAPO mortality data through Whittaker--Henderson graduation,
+Lee--Carter fitting via SVD, $k_t$ projection, and the bridge to actuarial
+premium calculations.
+
+Special attention is given to a phenomenon encountered with real Mexican
+data (1990--2024): the $k_t$ re-estimation step fails when $b_x$ has
+negative components at certain ages, producing a \emph{non-monotone} death
+residual function that violates the sign-change requirement of Brent's
+method. We present a complete mathematical analysis of when and why this
+occurs, prove monotonicity conditions, and document the adaptive solution
+implemented in the engine.
+
+Every concept is presented in three layers: \textbf{formal definition}
+(blue boxes), \textbf{geometric/intuitive explanation} (green boxes), and
+\textbf{practical application with SIMA numerical results} (orange boxes).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ════════════════════════════════════════════════════════════
+\section{Notation and Conventions}
+% ════════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Symbol} & \textbf{Domain} & \textbf{Meaning} \\
+\midrule
+$x$ & $\{0, 1, \ldots, \omega\}$ & Age (integer) \\
+$t$ & $\{t_1, \ldots, t_T\}$ & Calendar year \\
+$\omega$ & $\mathbb{N}$ & Ultimate age (100 in SIMA) \\
+$m_{x,t}$ & $\R_{>0}$ & Central death rate at age $x$, year $t$ \\
+$D_{x,t}$ & $\mathbb{N}$ & Death count (INEGI) \\
+$E_{x,t}$ & $\R_{>0}$ & Exposure in person-years (CONAPO) \\
+$q_x$ & $[0,1]$ & Probability of death within 1 year \\
+$l_x$ & $\R_{\geq 0}$ & Survivors at exact age $x$ \\
+$d_x$ & $\R_{\geq 0}$ & Deaths between ages $x$ and $x+1$ \\
+$a_x$ & $\R$ & Lee--Carter age pattern (log-level) \\
+$b_x$ & $\R$ & Lee--Carter age sensitivity \\
+$k_t$ & $\R$ & Lee--Carter time index \\
+$v$ & $(0,1)$ & Discount factor $= 1/(1+i)$ \\
+$D_x, N_x, C_x, M_x$ & $\R_{>0}$ & Commutation functions \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Convention:} Matrices are denoted in bold ($\bm{M}$), vectors in
+bold lowercase ($\bm{v}$). The log-mortality matrix has dimensions
+$(n_{\text{ages}} \times n_{\text{years}})$ with ages on rows and years on
+columns. In SIMA: $101 \times 30$ for pre-COVID, $101 \times 35$ for full period.
+
+% ════════════════════════════════════════════════════════════
+\section{The Life Table: Foundation of Actuarial Science}
+\label{sec:life-table}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Definition: Life Table]
+A \textbf{life table} is a function $l: \{x_0, x_0+1, \ldots, \omega\} \to \R_{\geq 0}$
+satisfying:
+\begin{enumerate}[label=(\roman*)]
+  \item $l_{x_0} = l_0 > 0$ (the \emph{radix}, typically $100{,}000$),
+  \item $l_x \geq l_{x+1} \geq 0$ for all $x$ (non-increasing),
+  \item $l_{\omega+1} = 0$ (everyone eventually dies).
+\end{enumerate}
+
+From $l_x$ we derive all other columns:
+\begin{align}
+  d_x &= l_x - l_{x+1} & &\text{(deaths at age $x$)} \label{eq:dx} \\
+  q_x &= \frac{d_x}{l_x} = 1 - \frac{l_{x+1}}{l_x} & &\text{(mortality rate)} \label{eq:qx} \\
+  p_x &= 1 - q_x = \frac{l_{x+1}}{l_x} & &\text{(survival rate)} \label{eq:px}
+\end{align}
+
+At the terminal age: $q_\omega = 1$, $p_\omega = 0$, $d_\omega = l_\omega$.
+\end{formaldef}
+
+\begin{intuition}[The Life Table as a Cohort Narrative]
+Imagine placing $100{,}000$ newborns in a room and watching them age.
+$l_x$ counts how many remain alive at each birthday. $d_x$ counts the
+departures each year. $q_x$ is the ``exit probability'' -- at age $x$,
+what fraction of those still present will leave before age $x+1$?
+
+The fundamental accounting identity holds:
+\[
+  \sum_{x=0}^{\omega} d_x = l_0
+\]
+Every member of the initial cohort eventually appears exactly once in some $d_x$.
+No one escapes; no one is counted twice.
+\end{intuition}
+
+\begin{application}[SIMA: Projected Life Table for Mexico, Year 2029]
+From the Lee--Carter projection (Section~\ref{sec:lee-carter}), we obtained
+a projected life table for Mexican mortality in 2029:
+
+\begin{center}
+\begin{tabular}{rrrrr}
+\toprule
+Age $x$ & $l_x$ & $d_x$ & $q_x$ & $1000 \cdot q_x$ \\
+\midrule
+ 0 & 100{,}000 & 793 & 0.00793 & 7.929 \\
+ 1 &  99{,}207 &  70 & 0.00071 & 0.705 \\
+30 &  97{,}430 & 139 & 0.00142 & 1.422 \\
+60 &  86{,}649 & 908 & 0.01048 & 10.481 \\
+80 &  51{,}474 & 2{,}799 & 0.05436 & 54.359 \\
+100 &   1{,}859 & 1{,}859 & 1.00000 & 1000.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Validation: $\sum d_x = 100{,}000 = l_0$ \checkmark, \;
+$q_{100} = 1.0$ \checkmark
+\end{application}
+
+% ════════════════════════════════════════════════════════════
+\section{Central Death Rates and the Force of Mortality}
+\label{sec:force-of-mortality}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Central Death Rate and Force of Mortality]
+The \textbf{central death rate} is the empirical mortality measure:
+\begin{equation}
+  m_{x,t} = \frac{D_{x,t}}{E_{x,t}}
+  \label{eq:central-rate}
+\end{equation}
+where $D_{x,t}$ = observed deaths and $E_{x,t}$ = person-years of exposure
+at age $x$ in year $t$.
+
+The \textbf{force of mortality} (hazard rate) is the instantaneous rate:
+\begin{equation}
+  \mu(x) = \lim_{h \to 0^+} \frac{q_x(h)}{h}
+  = -\frac{d}{dx} \ln S(x)
+  \label{eq:force}
+\end{equation}
+where $S(x) = \Pr(\text{survive to age } x)$ is the survival function.
+
+\textbf{Constant force assumption.} If $\mu$ is constant over $[x, x+1)$,
+then $\mu_x \approx m_x$ and:
+\begin{equation}
+  p_x = e^{-\mu_x} \approx e^{-m_x}
+  \quad\Longrightarrow\quad
+  \boxed{q_x = 1 - e^{-m_x}}
+  \label{eq:mx-to-qx}
+\end{equation}
+\end{formaldef}
+
+\begin{proof}[Derivation of $q_x = 1 - e^{-m_x}$]
+Under constant force $\mu$ on $[x, x+1)$:
+\[
+  S(x+t) = S(x) \cdot e^{-\mu t} \quad \text{for } t \in [0,1)
+\]
+The survival probability over one year:
+\[
+  p_x = \frac{S(x+1)}{S(x)} = e^{-\mu}
+\]
+The central death rate is:
+\[
+  m_x = \frac{\int_0^1 \mu \cdot S(x+t)\,dt}{\int_0^1 S(x+t)\,dt}
+  = \frac{\mu \int_0^1 e^{-\mu t}\,dt}{\int_0^1 e^{-\mu t}\,dt}
+  = \mu
+\]
+Therefore $m_x = \mu_x$, so $p_x = e^{-m_x}$ and $q_x = 1 - e^{-m_x}$. \qed
+\end{proof}
+
+\begin{intuition}[Why $q_x \neq m_x$]
+$m_x$ is a \emph{rate} (deaths per person-year), while $q_x$ is a
+\emph{probability} (chance of dying within the year). For small $m_x$,
+they are nearly equal: $q_x \approx m_x$ when $m_x \ll 1$.
+But for old ages where $m_x$ can exceed 1 (e.g., $m_{100} = 1.78$ in our
+data), $q_x$ is capped at 1 while $m_x$ is not. The exponential transform
+$q_x = 1 - e^{-m_x}$ correctly maps $m_x \in (0, \infty)$ to $q_x \in (0, 1)$.
+\end{intuition}
+
+\begin{application}[SIMA: The Bridge Method]
+This conversion is the critical ``bridge'' in \texttt{a09\_projection.py},
+method \texttt{to\_life\_table()}:
+\begin{enumerate}
+  \item Get projected $m_x$ from Lee--Carter: $\hat{m}_x = \exp(\hat{a}_x + \hat{b}_x \hat{k}_t)$
+  \item Convert: $q_x = 1 - \exp(-\hat{m}_x)$
+  \item Force $q_\omega = 1$, clip $q_x \in [0,1]$
+  \item Build $l_x$: $l_0 = 100{,}000$, $l_{x+1} = l_x(1 - q_x)$
+  \item Return \texttt{LifeTable} $\to$ feeds into commutation functions $\to$ premiums
+\end{enumerate}
+\end{application}
+
+% ════════════════════════════════════════════════════════════
+\section{Whittaker--Henderson Graduation}
+\label{sec:graduation}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Whittaker--Henderson Penalized Least Squares]
+Given observed log-rates $\bm{y} = (\ln m_0, \ln m_1, \ldots, \ln m_n)^\top$,
+the graduated (smoothed) values $\bm{z}$ minimize:
+\begin{equation}
+  \mathcal{L}(\bm{z}) =
+  \underbrace{(\bm{y} - \bm{z})^\top \bm{W} (\bm{y} - \bm{z})}_{\text{Fidelity (fit to data)}}
+  \;+\;
+  \underbrace{\lambda \, \bm{z}^\top \bm{D}_h^\top \bm{D}_h \, \bm{z}}_{\text{Roughness penalty}}
+  \label{eq:wh-objective}
+\end{equation}
+
+where:
+\begin{itemize}
+  \item $\bm{W} = \operatorname{diag}(w_0, \ldots, w_n)$ is the weight matrix
+    (typically exposure-based: higher exposure $=$ more reliable data)
+  \item $\lambda > 0$ is the smoothing parameter
+  \item $\bm{D}_h$ is the $h$-th order difference matrix. For $h=2$:
+\end{itemize}
+\begin{equation}
+  \bm{D}_2 = \begin{pmatrix}
+    1 & -2 & 1 & 0 & \cdots \\
+    0 & 1 & -2 & 1 & \cdots \\
+    \vdots & & \ddots & & \\
+  \end{pmatrix}
+  \in \R^{(n-1) \times (n+1)}
+  \label{eq:diff-matrix}
+\end{equation}
+
+The closed-form solution follows from $\nabla_{\bm{z}} \mathcal{L} = \bm{0}$:
+\begin{equation}
+  \boxed{\hat{\bm{z}} = \bigl(\bm{W} + \lambda \, \bm{D}_h^\top \bm{D}_h\bigr)^{-1} \bm{W} \, \bm{y}}
+  \label{eq:wh-solution}
+\end{equation}
+\end{formaldef}
+
+\begin{proof}[Derivation of the solution]
+Expanding $\mathcal{L}$:
+\[
+  \mathcal{L} = \bm{y}^\top\bm{W}\bm{y}
+  - 2\bm{z}^\top\bm{W}\bm{y}
+  + \bm{z}^\top\bm{W}\bm{z}
+  + \lambda\,\bm{z}^\top\bm{D}_h^\top\bm{D}_h\bm{z}
+\]
+Taking the gradient with respect to $\bm{z}$:
+\[
+  \nabla_{\bm{z}}\mathcal{L}
+  = -2\bm{W}\bm{y} + 2\bm{W}\bm{z} + 2\lambda\,\bm{D}_h^\top\bm{D}_h\bm{z}
+  = \bm{0}
+\]
+Solving:
+\[
+  (\bm{W} + \lambda\,\bm{D}_h^\top\bm{D}_h)\bm{z} = \bm{W}\bm{y}
+  \quad\Longrightarrow\quad
+  \hat{\bm{z}} = (\bm{W} + \lambda\,\bm{D}_h^\top\bm{D}_h)^{-1}\bm{W}\bm{y}
+\]
+The matrix $\bm{W} + \lambda\bm{D}_h^\top\bm{D}_h$ is positive definite
+(sum of PSD matrices with $\bm{W} \succ 0$), hence invertible. \qed
+\end{proof}
+
+\begin{intuition}[Graduation as a Tug-of-War]
+Think of graduation as two forces pulling on the curve:
+\begin{itemize}
+  \item \textbf{Fidelity} ($\lambda \to 0$): ``Stay close to the data!''
+    Result: noisy, jagged rates that perfectly reproduce observations.
+  \item \textbf{Smoothness} ($\lambda \to \infty$): ``Be as smooth as possible!''
+    Result: a polynomial of degree $h-1$ (for $h=2$, a straight line in log-space).
+\end{itemize}
+At $\lambda = 10^5$ (our choice), the penalty strongly favors smoothness
+while still tracking the major age-pattern features. The $h=2$ penalty
+targets curvature: it penalizes the second finite difference
+$\Delta^2 z_x = z_{x+2} - 2z_{x+1} + z_x$, which is zero for
+linear functions.
+\end{intuition}
+
+\begin{application}[SIMA: Log-Space Graduation and the Death-Count Gap]
+In \texttt{a07\_graduation.py}, graduation operates in \textbf{log-space}:
+$\bm{y} = \ln(\bm{m}_x)$. After solving \eqref{eq:wh-solution},
+we exponentiate: $\hat{m}_x^{\text{grad}} = \exp(\hat{z}_x)$.
+
+\textbf{Critical consequence:} Graduated rates do \emph{not} reproduce raw death counts:
+\[
+  \sum_x E_{x,t} \cdot \hat{m}_{x,t}^{\,\text{grad}} \neq \sum_x D_{x,t}
+\]
+
+\textbf{SIMA numerical evidence} (year 1990):
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Quantity & Value \\
+\midrule
+$\sum_x D_{x,t}$ (observed, raw) & 472{,}488 \\
+$\sum_x E_{x,t} \cdot m_{x,t}^{\text{raw}}$ & 472{,}488 \\
+$\sum_x E_{x,t} \cdot \hat{m}_{x,t}^{\,\text{grad}}$ & 427{,}339 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Graduation removes the ``spiky'' features (infant mortality bump,
+accident hump at young ages) that account for $\sim$10\% of total deaths.
+This gap is the root cause of the $k_t$ re-estimation failure
+(Section~\ref{sec:reestimation}).
+\end{application}
+
+\begin{dimcheck}
+For $n+1$ ages and difference order $h$:
+\begin{align*}
+  \bm{y} &\in \R^{n+1} & \bm{W} &\in \R^{(n+1)\times(n+1)} \\
+  \bm{D}_h &\in \R^{(n+1-h)\times(n+1)} & \bm{D}_h^\top\bm{D}_h &\in \R^{(n+1)\times(n+1)} \\
+  \hat{\bm{z}} &\in \R^{n+1} & &
+\end{align*}
+SIMA uses sparse matrices for efficiency: $\bm{D}_h^\top\bm{D}_h$ is banded
+with bandwidth $2h+1 = 5$ for $h=2$.
+\end{dimcheck}
+
+% ════════════════════════════════════════════════════════════
+\section{The Lee--Carter Model}
+\label{sec:lee-carter}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Lee--Carter (1992) Log-Bilinear Model]
+The Lee--Carter model decomposes the log-mortality surface as:
+\begin{equation}
+  \ln(m_{x,t}) = a_x + b_x \cdot k_t + \varepsilon_{x,t}
+  \label{eq:lee-carter}
+\end{equation}
+
+where:
+\begin{itemize}
+  \item $a_x$: average log-mortality at age $x$ (the ``shape'')
+  \item $b_x$: age-specific sensitivity to the time trend
+  \item $k_t$: time index capturing the general mortality level
+  \item $\varepsilon_{x,t} \sim (0, \sigma_\varepsilon^2)$: residual
+\end{itemize}
+
+\textbf{Identifiability constraints} (the model is not unique without these):
+\begin{equation}
+  \sum_x b_x = 1, \qquad \sum_t k_t = 0
+  \label{eq:constraints}
+\end{equation}
+\end{formaldef}
+
+\begin{intuition}[What Each Parameter ``Does'']
+\begin{itemize}
+  \item $a_x$ is the ``photograph'' of mortality -- the average death rate
+    pattern across all years. It captures the J-shape: high infant mortality,
+    low childhood rates, rising exponentially at old ages.
+  \item $b_x$ is the ``sensitivity dial'' -- it tells you how much each age
+    responds to overall mortality changes. High $b_x$ at young ages means
+    those ages improved a lot. Negative $b_x$ means that age got \emph{worse}
+    while the nation improved overall.
+  \item $k_t$ is the ``volume knob'' -- one number per year that captures
+    the overall mortality level. When $k_t$ decreases, mortality improves
+    at all ages (proportionally to each age's $b_x$).
+\end{itemize}
+\end{intuition}
+
+\begin{application}[SIMA: Mexican Lee--Carter Parameters]
+Pre-COVID fit (1990--2019, graduated, no re-estimation):
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Explained variance & 77.67\% \\
+RMSE (log-space) & 0.0618 \\
+$k_t$ drift & $-1.0764$ \\
+$k_t$ range & $[+23.27, -7.95]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Negative $b_x$ at ages 77, 78, 85 (Mexican data):
+\begin{center}
+\begin{tabular}{rrl}
+\toprule
+Age & $b_x$ & Interpretation \\
+\midrule
+30 & $+0.0098$ & Improving with national trend \\
+60 & $+0.0056$ & Improving, less sensitive \\
+77 & $-0.0014$ & \textbf{Worsening} against trend \\
+78 & $-0.0008$ & \textbf{Worsening} against trend \\
+85 & $-0.0059$ & \textbf{Most negative} -- diabetes/chronic disease \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{application}
+
+\subsection{SVD Estimation Procedure}
+
+\begin{formaldef}[SVD Fitting of Lee--Carter Parameters]
+\textbf{Step 1.} Estimate $a_x$ as row means of the log-mortality matrix:
+\begin{equation}
+  \hat{a}_x = \frac{1}{T} \sum_{t=1}^{T} \ln(m_{x,t})
+  \label{eq:ax-estimate}
+\end{equation}
+
+\textbf{Step 2.} Form the residual matrix:
+\begin{equation}
+  R_{x,t} = \ln(m_{x,t}) - \hat{a}_x
+  \label{eq:residual}
+\end{equation}
+
+\textbf{Step 3.} Compute the \textbf{Singular Value Decomposition} of $\bm{R}$:
+\begin{equation}
+  \bm{R} = \bm{U} \bm{S} \bm{V}^\top
+  \quad\text{where}\quad
+  \bm{U} \in \R^{n_a \times r}, \;
+  \bm{S} = \operatorname{diag}(\sigma_1, \ldots, \sigma_r), \;
+  \bm{V} \in \R^{n_y \times r}
+  \label{eq:svd}
+\end{equation}
+with $\sigma_1 \geq \sigma_2 \geq \cdots \geq 0$ and $r = \min(n_a, n_y)$.
+
+\textbf{Step 4.} Extract the rank-1 approximation:
+\begin{equation}
+  \bm{R} \approx \sigma_1 \, \bm{u}_1 \bm{v}_1^\top
+\end{equation}
+Set raw parameters: $b_x^{\text{raw}} = u_{x,1}$, \;
+$k_t^{\text{raw}} = \sigma_1 \cdot v_{t,1}$.
+
+\textbf{Step 5.} Apply identifiability constraints:
+\begin{align}
+  \hat{b}_x &= \frac{b_x^{\text{raw}}}{\sum_x b_x^{\text{raw}}}
+  \label{eq:bx-constraint} \\
+  \hat{k}_t &= k_t^{\text{raw}} \cdot \sum_x b_x^{\text{raw}}
+  - \overline{k^{\text{raw}} \cdot \textstyle\sum_x b_x^{\text{raw}}}
+  \label{eq:kt-constraint}
+\end{align}
+
+\textbf{Explained variance:}
+\begin{equation}
+  \text{EV} = \frac{\sigma_1^2}{\sum_{i=1}^{r} \sigma_i^2}
+  \label{eq:explained-var}
+\end{equation}
+\end{formaldef}
+
+\begin{intuition}[SVD as Finding the Best ``Separation of Variables'']
+The residual matrix $\bm{R}$ is a surface over (age, year). SVD finds
+the best way to approximate this surface as a product of an age-function
+times a year-function: $R_{x,t} \approx b_x \cdot k_t$.
+
+Think of SVD as the matrix equivalent of ``factoring'' -- just as $12 = 3 \times 4$,
+SVD factors the residual surface into components ranked by importance.
+The first component ($\sigma_1$) captures the dominant pattern; in mortality
+data, this is the secular improvement trend.
+
+The explained variance (77.7\% for Mexico) tells you how much of the
+mortality variation is captured by this single age-year interaction term.
+The remaining 22.3\% is noise, higher-order patterns, or structural
+features that a single $b_x \cdot k_t$ term cannot capture.
+\end{intuition}
+
+\begin{dimcheck}
+\[
+  \underbrace{\bm{R}}_{101 \times 30}
+  = \underbrace{\bm{U}}_{101 \times 30}
+  \cdot \underbrace{\bm{S}}_{30 \times 30}
+  \cdot \underbrace{\bm{V}^\top}_{30 \times 30}
+\]
+First component extraction:
+$\bm{u}_1 \in \R^{101}$ (one value per age),
+$\bm{v}_1 \in \R^{30}$ (one value per year),
+$\sigma_1 \in \R$ (scaling).
+\end{dimcheck}
+
+% ════════════════════════════════════════════════════════════
+\section{The $k_t$ Re-estimation Problem}
+\label{sec:reestimation}
+% ════════════════════════════════════════════════════════════
+
+This is the central technical challenge encountered in the SIMA project.
+
+\subsection{Why Re-estimate $k_t$?}
+
+\begin{formaldef}[The Re-estimation Equation]
+SVD minimizes error in \textbf{log-space}:
+$\min \|\bm{R} - \bm{b}\bm{k}^\top\|_F^2$.
+But actuarial applications need accurate \textbf{death counts}.
+Lee \& Carter (1992) proposed re-estimating $k_t$ by solving, for each year $t$:
+\begin{equation}
+  \boxed{
+    \sum_{x=0}^{\omega} E_{x,t} \cdot \exp\!\bigl(a_x + b_x \cdot k_t\bigr)
+    = \sum_{x=0}^{\omega} D_{x,t}
+  }
+  \label{eq:reestimation}
+\end{equation}
+
+Define:
+\begin{equation}
+  f_t(k) \;=\; \sum_{x=0}^{\omega} E_{x,t} \cdot \exp(a_x + b_x \cdot k)
+  \;-\; \sum_{x=0}^{\omega} D_{x,t}
+  \label{eq:death-residual}
+\end{equation}
+
+The re-estimated $\hat{k}_t$ satisfies $f_t(\hat{k}_t) = 0$.
+\end{formaldef}
+
+\subsection{Monotonicity Analysis}
+
+\begin{theorem}[Monotonicity of $f_t$ when $b_x \geq 0$ for all $x$]
+\label{thm:monotone}
+If $b_x \geq 0$ for all $x$ and $b_x > 0$ for at least one $x$ with
+$E_{x,t} > 0$, then $f_t$ is \textbf{strictly increasing}:
+\begin{equation}
+  f_t'(k) = \sum_{x=0}^{\omega} E_{x,t} \cdot b_x \cdot \exp(a_x + b_x k) > 0
+  \quad \forall\, k \in \R
+  \label{eq:monotone-derivative}
+\end{equation}
+
+Moreover:
+\begin{itemize}
+  \item $\lim_{k \to -\infty} f_t(k) = -\sum_x D_{x,t} < 0$
+  \item $\lim_{k \to +\infty} f_t(k) = +\infty$
+\end{itemize}
+
+By the Intermediate Value Theorem, $f_t$ has \textbf{exactly one} root.
+\end{theorem}
+
+\begin{proof}
+Each summand $g_x(k) = E_{x,t} \cdot \exp(a_x + b_x k)$ satisfies:
+\[
+  g_x'(k) = E_{x,t} \cdot b_x \cdot \exp(a_x + b_x k)
+\]
+When $b_x \geq 0$ and $E_{x,t} > 0$, we have $g_x'(k) \geq 0$.
+Strict inequality holds for any $x$ where $b_x > 0$ and $E_{x,t} > 0$.
+Since $f_t'(k) = \sum_x g_x'(k)$, we get $f_t'(k) > 0$ for all $k$.
+
+For the limits: when $k \to -\infty$ and $b_x > 0$, $\exp(a_x + b_x k) \to 0$.
+When $b_x = 0$, $\exp(a_x + b_x k) = \exp(a_x) > 0$, but the constant
+terms with $b_x = 0$ are finite, so the sum approaches a finite
+non-negative value. Thus:
+\[
+  \lim_{k \to -\infty} f_t(k) \leq \sum_{x: b_x=0} E_{x,t}\exp(a_x) - \sum_x D_{x,t}
+\]
+In practice, $\sum_x D_{x,t}$ vastly exceeds the constant terms, giving
+$f_t(k) < 0$ for sufficiently negative $k$.
+
+Uniqueness follows from strict monotonicity. \qed
+\end{proof}
+
+\begin{theorem}[Non-monotonicity when $b_x < 0$ for some $x$]
+\label{thm:non-monotone}
+If there exists $x^*$ such that $b_{x^*} < 0$ and $E_{x^*,t} > 0$,
+then $f_t$ is \textbf{not} monotonically increasing. Specifically, $f_t$
+may have a U-shape with a unique minimum, and the equation $f_t(k) = 0$
+may have \textbf{zero or two} roots instead of exactly one.
+\end{theorem}
+
+\begin{proof}
+The second derivative:
+\[
+  f_t''(k) = \sum_{x=0}^{\omega} E_{x,t} \cdot b_x^2 \cdot \exp(a_x + b_x k) > 0
+\]
+since each term $b_x^2 \geq 0$ and at least one is strictly positive.
+Therefore $f_t$ is \textbf{strictly convex}.
+
+A strictly convex function on $\R$ has at most one local minimum and
+no local maxima. The behavior at the limits:
+\begin{itemize}
+  \item $k \to +\infty$: Terms with $b_x > 0$ dominate, so $f_t(k) \to +\infty$.
+  \item $k \to -\infty$: Terms with $b_x < 0$ dominate (since $b_x k \to +\infty$
+    when $b_x < 0$ and $k \to -\infty$), so $f_t(k) \to +\infty$.
+\end{itemize}
+
+The function approaches $+\infty$ in \emph{both} directions, with a unique
+minimum $k^*$ where $f_t'(k^*) = 0$. Three cases arise:
+\begin{enumerate}
+  \item $f_t(k^*) < 0$: Two roots (one on each side of $k^*$). Brent's method
+    can find either if bracketed correctly.
+  \item $f_t(k^*) = 0$: Exactly one root (the minimum touches zero).
+  \item $f_t(k^*) > 0$: \textbf{No roots}. Model-implied deaths are always
+    above observed deaths. The re-estimation equation has no solution.
+\end{enumerate}
+\qed
+\end{proof}
+
+\begin{intuition}[The U-Shape: Why Negative $b_x$ Breaks Everything]
+When all $b_x$ are positive, decreasing $k$ \emph{uniformly decreases}
+all death rates. Total model deaths drop monotonically -- at some point
+they match the observed total, and we have our root.
+
+But if age 85 has $b_{85} = -0.0059$, then:
+\[
+  m_{85}(k) = \exp(a_{85} + b_{85} \cdot k) = \exp(-1.44 - 0.0059k)
+\]
+As $k$ decreases (trying to reduce overall mortality):
+\begin{itemize}
+  \item Ages with $b_x > 0$: rates drop (good)
+  \item Age 85 with $b_x < 0$: rate \textbf{increases} (negative $\times$ negative $=$ positive exponent)
+\end{itemize}
+
+At $k = -500$, age 85 alone contributes 256{,}464 model deaths from
+only 56{,}618 person-years of exposure. This overwhelms the reduction
+at all other ages, pulling total model deaths \emph{upward}. The
+function becomes U-shaped: decreasing at first, hitting a minimum,
+then increasing again.
+\end{intuition}
+
+\begin{application}[SIMA: The Exact Numerical Failure]
+For Mexican data (1990--2019, graduated), year 1990:
+
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+$k$ & Model deaths & $f(k)$ & \\
+\midrule
+$+200$ & 35{,}566{,}695 & $+35{,}094{,}207$ & \\
+$+50$ & 611{,}018 & $+138{,}530$ & \\
+$+20$ & 422{,}037 & $-50{,}451$ & Root is between 20 and 50 \\
+$0$ & 353{,}405 & $-119{,}083$ & \\
+$-50$ & 264{,}017 & $-208{,}471$ & \\
+$-200$ & 190{,}492 & $-281{,}996$ & Minimum region \\
+$-500$ & 346{,}010 & $-126{,}478$ & Curving back UP \\
+$-2000$ & 1{,}815{,}600{,}000 & $+1.82 \times 10^9$ & Age 85 dominates \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Brent's method with bracket $[-500, 500]$: $f(-500) = -126{,}478$ and
+$f(500) = +4.3 \times 10^{12}$. Signs differ -- should work!
+
+But the \emph{fallback} bracket $[-2000, 2000]$: $f(-2000) = +1.8 \times 10^9$
+and $f(2000) = +2.6 \times 10^{39}$. Both positive -- Brent crashes.
+
+The engine now uses \textbf{adaptive bracket search}: sample $f$ at 201
+points in $[-500, 500]$, find the sign change, bracket tightly. If no
+sign change exists (Case 3 of Theorem~\ref{thm:non-monotone}), use
+$\arg\min_k |f(k)|$.
+\end{application}
+
+\subsection{The Graduation--Re-estimation Incompatibility}
+
+\begin{proposition}[Graduation creates an inherent mismatch]
+\label{prop:mismatch}
+Let $\hat{m}_{x,t}^{\,\text{grad}}$ be the graduated rates. Then in general:
+\begin{equation}
+  \sum_x E_{x,t} \cdot \hat{m}_{x,t}^{\,\text{grad}} \;\neq\; \sum_x D_{x,t}
+\end{equation}
+
+Since $a_x = \frac{1}{T}\sum_t \ln(\hat{m}_{x,t}^{\,\text{grad}})$, the
+re-estimation equation~\eqref{eq:reestimation} uses graduated $a_x$ but
+raw $D_{x,t}$, creating a systematic bias.
+\end{proposition}
+
+\begin{proof}
+Whittaker--Henderson minimizes \eqref{eq:wh-objective} in log-space.
+By Jensen's inequality, for a concave function $\ln$:
+\[
+  \E[\ln X] \leq \ln(\E[X])
+\]
+Exponentiating the smoothed log-rates does not generally preserve
+the sum of death counts:
+\[
+  \sum_x E_{x,t} \cdot \exp(\hat{z}_{x,t})
+  \neq \sum_x E_{x,t} \cdot \exp(\ln m_{x,t})
+  = \sum_x D_{x,t}
+\]
+
+In practice, graduation \emph{reduces} total implied deaths (the spiky
+features at infant ages and old-age accident humps account for excess
+deaths that get smoothed away). In the SIMA data, the gap is approximately
+10\%: graduated rates imply $\sim$427{,}000 deaths vs.\ 472{,}000 observed. \qed
+\end{proof}
+
+\begin{remark}[The Principled Choice: Skip Re-estimation for Graduated Data]
+When fitting Lee--Carter on graduated data, the SVD-estimated $k_t$
+minimizes $\|\bm{R} - \bm{b}\bm{k}^\top\|_F^2$, which is \emph{internally
+consistent} with the log-bilinear formulation. The re-estimation step
+tries to match raw death counts using graduated parameters -- an
+inconsistent objective. Therefore, \texttt{reestimate\_kt=False} is
+the principled choice when using Whittaker--Henderson pre-processing.
+\end{remark}
+
+% ════════════════════════════════════════════════════════════
+\section{Brent's Method and Root-Finding}
+\label{sec:brent}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Brent's Method (1973)]
+Given a continuous function $f: [a, b] \to \R$ with $f(a) \cdot f(b) < 0$
+(guaranteed root by the Intermediate Value Theorem), Brent's method
+combines three strategies:
+\begin{enumerate}
+  \item \textbf{Bisection}: guaranteed convergence, slow ($O(\log(b-a))$ iterations)
+  \item \textbf{Secant method}: fast (superlinear, order $\approx 1.618$), not guaranteed
+  \item \textbf{Inverse quadratic interpolation}: faster when function is smooth
+\end{enumerate}
+
+At each step, Brent chooses the fastest method that still maintains
+a valid bracket. Convergence is guaranteed with superlinear rate.
+
+\textbf{Requirement:} $f(a) \cdot f(b) < 0$. If this fails,
+\texttt{scipy.optimize.brentq} raises \texttt{ValueError}.
+\end{formaldef}
+
+\begin{intuition}[Why Sign Change is Non-Negotiable]
+The IVT says: if $f$ is continuous and $f(a) < 0 < f(b)$, then
+$\exists\, c \in (a,b)$ with $f(c) = 0$. Without a sign change,
+there is no \emph{guarantee} that a root exists in $[a,b]$, and
+bisection cannot narrow the interval.
+
+For our $f_t(k)$ in the U-shaped case (Theorem~\ref{thm:non-monotone}):
+\begin{itemize}
+  \item Bracket $[-500, 500]$: often works (the root lies in $[20, 50]$)
+  \item Bracket $[-2000, 2000]$: fails because $f(-2000) > 0$ and $f(2000) > 0$
+    (both endpoints are on the same side of the U)
+\end{itemize}
+
+The fix: \emph{adaptively search} for the sign change by evaluating $f$
+on a grid, then bracket the root tightly.
+\end{intuition}
+
+% ════════════════════════════════════════════════════════════
+\section{Mortality Projection: Random Walk with Drift}
+\label{sec:projection}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[RWD Model for $k_t$]
+After fitting Lee--Carter, project $k_t$ forward as an ARIMA(0,1,0)
+process with drift:
+\begin{equation}
+  k_{T+h} = k_T + h \cdot c + \sigma \cdot W_h
+  \label{eq:rwd}
+\end{equation}
+where $W_h$ is a Wiener process (Brownian motion), or in discrete form:
+\begin{equation}
+  k_{T+h} = k_T + h \cdot c + \sigma \sum_{i=1}^{h} Z_i, \quad Z_i \stackrel{\text{iid}}{\sim} N(0,1)
+  \label{eq:rwd-discrete}
+\end{equation}
+
+\textbf{Parameter estimation} from observed $k_1, \ldots, k_T$:
+\begin{align}
+  \hat{c} &= \frac{k_T - k_1}{T - 1} & &\text{(drift: average annual change)} \label{eq:drift} \\
+  \hat{\sigma} &= \sqrt{\frac{1}{T-2}\sum_{t=2}^{T}\bigl(\Delta k_t - \hat{c}\bigr)^2}
+  & &\text{(volatility of innovations)} \label{eq:sigma}
+\end{align}
+where $\Delta k_t = k_t - k_{t-1}$.
+\end{formaldef}
+
+\begin{intuition}[Drift = Secular Trend, Sigma = Year-to-Year Noise]
+The drift $c$ is the ``average annual improvement'' in the mortality
+index. Negative drift means mortality is improving. The sigma captures
+how noisy this improvement is year to year.
+
+Stochastic simulations generate many possible futures:
+\begin{itemize}
+  \item The \textbf{central projection} ($k_T + hc$) is the ``expected'' path
+  \item Each simulation adds random noise, creating a fan of possibilities
+  \item Quantiles at each horizon give confidence intervals
+\end{itemize}
+\end{intuition}
+
+\begin{application}[SIMA: COVID Impact on Drift]
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Parameter & Pre-COVID & Full (with COVID) & Difference \\
+\midrule
+Drift $\hat{c}$ & $-1.0764$ & $-0.8548$ & $+0.2216$ \\
+Sigma $\hat{\sigma}$ & $1.7889$ & $1.5163$ & $-0.2726$ \\
+Explained var. & 77.7\% & 53.5\% & $-24.2$ pp \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+COVID makes the drift $0.22$ units \emph{less negative} (mortality
+improvement appears slower). This $\Delta c = +0.22$ propagates
+through the entire pipeline:
+\[
+  \Delta k_{T+30} = 30 \times 0.22 = 6.6 \text{ units higher $k_t$}
+  \;\Longrightarrow\;
+  \text{higher mortality}
+  \;\Longrightarrow\;
+  \text{3--10\% higher premiums}
+\]
+\end{application}
+
+% ════════════════════════════════════════════════════════════
+\section{Commutation Functions and the Premium Engine}
+\label{sec:commutation}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Commutation Functions]
+Given a life table $\{l_x\}$ and interest rate $i$ (discount factor $v = 1/(1+i)$):
+\begin{align}
+  D_x &= v^{x} \cdot l_x & &\text{(discounted survivors)} \label{eq:Dx} \\
+  N_x &= \sum_{j=x}^{\omega} D_j & &\text{(sum of future $D$'s)} \label{eq:Nx} \\
+  C_x &= v^{x+1} \cdot d_x & &\text{(discounted deaths)} \label{eq:Cx} \\
+  M_x &= \sum_{j=x}^{\omega} C_j & &\text{(sum of future $C$'s)} \label{eq:Mx}
+\end{align}
+
+\textbf{Backward recursion} (O(n) computation):
+\begin{equation}
+  N_\omega = D_\omega, \quad N_x = D_x + N_{x+1}
+  \qquad
+  M_\omega = C_\omega, \quad M_x = C_x + M_{x+1}
+  \label{eq:backward-recursion}
+\end{equation}
+\end{formaldef}
+
+\begin{formaldef}[Net Premiums via the Equivalence Principle]
+The \textbf{equivalence principle}: at policy issue, the actuarial present
+value (APV) of premiums equals the APV of benefits:
+\begin{equation}
+  P \cdot \ddot{a}_{x:\anmark{n}} = SA \cdot A_{x:\anmark{n}}
+  \label{eq:equivalence}
+\end{equation}
+
+Using commutation functions, $D_x$ cancels in numerator and denominator:
+
+\begin{align}
+  \text{Whole life:} \quad P &= SA \cdot \frac{M_x}{N_x}
+  \label{eq:prem-wl} \\[6pt]
+  \text{Term $n$:} \quad P &= SA \cdot \frac{M_x - M_{x+n}}{N_x - N_{x+n}}
+  \label{eq:prem-term} \\[6pt]
+  \text{Endowment:} \quad P &= SA \cdot \frac{M_x - M_{x+n} + D_{x+n}}{N_x - N_{x+n}}
+  \label{eq:prem-endow}
+\end{align}
+\end{formaldef}
+
+\begin{intuition}[Why $D_x$ Cancels]
+The insurance value $A_x = M_x / D_x$ and the annuity value
+$\ddot{a}_x = N_x / D_x$ both have $D_x$ in the denominator.
+In the premium equation $P = SA \cdot A_x / \ddot{a}_x$, the $D_x$
+cancels:
+\[
+  P = SA \cdot \frac{M_x / D_x}{N_x / D_x} = SA \cdot \frac{M_x}{N_x}
+\]
+This is why commutation functions are powerful: they reduce complex
+actuarial calculations to simple \emph{table lookups and ratios}.
+No integrals, no summations at premium-calculation time.
+\end{intuition}
+
+\begin{application}[SIMA: Premium Impact of COVID]
+Whole life premiums ($SA = \$1{,}000{,}000$ MXN, $i = 5\%$):
+\begin{center}
+\begin{tabular}{rrrrc}
+\toprule
+Age & Pre-COVID & Full Period & $\Delta$ & \% Change \\
+\midrule
+25 & \$5{,}375 & \$5{,}605 & +\$230 & +4.28\% \\
+40 & \$10{,}736 & \$11{,}148 & +\$411 & +3.83\% \\
+60 & \$29{,}829 & \$30{,}796 & +\$967 & +3.24\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Term 20 premiums are \emph{more} sensitive (8--10\% increase) because
+term insurance is pure mortality risk with no savings component -- the
+drift change hits it harder.
+\end{application}
+
+% ════════════════════════════════════════════════════════════
+\section{Regulatory Validation}
+\label{sec:validation}
+% ════════════════════════════════════════════════════════════
+
+\begin{formaldef}[Mortality Comparison Metrics]
+Given projected $\hat{q}_x$ and regulatory benchmark $q_x^{\text{reg}}$:
+
+\textbf{$q_x$ ratio} (multiplicative comparison):
+\begin{equation}
+  r_x = \frac{\hat{q}_x}{q_x^{\text{reg}}}
+  \label{eq:qx-ratio}
+\end{equation}
+
+\textbf{RMSE} (overall fit over $[x_1, x_2]$):
+\begin{equation}
+  \text{RMSE} = \sqrt{\frac{1}{x_2 - x_1 + 1}\sum_{x=x_1}^{x_2}
+  \bigl(\hat{q}_x - q_x^{\text{reg}}\bigr)^2}
+  \label{eq:rmse}
+\end{equation}
+\end{formaldef}
+
+\begin{intuition}[What the Ratio Tells You]
+\begin{itemize}
+  \item $r_x > 1$: Projection predicts \emph{higher} mortality than the
+    regulatory table. The projection is more ``conservative'' (prudent for
+    life insurance pricing).
+  \item $r_x < 1$: Projection predicts \emph{lower} mortality. The
+    regulatory table may be outdated or calibrated to a different population.
+  \item $r_x \approx 1$: Good agreement.
+\end{itemize}
+\end{intuition}
+
+\begin{application}[SIMA: Projected vs EMSSA 2009 (Male)]
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+Age & Projected $q_x$ & EMSSA $q_x$ & Ratio \\
+\midrule
+ 0 & 0.00793 & 0.00073 & 10.86 \\
+30 & 0.00142 & 0.00145 & 0.98 \\
+50 & 0.00464 & 0.00352 & 1.32 \\
+60 & 0.01048 & 0.00604 & 1.74 \\
+80 & 0.05436 & 0.02095 & 2.59 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Key insight: EMSSA 2009 is calibrated to \emph{insurance company experience}
+(healthier, wealthier policyholders). Our INEGI-based projection reflects
+the \emph{general population} -- naturally higher mortality, especially at
+older ages. The divergence (ratios 1.7--2.9 at ages 60+) is expected and
+actuarially meaningful: it quantifies the selection effect in insured lives.
+\end{application}
+
+% ════════════════════════════════════════════════════════════
+\section{Summary: The Complete Pipeline}
+\label{sec:summary}
+% ════════════════════════════════════════════════════════════
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{clll}
+\toprule
+\textbf{Step} & \textbf{Operation} & \textbf{Key Formula} & \textbf{Module} \\
+\midrule
+1 & Load data & $m_{x,t} = D_{x,t}/E_{x,t}$ & \texttt{a06} \\
+2 & Graduate & $\hat{\bm{z}} = (\bm{W}+\lambda\bm{D}^\top\bm{D})^{-1}\bm{W}\bm{y}$ & \texttt{a07} \\
+3 & Fit Lee--Carter & $\ln m = a_x + b_x k_t$ via SVD & \texttt{a08} \\
+4 & Project & $k_{T+h} = k_T + hc + \sigma W_h$ & \texttt{a09} \\
+5 & Bridge & $q_x = 1 - e^{-m_x}$, build $l_x$ & \texttt{a09$\to$a01} \\
+6 & Commutations & $D_x, N_x, C_x, M_x$ & \texttt{a02} \\
+7 & Premiums & $P = SA \cdot M_x / N_x$ & \texttt{a04} \\
+8 & Validate & $r_x = \hat{q}_x / q_x^{\text{reg}}$ & \texttt{a10} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ════════════════════════════════════════════════════════════
+\section{Key Identities and Properties}
+\label{sec:identities}
+% ════════════════════════════════════════════════════════════
+
+\begin{enumerate}[label=\textbf{P\arabic*.}]
+  \item \textbf{Death accounting:} $\sum_{x=0}^{\omega} d_x = l_0$
+  \item \textbf{Fundamental identity:} $A_x + d \cdot \ddot{a}_x = 1$
+    where $d = iv = i/(1+i)$
+  \item \textbf{SVD optimality:} The rank-1 approximation $\sigma_1 \bm{u}_1 \bm{v}_1^\top$
+    is the best rank-1 approximation to $\bm{R}$ in Frobenius norm
+    (Eckart--Young--Mirsky theorem)
+  \item \textbf{Convexity of $f_t$:} $f_t''(k) = \sum_x E_{x,t} b_x^2 e^{a_x + b_x k} > 0$
+    always (regardless of signs of $b_x$)
+  \item \textbf{Jensen gap:} $\sum_x E_x \exp(\overline{\ln m_x}) \leq \sum_x E_x \cdot \overline{m_x}$
+    with equality iff all rates are equal
+  \item \textbf{RWD is a martingale} (after drift removal):
+    $\E[k_{T+h} - hc \mid k_T] = k_T$
+\end{enumerate}
+
+% ════════════════════════════════════════════════════════════
+\section{What This Document Does Not Cover (Yet)}
+% ════════════════════════════════════════════════════════════
+
+\begin{itemize}
+  \item \textbf{Multi-population models} (Li--Lee, coherent forecasting)
+  \item \textbf{CBD model} for old-age mortality (Cairns--Blake--Dowd)
+  \item \textbf{Reserve calculations} (prospective method, ${}_{t}V_x$)
+  \item \textbf{Capital requirements} (CNSF stress scenarios, SCR)
+  \item \textbf{Model selection}: AIC/BIC for ARIMA order on $k_t$
+  \item \textbf{Goodness-of-fit tests}: residual diagnostics, normality of $\varepsilon_{x,t}$
+\end{itemize}
+
+\vfill
+
+\begin{center}
+\rule{0.5\textwidth}{0.4pt} \\[0.5em]
+\textit{``All models are wrong, but some are useful.''} \\
+--- George E.\ P.\ Box (1976)
+\end{center}
+
+\end{document}

@@ -1,0 +1,586 @@
+\documentclass[11pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+
+% ── Box definitions ───────────────────────────────────────────────────────────
+\newtcolorbox{formaldef}[1][]{colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{intuition}[1][]{colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{application}[1][]{colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{dimcheck}{colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
+
+% ── Title setup ───────────────────────────────────────────────────────────────
+\title{%
+  \textbf{Whittaker--Henderson Graduation}\\[6pt]
+  \Large From Bending Rods to Smooth Mortality\\[4pt]
+  \large A Bridge Document for SIMA --- Mortality Smoothing%
+}
+\author{SIMA Project}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Notation and Conventions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Every symbol used in this document is collected here for quick reference.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{>{\raggedright}p{2.8cm} c p{7cm}}
+\toprule
+\textbf{Name} & \textbf{Symbol} & \textbf{Meaning} \\
+\midrule
+Observed rate      & $m_x$      & Central death rate at age $x$, computed from data \\
+Graduated rate     & $g_x$      & Smoothed estimate of the true force of mortality \\
+Weights            & $w_x$      & Confidence in $m_x$; typically the exposure $E_x$ \\
+Smoothing parameter & $\lambda$ & Controls the balance between fidelity and smoothness \\
+Difference order   & $z$        & Order of the finite difference used in the roughness penalty \\
+Difference matrix  & $\bm{D}$   & Matrix of size $(n-z)\times n$ that computes all $z$-th differences \\
+Weight matrix      & $\bm{W}$   & Diagonal $n\times n$ matrix with $w_x$ on the diagonal \\
+Number of ages     & $n$        & Total number of age groups in the data \\
+Observed vector    & $\bm{m}$   & Column vector $(m_{x_0}, m_{x_0+1}, \ldots, m_{x_0+n-1})^\top$ \\
+Graduated vector   & $\bm{g}$   & Column vector $(g_{x_0}, g_{x_0+1}, \ldots, g_{x_0+n-1})^\top$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Throughout, bold lowercase ($\bm{g}$, $\bm{m}$) denotes column vectors and bold uppercase ($\bm{D}$, $\bm{W}$) denotes matrices.  All ages are equally spaced with step $h=1$.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The Problem: Why Smooth?}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{formaldef}[The Graduation Problem]
+We observe central death rates $m_x$ at ages $x = x_0, x_0+1, \ldots, x_0+n-1$.
+Each $m_x$ is a noisy realization of an underlying true force of mortality $\mu_x$:
+\[
+  m_x = \mu_x + \varepsilon_x,
+\]
+where $\varepsilon_x$ is random noise whose variance is inversely related to the exposure $E_x$ at age $x$.  The goal of \textbf{graduation} is to find smooth values $g_x$ that estimate $\mu_x$ better than $m_x$ does.
+\end{formaldef}
+
+\begin{intuition}[Scatter Plot Analogy]
+Imagine 101 dots scattered on a page---one for each age from 0 to 100.  The $y$-coordinate of each dot is $m_x$, the observed mortality rate.  If you were asked to draw a smooth curve through those dots by hand, you would not connect the dots with straight segments (that preserves all the noise).  Instead, you would draw a gentle curve that passes \emph{near} most dots, ignoring the ones that look like outliers.
+
+That hand-drawn curve is graduation.  The question is: how do we tell a computer what ``near'' and ``gentle'' mean?
+\end{intuition}
+
+\begin{application}[Mortality at Extreme Ages]
+At old ages (95--100+), populations are tiny.  A country may have 200 people alive at age 99.  If 3 die one year and 7 die the next, $m_x$ jumps wildly---this is pure noise, not biology.
+
+These jumps cause two concrete problems for the SIMA pipeline:
+\begin{enumerate}[nosep]
+  \item If $m_x = 0$ at some age (nobody died), then $\ln(m_x)$ is undefined.  Lee--Carter requires the logarithm. The model crashes.
+  \item Even without zeros, the noise corrupts the SVD decomposition in Lee--Carter, causing the age pattern $b_x$ and time trend $k_t$ to absorb artifacts instead of real signal.
+\end{enumerate}
+Graduation removes these problems before Lee--Carter ever sees the data.
+\end{application}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Finite Differences: Measuring Roughness}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+This is the core idea of Whittaker--Henderson.  We need a precise way to measure how ``rough'' a sequence of values is.  Finite differences give us exactly that.
+
+%% ── 3.1  Definitions ────────────────────────────────────────────────────────
+\subsection{Definitions}
+
+\begin{formaldef}[Finite Differences of Orders 1, 2, and 3]
+Let $g_x, g_{x+1}, g_{x+2}, \ldots$ be any sequence.
+
+\textbf{First difference:}
+\[
+  \Delta^1 g_x \;=\; g_{x+1} - g_x
+\]
+
+\textbf{Second difference} (apply $\Delta^1$ twice):
+\[
+  \Delta^2 g_x \;=\; \Delta^1(\Delta^1 g_x)
+  \;=\; g_{x+2} - 2\,g_{x+1} + g_x
+\]
+
+\textbf{Third difference} (apply $\Delta^1$ three times):
+\[
+  \Delta^3 g_x \;=\; g_{x+3} - 3\,g_{x+2} + 3\,g_{x+1} - g_x
+\]
+
+In general, the $z$-th difference involves $z+1$ consecutive values, with coefficients given by the binomial numbers with alternating signs:
+\[
+  \Delta^z g_x \;=\; \sum_{j=0}^{z} (-1)^{z-j} \binom{z}{j}\, g_{x+j}.
+\]
+\end{formaldef}
+
+%% ── 3.2  Geometric Meaning ──────────────────────────────────────────────────
+\subsection{Geometric Meaning}
+
+\begin{intuition}[What Each Order Measures]
+Each finite difference captures a different geometric property of the curve:
+
+\medskip
+\textbf{First difference = slope (how steep).}
+Imagine walking along a hillside.  $\Delta^1 g_x = g_{x+1} - g_x$ tells you how much elevation you gain in one step.  A large positive value means a steep uphill; a negative value means downhill; zero means flat ground.
+
+\medskip
+\textbf{Second difference = curvature (how the slope changes).}
+Now imagine driving a car.  The steering wheel angle at each point on the road is the curvature.
+\begin{itemize}[nosep]
+  \item $\Delta^2 g_x = 0$: the road is straight (slope is constant).
+  \item $\Delta^2 g_x > 0$: the road curves to the left (slope is increasing).
+  \item $\Delta^2 g_x < 0$: the road curves to the right (slope is decreasing).
+\end{itemize}
+The second difference tells you \emph{how much you are turning} at each step.
+
+\medskip
+\textbf{Third difference = rate of change of curvature (``jerk'' in physics).}
+This is how quickly the road goes from straight to curving.  A gentle highway on-ramp has small jerk; a sudden 90-degree turn has large jerk.  $\Delta^3 g_x$ measures this abruptness.
+\end{intuition}
+
+\begin{intuition}[The Zero-Difference Table]
+A powerful way to understand the orders: ask what curves make $\Delta^z = 0$ \textbf{everywhere}.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{cl}
+\toprule
+\textbf{If $\Delta^z g_x = 0$ for all $x$} & \textbf{Shape of $g$} \\
+\midrule
+$z = 1$ & Horizontal line (constant function) \\
+$z = 2$ & Straight line (linear function) \\
+$z = 3$ & Parabola (quadratic function) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The pattern: $\Delta^z = 0$ everywhere means $g$ is a polynomial of degree at most $z-1$.  So \textbf{penalizing $\Delta^z$ forces the curve to be ``locally almost'' a polynomial of degree $z-1$}.  It does not force the curve to be globally polynomial---it just discourages departures from that shape in any local neighborhood.
+\end{intuition}
+
+%% ── 3.3  Connection to Calculus ─────────────────────────────────────────────
+\subsection{Connection to Derivatives via Taylor Polynomials}
+
+\begin{intuition}[Finite Differences Approximate Derivatives]
+Taylor's theorem says, for step size $h$:
+\[
+  f(x+h) \;\approx\; f(x) + f'(x)\,h + \frac{f''(x)}{2}\,h^2 + \frac{f'''(x)}{6}\,h^3 + \cdots
+\]
+Write the expansion at $x+h$ and $x-h$, add them, and rearrange:
+\[
+  f''(x) \;\approx\; \frac{f(x+h) - 2\,f(x) + f(x-h)}{h^2}.
+\]
+The numerator is exactly $\Delta^2 f_{x-h}$ (re-indexed).  With our step size $h=1$ (single-year ages), the second difference \textbf{is} the second derivative, up to the constant $h^2 = 1$.
+
+Similarly, the third difference approximates the third derivative:
+\[
+  f'''(x) \;\approx\; \frac{f(x+\tfrac{3}{2}h) - 3\,f(x+\tfrac{1}{2}h) + 3\,f(x-\tfrac{1}{2}h) - f(x-\tfrac{3}{2}h)}{h^3}.
+\]
+
+The takeaway:
+\begin{itemize}[nosep]
+  \item Penalizing $\sum (\Delta^2 g_x)^2 \;\approx\;$ penalizing $\int [g''(x)]^2\,dx$ (total squared curvature).
+  \item Penalizing $\sum (\Delta^3 g_x)^2 \;\approx\;$ penalizing $\int [g'''(x)]^2\,dx$ (total squared jerk).
+\end{itemize}
+\end{intuition}
+
+%% ── 3.4  Why z=3 for mortality ──────────────────────────────────────────────
+\subsection{Choosing the Order for Mortality}
+
+\begin{application}[Why $z=3$ Is Standard for Mortality Graduation]
+Human mortality has genuine curvature: $\ln(\mu_x)$ curves upward with age (roughly linear by Gompertz's law, but with real curvature at young ages and very old ages).
+
+\begin{itemize}[nosep]
+  \item \textbf{$z=2$ penalizes curvature.}  But curvature is a real feature of mortality, not noise.  Using $z=2$ would fight against the biology.
+  \item \textbf{$z=3$ penalizes changes in curvature.}  It allows the curve to bend (mortality can accelerate with age) but punishes \emph{sudden} changes in bending---which \emph{is} noise.
+\end{itemize}
+
+This is why the actuarial literature and the SIMA pipeline use $z=3$ as the default for Whittaker--Henderson graduation of mortality rates.
+\end{application}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The Objective Function: Balancing Fidelity and Smoothness}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{The Two Competing Goals}
+
+\begin{formaldef}[Whittaker--Henderson Objective]
+Define two quantities:
+
+\textbf{Fidelity} (closeness to data):
+\[
+  F \;=\; \sum_{x} w_x \bigl(g_x - m_x\bigr)^2
+\]
+
+\textbf{Smoothness} (lack of roughness):
+\[
+  S \;=\; \sum_{x} \bigl(\Delta^z g_x\bigr)^2
+\]
+
+The Whittaker--Henderson graduated values minimize the combined objective:
+\[
+  \boxed{\min_{\bm{g}} \;\; F + \lambda\, S
+  \;=\; \sum_{x} w_x (g_x - m_x)^2 \;+\; \lambda \sum_{x} (\Delta^z g_x)^2}
+\]
+where $\lambda > 0$ is the \textbf{smoothing parameter} controlling the trade-off.
+\end{formaldef}
+
+\subsection{Physical Analogies}
+
+\begin{intuition}[The Spring and Rod Analogy]
+Picture the following physical setup:
+
+\begin{enumerate}[nosep]
+  \item A \textbf{flexible metal rod} is laid horizontally---this will become the graduated curve $g_x$.
+  \item At each age $x$, a \textbf{vertical spring} connects the rod to the observed data point $m_x$.
+  \item Each spring has stiffness proportional to $w_x$.  Ages with large exposures have stiff springs (strong pull toward data); ages with small exposures have weak springs (easy to ignore).
+  \item The rod itself has \textbf{bending stiffness} proportional to $\lambda$.
+\end{enumerate}
+
+Now release the system and let it reach equilibrium:
+\begin{itemize}[nosep]
+  \item \textbf{Small $\lambda$} = soft rod.  The springs dominate; the rod follows every wiggle of the data.  Result: noisy, overfitting.
+  \item \textbf{Large $\lambda$} = stiff rod.  The rod barely bends; it ignores the data and becomes nearly a polynomial.  Result: oversmooth, loses real features.
+  \item \textbf{Right $\lambda$} = the rod passes near the data but refuses to wiggle for no reason.  This is graduation.
+\end{itemize}
+
+The equilibrium shape of the rod is exactly $\bm{g}^* = \arg\min (F + \lambda S)$.
+\end{intuition}
+
+\begin{intuition}[Audio Filter Analogy]
+Think of the observed mortality rates $m_x$ as a voice recording with background static:
+\begin{itemize}[nosep]
+  \item \textbf{Signal} = the true mortality pattern $\mu_x$ (the voice).
+  \item \textbf{Noise} = random fluctuations $\varepsilon_x$ (the static).
+  \item \textbf{Graduation} = a low-pass filter that removes high-frequency noise while keeping the low-frequency voice.
+  \item \textbf{$z$} controls the frequency cutoff: higher $z$ allows more complex shapes through.
+  \item \textbf{$\lambda$} controls how aggressively the filter suppresses: large $\lambda$ removes more, small $\lambda$ removes less.
+\end{itemize}
+\end{intuition}
+
+\subsection{Choosing $\lambda$ in Practice}
+
+\begin{application}[Smoothing Parameter for Mortality]
+Typical values of $\lambda$ in mortality graduation range from 1 to 10\,000 or more, depending on the noise level and the difference order $z$.
+
+\begin{itemize}[nosep]
+  \item \textbf{Too small}: keeps noise.  The SVD in Lee--Carter picks up artifacts; $b_x$ oscillates wildly.
+  \item \textbf{Too large}: smooths away real features.  For males, there is a genuine ``accident hump'' around ages 18--25 where mortality spikes due to risk-taking behavior.  Excessive smoothing erases this, and the model misses a biologically real pattern.
+  \item \textbf{In practice}: actuaries choose $\lambda$ by a combination of cross-validation (leaving out ages and predicting them) and visual judgment (does the curve look reasonable?).
+\end{itemize}
+
+For the SIMA pipeline with $z=3$, a value of $\lambda$ in the range $10$--$1000$ is a reasonable starting point for Mexican mortality data.
+\end{application}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The Difference Matrix $\bm{D}$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Construction}
+
+To write the objective in matrix form, we need a matrix $\bm{D}$ such that $\bm{D}\bm{g}$ is the vector of all $z$-th finite differences.
+
+\begin{formaldef}[Difference Matrix]
+For $n$ data points and difference order $z$, the matrix $\bm{D}$ has size $(n-z) \times n$.
+
+\textbf{Example: $z=2$, $n=5$.}  There are $5-2=3$ second differences:
+\[
+\bm{D} = \begin{pmatrix}
+1 & -2 & 1 & 0 & 0 \\
+0 & 1 & -2 & 1 & 0 \\
+0 & 0 & 1 & -2 & 1
+\end{pmatrix}
+\]
+
+\textbf{Example: $z=3$, $n=6$.}  There are $6-3=3$ third differences:
+\[
+\bm{D} = \begin{pmatrix}
+1 & -3 & 3 & -1 & 0 & 0 \\
+0 & 1 & -3 & 3 & -1 & 0 \\
+0 & 0 & 1 & -3 & 3 & -1
+\end{pmatrix}
+\]
+
+\textbf{General pattern.}  Row $i$ (starting from $i=0$) of $\bm{D}$ has the $z$-th order binomial coefficients with alternating signs, starting at column $i$:
+\[
+  D_{i,\,i+j} = (-1)^{z-j}\binom{z}{j}, \qquad j = 0, 1, \ldots, z.
+\]
+All other entries in row $i$ are zero.
+\end{formaldef}
+
+\subsection{Dimensions}
+
+\begin{dimcheck}
+\begin{itemize}[nosep]
+  \item $\bm{D}$ is $(n-z) \times n$.
+  \item $\bm{D}^\top \bm{D}$ is $n \times n$ (symmetric).
+  \item $\bm{W}$ is $n \times n$ (diagonal).
+  \item $\bm{W} + \lambda\,\bm{D}^\top\bm{D}$ is $n \times n$ (symmetric).
+  \item $\bm{g}$, $\bm{m}$ are $n \times 1$ (column vectors).
+  \item $\bm{D}\bm{g}$ is $(n-z) \times 1$: the vector of all $z$-th differences.
+\end{itemize}
+\end{dimcheck}
+
+\subsection{What $\bm{D}^\top\bm{D}$ Does}
+
+\begin{intuition}[Reading the Penalty Matrix]
+The product $\bm{D}\bm{g}$ gives the vector of all finite differences.  The smoothness penalty is:
+\[
+  S = \|\bm{D}\bm{g}\|^2 = (\bm{D}\bm{g})^\top(\bm{D}\bm{g}) = \bm{g}^\top \bm{D}^\top\bm{D}\,\bm{g}.
+\]
+So $\bm{D}^\top\bm{D}$ is the \textbf{penalty matrix}: entry $(i,j)$ of $\bm{D}^\top\bm{D}$ measures how much ages $i$ and $j$ interact in the roughness penalty.
+
+Each row of $\bm{D}$ computes one local difference.  $\bm{D}^\top\bm{D}$ accumulates these local penalties into a global picture: it spreads the roughness penalty from each difference to all the neighboring values that participate in that difference.
+
+The matrix $\bm{D}^\top\bm{D}$ is \textbf{banded}---for order $z$, it has at most $2z+1$ nonzero diagonals.  This bandedness is what makes the computation fast.
+\end{intuition}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The Closed-Form Solution}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Derivation}
+
+\begin{formaldef}[Matrix Form and Solution]
+Write the objective in matrix notation:
+\[
+  F + \lambda\,S
+  \;=\; (\bm{g} - \bm{m})^\top \bm{W}\,(\bm{g} - \bm{m})
+  \;+\; \lambda\;\bm{g}^\top \bm{D}^\top\bm{D}\;\bm{g}.
+\]
+This is a quadratic function of $\bm{g}$.  Setting the gradient to zero:
+\[
+  \frac{\partial}{\partial \bm{g}}\bigl[F + \lambda S\bigr]
+  = 2\,\bm{W}(\bm{g} - \bm{m}) + 2\,\lambda\,\bm{D}^\top\bm{D}\,\bm{g}
+  = \bm{0}.
+\]
+Rearranging:
+\[
+  \bigl(\bm{W} + \lambda\,\bm{D}^\top\bm{D}\bigr)\,\bm{g} = \bm{W}\,\bm{m}.
+\]
+Therefore:
+\[
+  \boxed{\bm{g}^* = \bigl(\bm{W} + \lambda\,\bm{D}^\top\bm{D}\bigr)^{-1}\,\bm{W}\,\bm{m}}
+\]
+
+This system always has a unique solution provided $\bm{W}$ has at least $z$ positive diagonal entries (which in practice is always satisfied---we need at least $z$ ages with nonzero exposure).
+\end{formaldef}
+
+\subsection{Recognizing the Structure}
+
+\begin{intuition}[Graduation Is Regularized Regression]
+Compare the Whittaker--Henderson solution to ridge regression.
+
+\medskip
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{Ridge Regression} & \textbf{Whittaker--Henderson} \\
+\midrule
+Data term     & $\bm{X}^\top\bm{X}$     & $\bm{W}$ \\
+Penalty term  & $\lambda\,\bm{I}$        & $\lambda\,\bm{D}^\top\bm{D}$ \\
+System        & $(\bm{X}^\top\bm{X} + \lambda\bm{I})\,\bm{\beta} = \bm{X}^\top\bm{y}$
+              & $(\bm{W} + \lambda\bm{D}^\top\bm{D})\,\bm{g} = \bm{W}\bm{m}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+The structure is identical: \textbf{data term + penalty term}.  The only difference is \emph{what} gets penalized:
+\begin{itemize}[nosep]
+  \item Ridge penalizes the \emph{magnitude} of coefficients ($\|\bm{\beta}\|^2$).
+  \item Whittaker--Henderson penalizes the \emph{roughness} of the curve ($\|\bm{D}\bm{g}\|^2$).
+\end{itemize}
+
+Reading the solution: $\bm{W}\bm{m}$ is ``what the data wants.''  $\lambda\bm{D}^\top\bm{D}$ is ``what smoothness wants.''  The inverse balances both.
+\end{intuition}
+
+\subsection{Computation}
+
+\begin{application}[Efficient Numerical Solution]
+The matrix $\bm{W} + \lambda\bm{D}^\top\bm{D}$ is:
+\begin{enumerate}[nosep]
+  \item \textbf{Symmetric positive definite} --- so Cholesky factorization applies.
+  \item \textbf{Banded} with bandwidth $z$ --- so the solve is $O(n\,z^2)$, essentially $O(n)$.
+\end{enumerate}
+
+In Python, the natural choices are:
+\begin{itemize}[nosep]
+  \item \texttt{numpy.linalg.solve} for small $n$ (direct dense solve).
+  \item \texttt{scipy.linalg.solve\_banded} or \texttt{scipy.linalg.cho\_solve\_banded} for large $n$, exploiting the banded structure.
+\end{itemize}
+
+For 101 ages (0--100), even the dense solve is instantaneous.  The banded structure matters more when smoothing over a surface (age $\times$ year), which is outside the scope of this document.
+\end{application}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Worked Example: Five Ages}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+We walk through a complete example with $n=5$ ages, $z=2$, $\lambda=10$, and equal weights $w_x = 1$.
+
+\subsection*{Step 1: Observed Data}
+
+\[
+\bm{m} = \begin{pmatrix} 0.010 \\ 0.015 \\ 0.012 \\ 0.018 \\ 0.020 \end{pmatrix}
+\]
+
+Note the dip at the third age ($m_2 = 0.012$), which looks suspicious---mortality generally increases with age.  We expect graduation to pull this value up.
+
+\subsection*{Step 2: Build $\bm{D}$ (second differences, $z=2$)}
+
+\[
+\bm{D} = \begin{pmatrix}
+1 & -2 & 1 & 0 & 0 \\
+0 & 1 & -2 & 1 & 0 \\
+0 & 0 & 1 & -2 & 1
+\end{pmatrix}
+\quad\text{size: } 3 \times 5
+\]
+
+\subsection*{Step 3: Build $\bm{D}^\top\bm{D}$}
+
+\[
+\bm{D}^\top\bm{D} =
+\begin{pmatrix}
+ 1 & -2 &  1 &  0 &  0 \\
+-2 &  5 & -4 &  1 &  0 \\
+ 1 & -4 &  6 & -4 &  1 \\
+ 0 &  1 & -4 &  5 & -2 \\
+ 0 &  0 &  1 & -2 &  1
+\end{pmatrix}
+\quad\text{size: } 5 \times 5
+\]
+
+\subsection*{Step 4: Build the System Matrix}
+
+With $\bm{W} = \bm{I}$ (equal weights) and $\lambda = 10$:
+\[
+\bm{W} + 10\,\bm{D}^\top\bm{D} =
+\begin{pmatrix}
+11 & -20 &  10 &   0 &  0 \\
+-20 &  51 & -40 &  10 &  0 \\
+ 10 & -40 &  61 & -40 & 10 \\
+  0 &  10 & -40 &  51 & -20 \\
+  0 &   0 &  10 & -20 & 11
+\end{pmatrix}
+\]
+
+\subsection*{Step 5: Right-Hand Side}
+
+\[
+\bm{W}\bm{m} = \bm{m} = \begin{pmatrix} 0.010 \\ 0.015 \\ 0.012 \\ 0.018 \\ 0.020 \end{pmatrix}
+\]
+
+\subsection*{Step 6: Solve}
+
+Solving $(\bm{W} + 10\,\bm{D}^\top\bm{D})\,\bm{g} = \bm{W}\bm{m}$ numerically gives:
+\[
+\bm{g} \approx \begin{pmatrix} 0.01065 \\ 0.01310 \\ 0.01483 \\ 0.01683 \\ 0.01910 \end{pmatrix}
+\]
+
+\subsection*{Step 7: Interpret}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{ccc}
+\toprule
+\textbf{Age index} & $m_x$ \textbf{(observed)} & $g_x$ \textbf{(graduated)} \\
+\midrule
+0 & 0.0100 & 0.0107 \\
+1 & 0.0150 & 0.0131 \\
+2 & 0.0120 & 0.0148 \\
+3 & 0.0180 & 0.0168 \\
+4 & 0.0200 & 0.0191 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The suspicious dip at age index 2 ($0.012 \to 0.0148$) has been pulled upward.  The peak at age index 1 ($0.015 \to 0.0131$) has been pulled downward.  The graduated values increase monotonically---a much more plausible mortality pattern.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Connection to Splines and Modern Methods}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{formaldef}[Equivalences]
+\begin{itemize}[nosep]
+  \item Whittaker--Henderson graduation with $z=2$ is mathematically equivalent to the \textbf{Hodrick--Prescott filter}, widely used in macroeconomics to decompose GDP into trend and cycle.
+  \item Whittaker--Henderson can be viewed as \textbf{P-splines of degree 0} (Eilers \& Marx, 1996): B-spline basis functions of order 1 (i.e., the identity basis on a grid) combined with a difference penalty on the coefficients.
+  \item More generally, P-splines of degree $p$ with a $z$-th order difference penalty generalize Whittaker--Henderson by allowing unequally spaced knots and higher-order basis functions.
+\end{itemize}
+\end{formaldef}
+
+\begin{intuition}[Differences vs.\ Derivatives]
+Classical spline smoothing penalizes integrated squared derivatives: $\int [f^{(z)}(x)]^2\,dx$.  Whittaker--Henderson penalizes summed squared differences: $\sum (\Delta^z g_x)^2$.
+
+For equally spaced data (like single-year ages), these are essentially the same thing---the sum of squared differences is a Riemann-sum approximation to the integral of squared derivatives.
+
+Whittaker--Henderson is the \textbf{discrete twin} of spline smoothing.  On a regular grid, it is computationally simpler (no need to construct or evaluate basis functions) and gives nearly identical results.  This is why it remains the standard for actuarial mortality graduation, where ages are always equally spaced by one year.
+\end{intuition}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Summary Table}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{>{\raggedright}p{3cm} c >{\raggedright}p{4.2cm} p{3.5cm}}
+\toprule
+\textbf{Component} & \textbf{Symbol} & \textbf{Role} & \textbf{Analogy} \\
+\midrule
+Observed data        & $m_x$                           & What was measured              & The noisy dots \\
+Graduated data       & $g_x$                           & What we believe the truth is   & The smooth curve \\
+Weights              & $w_x$                           & Trust placed in each age       & Spring strength \\
+Difference order     & $z$                             & What ``smooth'' means          & Frequency cutoff \\
+Smoothing parameter  & $\lambda$                       & Fit vs.\ smooth balance        & Rod stiffness \\
+Difference matrix    & $\bm{D}$                        & Computes all finite differences & Curvature meter \\
+Penalty matrix       & $\bm{D}^\top\bm{D}$            & Spreads roughness penalty      & Stiffness matrix \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Key Identities and Limit Behavior}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{formaldef}[Reference Identities]
+\begin{enumerate}[nosep,label=(\roman*)]
+  \item \textbf{Binomial coefficients.}  The $z$-th difference coefficients are:
+  \[
+    \Delta^z g_x = \sum_{j=0}^{z} (-1)^{z-j}\binom{z}{j}\,g_{x+j}.
+  \]
+
+  \item \textbf{Positive definiteness.}  $\bm{W} + \lambda\,\bm{D}^\top\bm{D}$ is symmetric positive definite whenever $\bm{W}$ has at least $z$ positive diagonal entries.  Therefore, the solution $\bm{g}^*$ is always unique.
+
+  \item \textbf{No smoothing limit.}  $\lambda = 0 \;\Longrightarrow\; \bm{g}^* = \bm{m}$.  With no penalty, the minimizer just reproduces the data.
+
+  \item \textbf{Maximum smoothing limit.}  $\lambda \to \infty \;\Longrightarrow\; \bm{g}^*$ converges to the weighted least-squares polynomial of degree $z-1$ fitted to $\bm{m}$ with weights $\bm{W}$.  All roughness is driven to zero.
+
+  \item \textbf{Hodrick--Prescott equivalence.}  Whittaker--Henderson with $z=2$ and $\bm{W} = \bm{I}$ is exactly the Hodrick--Prescott filter used in macroeconomics.
+\end{enumerate}
+\end{formaldef}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{What This Document Does Not Cover}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+To keep scope manageable, the following topics are deferred to later documents:
+
+\begin{itemize}[nosep]
+  \item \textbf{Two-dimensional smoothing} --- Smoothing over an age $\times$ calendar-year surface, as needed for Lee--Carter input data.  This requires Kronecker products and significantly larger systems.
+  \item \textbf{Automatic $\lambda$ selection} --- Cross-validation, AIC/BIC criteria, and other methods for choosing $\lambda$ without subjective judgment.
+  \item \textbf{Bayesian interpretation} --- Viewing graduation as posterior estimation with a Gaussian prior on smoothness.  The penalty $\lambda\,\bm{g}^\top\bm{D}^\top\bm{D}\,\bm{g}$ corresponds to a Gaussian Markov random field prior.
+  \item \textbf{Other smoothing methods} --- Kernel smoothing, spline regression, generalized additive models (GAMs), local polynomial regression (loess/lowess).
+\end{itemize}
+
+\end{document}
