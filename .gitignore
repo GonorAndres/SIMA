@@ -26,8 +26,18 @@ Thumbs.db
 # HMD data (CC BY 4.0 -- do not redistribute, download from www.mortality.org)
 backend/data/hmd/
 
-# Symlinked docs
-docs/
+# Mexican data (do not redistribute -- download from original sources)
+backend/data/inegi/
+backend/data/conapo/
+backend/data/cnsf/
+
+# Frontend build artifacts and dependencies
+frontend/node_modules/
+frontend/dist/
+
+# PDF reference docs (large binaries)
+backend/data/mortality_tables/*.pdf
+docs/*.pdf
 
 # Subagent outputs
 subagents_outputs/

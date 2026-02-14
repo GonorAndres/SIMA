@@ -125,6 +125,55 @@ class LifeTable:
 
         return cls(ages, l_x_values)
 
+    @classmethod
+    def from_regulatory_table(
+        cls,
+        filepath: str,
+        sex: str = "male",
+        radix: float = 100_000.0,
+    ) -> "LifeTable":
+        """
+        Load life table from a Mexican regulatory table (CNSF, EMSSA).
+
+        These tables publish q_x (mortality rates) by sex. The method
+        builds l_x via the recurrence: l_0 = radix, l_{x+1} = l_x * (1 - q_x).
+
+        Expected CSV format:
+            age,qx_male,qx_female
+            0,0.01550000,0.01280000
+            1,0.00696460,0.00575141
+            ...
+
+        Args:
+            filepath: Path to CSV file with regulatory table
+            sex: "male" or "female" -- selects the q_x column
+            radix: Initial cohort size (l_0), default 100,000
+
+        Returns:
+            LifeTable instance
+        """
+        path = Path(filepath)
+        if not path.exists():
+            raise FileNotFoundError(f"Regulatory table file not found: {filepath}")
+
+        col = f"qx_{sex}"
+
+        ages: List[int] = []
+        qx_values: List[float] = []
+
+        with open(path, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ages.append(int(row['age']))
+                qx_values.append(float(row[col]))
+
+        # Build l_x from q_x: l_0 = radix, l_{x+1} = l_x * (1 - q_x)
+        l_x_values: List[float] = [radix]
+        for qx in qx_values[:-1]:
+            l_x_values.append(l_x_values[-1] * (1.0 - qx))
+
+        return cls(ages, l_x_values)
+
     def subset(self, start_age: int, end_age: int) -> "LifeTable":
         """
         Create a subset of the life table for a specific age range.

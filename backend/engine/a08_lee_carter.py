@@ -233,6 +233,11 @@ class LeeCarter:
 
         The re-estimation is important because SVD minimizes error in
         log-space, but actuarial applications need accurate death counts.
+
+        When b_x has negative components (some ages improve opposite to
+        the general trend), the death_residual(k) function may be
+        non-monotone. In this case a fixed bracket may fail, so we
+        search adaptively for a sign change.
         """
         n_years = dx.shape[1]
         kt_new = np.zeros(n_years)
@@ -247,12 +252,31 @@ class LeeCarter:
                 model_deaths = np.sum(exposures_t * model_rates)
                 return model_deaths - observed_deaths
 
-            # Search range: k_t typically in [-200, 200] for Lee-Carter
             try:
                 kt_new[t] = brentq(death_residual, -500, 500)
             except ValueError:
-                # Fallback: if brentq can't bracket, use a wider range
-                kt_new[t] = brentq(death_residual, -2000, 2000)
+                # Fixed bracket failed. Search adaptively for a sign change.
+                # With negative b_x, the function is U-shaped: large positive
+                # at extreme k, with a minimum somewhere in the middle.
+                # We sample the function to find where it crosses zero.
+                found = False
+                k_candidates = np.linspace(-500, 500, 201)
+                f_vals = np.array([death_residual(k) for k in k_candidates])
+
+                for i in range(len(f_vals) - 1):
+                    if f_vals[i] * f_vals[i + 1] < 0:
+                        kt_new[t] = brentq(
+                            death_residual, k_candidates[i], k_candidates[i + 1]
+                        )
+                        found = True
+                        break
+
+                if not found:
+                    # No sign change found: the model-implied deaths never
+                    # reach the observed count. Use the k that minimizes
+                    # |residual| as best approximation.
+                    best_idx = np.argmin(np.abs(f_vals))
+                    kt_new[t] = k_candidates[best_idx]
 
         # Re-center to sum=0
         kt_new = kt_new - np.mean(kt_new)

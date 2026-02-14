@@ -2,14 +2,21 @@
 Mortality Data Module - Block 6
 ================================
 
-Loads and structures mortality data from the Human Mortality Database (HMD)
-into the matrix format required by Lee-Carter estimation.
+Loads and structures mortality data from multiple sources into the matrix
+format required by Lee-Carter estimation.
 
-Data Source:
------------
+Supported data sources:
+    1. HMD (Human Mortality Database) - from_hmd()
+    2. INEGI/CONAPO (Mexican official statistics) - from_inegi()
+
+Data Sources:
+------------
 HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 (Germany), University of California, Berkeley (USA), and French Institute for
 Demographic Studies (France). Available at www.mortality.org.
+
+INEGI. Instituto Nacional de Estadistica y Geografia. Defunciones registradas.
+CONAPO. Consejo Nacional de Poblacion. Proyecciones de poblacion.
 
 Theory Connection:
 -----------------
@@ -19,6 +26,7 @@ Lee-Carter requires three aligned matrices (ages x years):
     - L_{x,t}                          (exposure in person-years)
 
 HMD provides these in long format (one row per age-year combination).
+INEGI provides deaths and CONAPO provides population estimates separately.
 This module pivots them into matrices and handles:
     - Age capping (aggregate ages above max_age into a single open group)
     - Year subsetting (select a relevant recent window)
@@ -204,6 +212,105 @@ class MortalityData:
             download_date=download_date,
         )
 
+    @classmethod
+    def from_inegi(
+        cls,
+        deaths_filepath: str,
+        population_filepath: str,
+        sex: str = "Total",
+        year_start: int = 1990,
+        year_end: int = 2023,
+        age_max: int = 100,
+    ) -> "MortalityData":
+        """
+        Load mortality data from INEGI deaths and CONAPO population files.
+
+        INEGI provides registered deaths by age, year, and sex.
+        CONAPO provides mid-year population estimates used as exposure.
+        Central death rate is computed as m_{x,t} = D_{x,t} / P_{x,t}.
+
+        Parameters
+        ----------
+        deaths_filepath : str
+            Path to INEGI deaths CSV. Expected columns:
+            Anio, Edad, Sexo, Defunciones
+        population_filepath : str
+            Path to CONAPO population CSV. Expected columns:
+            Anio, Edad, Sexo, Poblacion
+        sex : str
+            Sex filter: 'Hombres', 'Mujeres', or 'Total'.
+        year_start : int
+            First year to include (inclusive).
+        year_end : int
+            Last year to include (inclusive).
+        age_max : int
+            Maximum age. Ages above this are aggregated into age_max group.
+
+        Returns
+        -------
+        MortalityData
+            Structured mortality data with three aligned matrices.
+        """
+        if sex not in ("Hombres", "Mujeres", "Total"):
+            raise ValueError(
+                f"sex must be 'Hombres', 'Mujeres', or 'Total', got '{sex}'"
+            )
+
+        # --- Load and filter ---
+        dx_raw = _load_inegi_deaths(deaths_filepath, sex, year_start, year_end)
+        ex_raw = _load_conapo_population(population_filepath, sex, year_start, year_end)
+
+        # --- Cap ages: aggregate everything above age_max ---
+        dx_capped = _cap_ages_sum(dx_raw, age_max)
+        ex_capped = _cap_ages_sum(ex_raw, age_max)
+
+        # --- Compute m_x = deaths / population ---
+        # Merge on (Year, Age) to ensure alignment
+        merged = pd.merge(
+            dx_capped, ex_capped,
+            on=["Year", "Age"],
+            suffixes=("_dx", "_ex"),
+        )
+
+        # Validate: no zero or negative population
+        if (merged["Value_ex"] <= 0).any():
+            bad = merged[merged["Value_ex"] <= 0][["Year", "Age"]].head()
+            raise ValueError(
+                f"Mexico/{sex}: zero or negative population at "
+                f"{list(bad.itertuples(index=False, name=None))}. "
+                f"Cannot compute m_x = D/P."
+            )
+
+        merged["mx"] = merged["Value_dx"] / merged["Value_ex"]
+
+        # Build mx DataFrame in long format for pivoting
+        mx_long = merged[["Year", "Age", "mx"]].rename(columns={"mx": "Value"})
+
+        # --- Pivot to matrices (ages x years) ---
+        mx_matrix = mx_long.pivot(index="Age", columns="Year", values="Value")
+        dx_matrix = dx_capped.pivot(index="Age", columns="Year", values="Value")
+        ex_matrix = ex_capped.pivot(index="Age", columns="Year", values="Value")
+
+        ages = mx_matrix.index.values.astype(int)
+        years = mx_matrix.columns.values.astype(int)
+
+        mx_np = mx_matrix.values.astype(float)
+        dx_np = dx_matrix.values.astype(float)
+        ex_np = ex_matrix.values.astype(float)
+
+        # --- Validation ---
+        _validate(mx_np, dx_np, ex_np, ages, years, "Mexico", sex)
+
+        return cls(
+            country="Mexico",
+            sex=sex,
+            ages=ages,
+            years=years,
+            mx=mx_np,
+            dx=dx_np,
+            ex=ex_np,
+        )
+
 
 def _load_hmd_file(filepath: Path, sex: str) -> pd.DataFrame:
     """
@@ -330,3 +437,41 @@ def _validate(
             f"Max relative error: {max_rel_error:.4f} "
             f"at age {ages[worst[0]]}, year {years[worst[1]]}."
         )
+
+
+def _load_inegi_deaths(
+    filepath: str, sex: str, year_start: int, year_end: int
+) -> pd.DataFrame:
+    """
+    Load INEGI deaths file and filter by sex and year range.
+
+    INEGI format: CSV with columns Anio, Edad, Sexo, Defunciones.
+    Sex values are in Spanish: 'Hombres', 'Mujeres', 'Total'.
+
+    Returns DataFrame with columns: Year, Age, Value (deaths).
+    """
+    df = pd.read_csv(filepath)
+    df = df[df["Sexo"] == sex]
+    df = df[(df["Anio"] >= year_start) & (df["Anio"] <= year_end)]
+    return df[["Anio", "Edad", "Defunciones"]].rename(
+        columns={"Anio": "Year", "Edad": "Age", "Defunciones": "Value"}
+    )
+
+
+def _load_conapo_population(
+    filepath: str, sex: str, year_start: int, year_end: int
+) -> pd.DataFrame:
+    """
+    Load CONAPO population file and filter by sex and year range.
+
+    CONAPO format: CSV with columns Anio, Edad, Sexo, Poblacion.
+    Sex values are in Spanish: 'Hombres', 'Mujeres', 'Total'.
+
+    Returns DataFrame with columns: Year, Age, Value (population).
+    """
+    df = pd.read_csv(filepath)
+    df = df[df["Sexo"] == sex]
+    df = df[(df["Anio"] >= year_start) & (df["Anio"] <= year_end)]
+    return df[["Anio", "Edad", "Poblacion"]].rename(
+        columns={"Anio": "Year", "Edad": "Age", "Poblacion": "Value"}
+    )
