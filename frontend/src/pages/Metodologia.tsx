@@ -222,14 +222,14 @@ export default function Metodologia() {
         <p className={styles.narrative}>
           {t('metodologia.recursosDesc')}
         </p>
-        <div style={{ display: 'grid', gap: '16px', maxWidth: '600px' }}>
-          <div style={{ padding: '16px', border: '1px solid #E0E0E0' }}>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('metodologia.latexDoc')}</div>
-            <div style={{ color: '#9E9E9E', fontSize: '0.875rem' }}>docs/lee_carter_reestimation.pdf</div>
+        <div className={styles.resourcesGrid}>
+          <div className={styles.resourceCard}>
+            <div className={styles.resourceTitle}>{t('metodologia.latexDoc')}</div>
+            <div className={styles.resourcePath}>docs/lee_carter_reestimation.pdf</div>
           </div>
-          <div style={{ padding: '16px', border: '1px solid #E0E0E0' }}>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('metodologia.techDocs')}</div>
-            <div style={{ color: '#9E9E9E', fontSize: '0.875rem' }}>{t('metodologia.docPairsDesc')}</div>
+          <div className={styles.resourceCard}>
+            <div className={styles.resourceTitle}>{t('metodologia.techDocs')}</div>
+            <div className={styles.resourcePath}>{t('metodologia.docPairsDesc')}</div>
           </div>
         </div>
       </Section>

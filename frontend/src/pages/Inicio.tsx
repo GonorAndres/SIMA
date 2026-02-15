@@ -33,7 +33,7 @@ export default function Inicio() {
               <div className={styles.statLabel}>{t('inicio.modules')}</div>
             </div>
             <div className={styles.statItem}>
-              <div className={styles.statNumber}>169</div>
+              <div className={styles.statNumber}>191</div>
               <div className={styles.statLabel}>{t('inicio.tests')}</div>
             </div>
             <div className={styles.statItem}>
@@ -98,7 +98,7 @@ export default function Inicio() {
               name: 'k_t',
               color: '#C41E3A',
             }]}
-            xTitle="Año"
+            xTitle={t('charts.year')}
             yTitle="k_t"
             height={300}
           />
@@ -110,7 +110,7 @@ export default function Inicio() {
         <h3 className={styles.covidTeaserTitle}>{t('inicio.covidTeaser')}</h3>
         <p className={styles.covidTeaserDesc}>{t('inicio.covidTeaserDesc')}</p>
         <div className={styles.covidTeaserMetrics}>
-          <MetricBlock label={t('inicio.covidTeaserDrift')} value="+0.22" unit="/año" />
+          <MetricBlock label={t('inicio.covidTeaserDrift')} value="+0.22" unit={t('inicio.yearUnit')} />
           <MetricBlock label={t('inicio.covidTeaserPremium')} value="3-10%" />
         </div>
         <DeepDiveLink text={t('inicio.viewCovid')} to="/sensibilidad" />

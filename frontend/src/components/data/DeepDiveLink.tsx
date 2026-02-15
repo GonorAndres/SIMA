@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import styles from './DeepDiveLink.module.css';
 
 interface DeepDiveLinkProps {
   text: string;
@@ -7,18 +8,7 @@ interface DeepDiveLinkProps {
 
 export default function DeepDiveLink({ text, to }: DeepDiveLinkProps) {
   return (
-    <Link
-      to={to}
-      style={{
-        color: '#C41E3A',
-        fontSize: '0.875rem',
-        fontWeight: 500,
-        textDecoration: 'none',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-      }}
-    >
+    <Link to={to} className={styles.link}>
       {text} &rarr;
     </Link>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import MetricBlock from '../components/data/MetricBlock';
@@ -17,22 +17,26 @@ import styles from './SCR.module.css';
 
 const fmt = (v: number) => `$${(v / 1000).toFixed(1)}K`;
 
-const policyColumns: Column[] = [
-  { key: 'policy_id', label: 'ID', align: 'left' },
-  { key: 'product_type', label: 'Producto', align: 'left' },
-  { key: 'issue_age', label: 'Edad Emisión', align: 'right', numeric: true },
-  { key: 'attained_age', label: 'Edad Actual', align: 'right', numeric: true },
-  { key: 'sum_assured', label: 'SA', align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
-  { key: 'annual_pension', label: 'Pensión', align: 'right', numeric: true, format: (v) => Number(v) > 0 ? `$${Number(v).toLocaleString()}` : '-' },
-  { key: 'duration', label: 'Duración', align: 'right', numeric: true },
-];
+function getPolicyColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'policy_id', label: t('tables.policyId'), align: 'left' },
+    { key: 'product_type', label: t('tables.product'), align: 'left' },
+    { key: 'issue_age', label: t('tables.issueAge'), align: 'right', numeric: true },
+    { key: 'attained_age', label: t('tables.attainedAge'), align: 'right', numeric: true },
+    { key: 'sum_assured', label: t('tables.sumAssured'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
+    { key: 'annual_pension', label: t('tables.annualPension'), align: 'right', numeric: true, format: (v) => Number(v) > 0 ? `$${Number(v).toLocaleString()}` : '-' },
+    { key: 'duration', label: t('tables.duration'), align: 'right', numeric: true },
+  ];
+}
 
-const belColumns: Column[] = [
-  { key: 'policy_id', label: 'ID', align: 'left' },
-  { key: 'product_type', label: 'Producto', align: 'left' },
-  { key: 'attained_age', label: 'Edad', align: 'right', numeric: true },
-  { key: 'bel', label: 'BEL', align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
-];
+function getBelColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'policy_id', label: t('tables.policyId'), align: 'left' },
+    { key: 'product_type', label: t('tables.product'), align: 'left' },
+    { key: 'attained_age', label: t('tables.age'), align: 'right', numeric: true },
+    { key: 'bel', label: t('tables.bel'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+  ];
+}
 
 export default function SCR() {
   const { t } = useTranslation();
@@ -43,9 +47,14 @@ export default function SCR() {
   const [showPolicyForm, setShowPolicyForm] = useState(false);
   const [addingPolicy, setAddingPolicy] = useState(false);
 
+  const policyColumns = useMemo(() => getPolicyColumns(t), [t]);
+  const belColumns = useMemo(() => getBelColumns(t), [t]);
+
+  const portfolioExecute = portfolio.execute;
+
   useEffect(() => {
-    portfolio.execute();
-  }, []);
+    portfolioExecute();
+  }, [portfolioExecute]);
 
   const handleCompute = async () => {
     await Promise.all([
@@ -59,19 +68,19 @@ export default function SCR() {
     setAddingPolicy(true);
     try {
       await api.post('/portfolio/policy', policy);
-      await portfolio.execute();
+      await portfolioExecute();
       setShowPolicyForm(false);
       setComputed(false);
     } finally {
       setAddingPolicy(false);
     }
-  }, [portfolio]);
+  }, [portfolioExecute]);
 
   const handleReset = useCallback(async () => {
     await api.post('/portfolio/reset');
-    await portfolio.execute();
+    await portfolioExecute();
     setComputed(false);
-  }, [portfolio]);
+  }, [portfolioExecute]);
 
   return (
     <PageLayout
@@ -101,7 +110,7 @@ export default function SCR() {
         </div>
 
         {showPolicyForm && (
-          <div style={{ marginBottom: '24px', maxWidth: '480px' }}>
+          <div className={styles.policyFormWrapper}>
             <PolicyForm onSubmit={handleAddPolicy} loading={addingPolicy} />
           </div>
         )}
@@ -140,7 +149,7 @@ export default function SCR() {
       )}
 
       {scr.loading && <LoadingState message={t('scr.running')} />}
-      {scr.error && <p style={{ color: '#C41E3A' }}>Error: {scr.error}</p>}
+      {scr.error && <p className={styles.errorText}>Error: {scr.error}</p>}
 
       {scr.data && (
         <>
@@ -156,7 +165,7 @@ export default function SCR() {
             {/* BEL breakdown table */}
             {bel.data && (
               <>
-                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px' }}>
+                <h4 className={styles.belSubheading}>
                   {t('scr.belBreakdown')}
                 </h4>
                 <DataTable
@@ -179,12 +188,12 @@ export default function SCR() {
 
             <WaterfallChart
               categories={[
-                'Mortalidad',
-                'Longevidad',
-                'Tasa Interés',
-                'Catástrofe',
-                'Diversificación',
-                'SCR Total',
+                t('scr.mortality'),
+                t('scr.longevity'),
+                t('scr.interestRate'),
+                t('scr.catastrophe'),
+                t('scr.diversification'),
+                t('scr.totalScr'),
               ]}
               values={[
                 scr.data.mortality.scr,

@@ -20,7 +20,7 @@
 }
 
 .projectDesc {
-  color: #424242;
+  color: var(--color-gray-700);
   font-size: 1rem;
   line-height: 1.75;
   margin: 0 0 32px 0;
@@ -35,15 +35,15 @@
 
 .statItem {
   padding: 16px;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--color-gray-200);
 }
 
 .statNumber {
   font-size: 1.953rem;
   font-weight: 700;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: #000;
+  color: var(--color-black);
   line-height: 1;
   margin-bottom: 4px;
 }
@@ -52,12 +52,12 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #9E9E9E;
+  color: var(--color-gray-500);
   font-weight: 500;
 }
 
 .heroRight {
-  border-left: 2px solid #E0E0E0;
+  border-left: 2px solid var(--color-gray-200);
   padding-left: 48px;
 }
 
@@ -65,14 +65,14 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #C41E3A;
+  color: var(--color-accent);
   font-weight: 600;
   margin-bottom: 16px;
 }
 
 .sectionBlock {
   padding: 48px 0;
-  border-top: 1px solid #E0E0E0;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .sectionTitle {
@@ -82,7 +82,7 @@
 }
 
 .sectionDesc {
-  color: #424242;
+  color: var(--color-gray-700);
   max-width: 720px;
   line-height: 1.65;
   margin: 0 0 16px 0;
@@ -90,7 +90,7 @@
 
 .covidTeaser {
   padding: 32px 0 32px 24px;
-  border-left: 3px solid #C41E3A;
+  border-left: 3px solid var(--color-accent);
   margin: 48px 0;
 }
 
@@ -101,7 +101,7 @@
 }
 
 .covidTeaserDesc {
-  color: #424242;
+  color: var(--color-gray-700);
   max-width: 720px;
   line-height: 1.65;
   margin: 0 0 16px 0;
@@ -120,7 +120,7 @@
 
   .heroRight {
     border-left: none;
-    border-top: 2px solid #E0E0E0;
+    border-top: 2px solid var(--color-gray-200);
     padding-left: 0;
     padding-top: 32px;
   }

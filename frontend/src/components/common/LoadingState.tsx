@@ -1,8 +1,13 @@
+import { useTranslation } from 'react-i18next';
+
 interface LoadingStateProps {
   message?: string;
 }
 
-export default function LoadingState({ message = 'Cargando...' }: LoadingStateProps) {
+export default function LoadingState({ message }: LoadingStateProps) {
+  const { t } = useTranslation();
+  const displayMessage = message ?? t('charts.loading');
+
   return (
     <div style={{
       display: 'flex',
@@ -14,7 +19,7 @@ export default function LoadingState({ message = 'Cargando...' }: LoadingStatePr
       textTransform: 'uppercase',
       letterSpacing: '0.05em',
     }}>
-      {message}
+      {displayMessage}
     </div>
   );
 }

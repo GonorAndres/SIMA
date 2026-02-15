@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import styles from './PageLayout.module.css';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -8,16 +9,12 @@ interface PageLayoutProps {
 
 export default function PageLayout({ children, title, subtitle }: PageLayoutProps) {
   return (
-    <main style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '48px',
-    }}>
+    <main className={styles.main}>
       {title && (
-        <header style={{ marginBottom: '48px' }}>
-          <h1 style={{ fontSize: '2.441rem', fontWeight: 600 }}>{title}</h1>
+        <header className={styles.header}>
+          <h1 className={styles.title}>{title}</h1>
           {subtitle && (
-            <p style={{ color: '#9E9E9E', fontSize: '1rem', marginTop: '8px' }}>
+            <p className={styles.subtitle}>
               {subtitle}
             </p>
           )}

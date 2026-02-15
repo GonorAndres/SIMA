@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './PremiumForm.module.css';
 
 export interface PolicyData {
@@ -17,6 +18,7 @@ interface PolicyFormProps {
 }
 
 export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
+  const { t } = useTranslation();
   const [policyId, setPolicyId] = useState('');
   const [productType, setProductType] = useState('whole_life');
   const [issueAge, setIssueAge] = useState(30);
@@ -45,7 +47,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>ID de póliza</label>
+        <label className={styles.label}>{t('forms.policyId')}</label>
         <input
           type="text"
           className={styles.input}
@@ -56,21 +58,21 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
       </div>
 
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Tipo de producto</label>
+        <label className={styles.label}>{t('forms.productType')}</label>
         <select
           className={styles.select}
           value={productType}
           onChange={(e) => setProductType(e.target.value)}
         >
-          <option value="whole_life">Vida Entera</option>
-          <option value="term">Temporal</option>
-          <option value="endowment">Dotal</option>
-          <option value="annuity">Renta Vitalicia</option>
+          <option value="whole_life">{t('forms.wholeLife')}</option>
+          <option value="term">{t('forms.termLife')}</option>
+          <option value="endowment">{t('forms.endowment')}</option>
+          <option value="annuity">{t('forms.lifeAnnuity')}</option>
         </select>
       </div>
 
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Edad de emisión</label>
+        <label className={styles.label}>{t('forms.issueAge')}</label>
         <input
           type="number"
           className={styles.input}
@@ -83,7 +85,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
 
       {isDeath && (
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Suma asegurada</label>
+          <label className={styles.label}>{t('forms.sumAssured')}</label>
           <input
             type="number"
             className={styles.input}
@@ -97,7 +99,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
 
       {isAnnuity && (
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Pensión anual</label>
+          <label className={styles.label}>{t('forms.annualPension')}</label>
           <input
             type="number"
             className={styles.input}
@@ -111,7 +113,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
 
       {needsTerm && (
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Plazo (años)</label>
+          <label className={styles.label}>{t('forms.term')} ({t('forms.years')})</label>
           <input
             type="number"
             className={styles.input}
@@ -124,7 +126,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
       )}
 
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Duración transcurrida (años)</label>
+        <label className={styles.label}>{t('forms.duration')} ({t('forms.years')})</label>
         <input
           type="number"
           className={styles.input}
@@ -136,7 +138,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
       </div>
 
       <button type="submit" className={styles.submitBtn} disabled={loading}>
-        {loading ? 'AGREGANDO...' : 'AGREGAR PÓLIZA'}
+        {loading ? t('forms.adding') : t('forms.addPolicy')}
       </button>
     </form>
   );

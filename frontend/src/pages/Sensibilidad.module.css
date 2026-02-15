@@ -3,7 +3,7 @@
 .tabRow {
   display: flex;
   gap: 32px;
-  border-bottom: 1px solid #E0E0E0;
+  border-bottom: 1px solid var(--color-gray-200);
   margin-bottom: 32px;
 }
 
@@ -12,7 +12,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #9E9E9E;
+  color: var(--color-gray-500);
   text-transform: uppercase;
   font-size: 0.875rem;
   letter-spacing: 0.1em;
@@ -22,12 +22,12 @@
 }
 
 .tab:hover {
-  color: #000;
+  color: var(--color-black);
 }
 
 .tabActive {
-  border-bottom-color: #C41E3A;
-  color: #000;
+  border-bottom-color: var(--color-accent);
+  color: var(--color-black);
 }
 
 .controls {
@@ -42,7 +42,7 @@
 .fieldLabel {
   text-transform: uppercase;
   font-size: 0.75rem;
-  color: #9E9E9E;
+  color: var(--color-gray-500);
   letter-spacing: 0.05em;
   display: block;
   margin-bottom: 4px;
@@ -50,9 +50,9 @@
 
 .numberInput {
   padding: 10px 12px;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--color-gray-200);
   border-radius: 0;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   width: 100%;
   outline: none;
@@ -60,13 +60,13 @@
 }
 
 .numberInput:focus {
-  border-color: #000;
+  border-color: var(--color-black);
 }
 
 .runBtn {
   padding: 12px 24px;
-  background: #C41E3A;
-  color: #fff;
+  background: var(--color-accent);
+  color: var(--color-white);
   border: none;
   border-radius: 0;
   text-transform: uppercase;
@@ -78,11 +78,11 @@
 }
 
 .runBtn:hover {
-  background-color: #a3182f;
+  background-color: var(--color-accent-dark);
 }
 
 .runBtn:disabled {
-  background-color: #E0E0E0;
+  background-color: var(--color-gray-200);
   cursor: not-allowed;
 }
 
@@ -104,10 +104,25 @@
 }
 
 .narrative {
-  color: #424242;
+  color: var(--color-gray-700);
   max-width: 720px;
   line-height: 1.75;
   font-size: 1rem;
   margin: 0 0 24px 0;
   text-align: justify;
+}
+
+@media (max-width: 768px) {
+  .tabRow {
+    gap: var(--space-md);
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    font-size: var(--text-xs);
+  }
+
+  .controls {
+    max-width: 100%;
+  }
 }

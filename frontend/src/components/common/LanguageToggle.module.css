@@ -1,0 +1,30 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  background: transparent;
+  color: var(--color-gray-400);
+}
+
+.btnActive {
+  background: var(--color-black);
+  color: var(--color-white);
+}
+
+.separator {
+  color: var(--color-gray-200);
+}

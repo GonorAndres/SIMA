@@ -1,3 +1,43 @@
+/* === Design Tokens (CSS Custom Properties) === */
+:root {
+  /* Colors */
+  --color-accent: #C41E3A;        /* Swiss red - primary accent */
+  --color-accent-dark: #a3182f;   /* Darker red for hover states */
+  --color-accent-light: #F5E6E8;  /* Light red tint */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-gray-50: #F0F0F0;       /* Decorative large text */
+  --color-gray-100: #F5F5F5;      /* Light gray backgrounds, table stripes */
+  --color-gray-200: #E0E0E0;      /* Borders, dividers */
+  --color-gray-500: #9E9E9E;      /* Muted text, labels */
+  --color-gray-700: #424242;      /* Secondary text, body copy */
+
+  /* Typography */
+  --font-body: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Type scale */
+  --text-h1: 2.441rem;
+  --text-h2: 1.953rem;
+  --text-h3: 1.563rem;
+  --text-body: 1rem;
+  --text-small: 0.8rem;
+  --text-xs: 0.75rem;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+
+  /* Layout */
+  --max-width: 1200px;
+  --nav-height: 64px;
+  --border-radius: 0;
+}
+
 /* === CSS Reset === */
 *,
 *::before,
@@ -14,11 +54,11 @@ html {
 }
 
 body {
-  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   font-size: 1rem;
   line-height: 1.6;
-  color: #000;
-  background-color: #fff;
+  color: var(--color-black);
+  background-color: var(--color-white);
 }
 
 /* === Typography === */
@@ -37,7 +77,7 @@ p {
 }
 
 a {
-  color: #C41E3A;
+  color: var(--color-accent);
   text-decoration: none;
 }
 
@@ -71,8 +111,19 @@ img {
   display: block;
 }
 
+/* === App layout === */
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.appContent {
+  flex: 1;
+}
+
 /* === Utility: monospace numbers === */
 .mono {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }

@@ -14,27 +14,27 @@
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   font-weight: 600;
-  color: #424242;
+  color: var(--color-gray-700);
   padding: 12px 16px;
-  border-top: 1px solid #E0E0E0;
-  border-bottom: 1px solid #E0E0E0;
+  border-top: 1px solid var(--color-gray-200);
+  border-bottom: 1px solid var(--color-gray-200);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 }
 
 .table thead th:hover {
-  color: #000;
+  color: var(--color-black);
 }
 
 .table tbody td {
   padding: 10px 16px;
-  border-bottom: 1px solid #F5F5F5;
-  color: #000;
+  border-bottom: 1px solid var(--color-gray-100);
+  color: var(--color-black);
 }
 
 .table tbody tr:nth-child(even) {
-  background-color: #F5F5F5;
+  background-color: var(--color-gray-100);
 }
 
 .alignRight {
@@ -42,7 +42,7 @@
 }
 
 .mono {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -50,9 +50,9 @@
   display: inline-block;
   margin-left: 4px;
   font-size: 0.65rem;
-  color: #9E9E9E;
+  color: var(--color-gray-500);
 }
 
 .sortArrowActive {
-  color: #C41E3A;
+  color: var(--color-accent);
 }

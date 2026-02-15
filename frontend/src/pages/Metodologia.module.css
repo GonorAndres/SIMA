@@ -17,7 +17,7 @@
 }
 
 .headerSubtitle {
-  color: #9E9E9E;
+  color: var(--color-gray-500);
   font-size: 1rem;
   margin-top: 8px;
 }
@@ -25,7 +25,7 @@
 /* --- Individual methodology section --- */
 .section {
   padding: 48px 0;
-  border-bottom: 1px solid #E0E0E0;
+  border-bottom: 1px solid var(--color-gray-200);
   position: relative;
 }
 
@@ -36,10 +36,10 @@
 .sectionNumber {
   font-size: 6rem;
   font-weight: 700;
-  color: #F0F0F0;
+  color: var(--color-gray-50);
   line-height: 1;
   margin-bottom: 8px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   user-select: none;
 }
 
@@ -52,7 +52,7 @@
 }
 
 .narrative {
-  color: #424242;
+  color: var(--color-gray-700);
   max-width: 720px;
   line-height: 1.75;
   font-size: 1rem;
@@ -60,7 +60,7 @@
 }
 
 .highlight {
-  color: #C41E3A;
+  color: var(--color-accent);
   font-weight: 500;
 }
 
@@ -77,4 +77,39 @@
 
 .linkRow {
   margin-top: 16px;
+}
+
+.resourcesGrid {
+  display: grid;
+  gap: var(--space-md);
+  max-width: 600px;
+}
+
+.resourceCard {
+  padding: var(--space-md);
+  border: 1px solid var(--color-gray-200);
+}
+
+.resourceTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.resourcePath {
+  color: var(--color-gray-400);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-lg);
+  }
+
+  .sectionNumber {
+    font-size: 4rem;
+  }
+
+  .headerTitle {
+    font-size: 1.75rem;
+  }
 }

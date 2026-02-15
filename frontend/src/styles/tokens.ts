@@ -1,3 +1,11 @@
+/**
+ * Design tokens for SIMA Swiss design system.
+ *
+ * CSS custom properties in global.css are the source of truth for all CSS styling.
+ * These TypeScript exports exist for Plotly chart configs and other JS contexts
+ * that cannot read CSS custom properties directly.
+ */
+
 export const colors = {
   black: '#000000',
   gray700: '#424242',

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import Plot from 'react-plotly.js';
 import { defaultLayout, defaultConfig } from './chartDefaults';
 
@@ -10,9 +11,17 @@ interface FanChartProps {
   xTitle?: string;
   yTitle?: string;
   height?: number;
+  labels?: { ci?: string; central?: string; upper?: string; lower?: string };
 }
 
-export default function FanChart({ x, central, lower, upper, title, xTitle, yTitle, height = 400 }: FanChartProps) {
+export default function FanChart({ x, central, lower, upper, title, xTitle, yTitle, height = 400, labels }: FanChartProps) {
+  const { t } = useTranslation();
+
+  const ciLabel = labels?.ci ?? t('charts.ci');
+  const centralLabel = labels?.central ?? t('charts.central');
+  const upperLabel = labels?.upper ?? t('charts.upper');
+  const lowerLabel = labels?.lower ?? t('charts.lower');
+
   const data = [
     {
       x: [...x, ...[...x].reverse()],
@@ -22,14 +31,14 @@ export default function FanChart({ x, central, lower, upper, title, xTitle, yTit
       line: { color: 'transparent' },
       showlegend: false,
       type: 'scatter' as const,
-      name: 'IC',
+      name: ciLabel,
     },
     {
       x,
       y: central,
       type: 'scatter' as const,
       mode: 'lines' as const,
-      name: 'Central',
+      name: centralLabel,
       line: { color: '#C41E3A', width: 2 },
     },
     {
@@ -37,7 +46,7 @@ export default function FanChart({ x, central, lower, upper, title, xTitle, yTit
       y: upper,
       type: 'scatter' as const,
       mode: 'lines' as const,
-      name: 'Superior',
+      name: upperLabel,
       line: { color: '#C41E3A', width: 1, dash: 'dash' as const },
     },
     {
@@ -45,7 +54,7 @@ export default function FanChart({ x, central, lower, upper, title, xTitle, yTit
       y: lower,
       type: 'scatter' as const,
       mode: 'lines' as const,
-      name: 'Inferior',
+      name: lowerLabel,
       line: { color: '#C41E3A', width: 1, dash: 'dash' as const },
     },
   ];

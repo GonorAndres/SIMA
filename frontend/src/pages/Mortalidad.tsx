@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import MetricBlock from '../components/data/MetricBlock';
@@ -20,15 +20,19 @@ import type {
 } from '../types';
 import styles from './Mortalidad.module.css';
 
-const validationColumns: Column[] = [
-  { key: 'age', label: 'Edad', align: 'right', numeric: true },
-  { key: 'qx_ratio', label: 'Ratio (proy/reg)', align: 'right', numeric: true, format: (v) => Number(v).toFixed(4) },
-  { key: 'qx_diff', label: 'Diferencia', align: 'right', numeric: true, format: (v) => Number(v).toFixed(6) },
-];
+function getValidationColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'age', label: t('tables.age'), align: 'right', numeric: true },
+    { key: 'qx_ratio', label: t('tables.ratio'), align: 'right', numeric: true, format: (v) => Number(v).toFixed(4) },
+    { key: 'qx_diff', label: t('tables.difference'), align: 'right', numeric: true, format: (v) => Number(v).toFixed(6) },
+  ];
+}
 
 export default function Mortalidad() {
   const { t } = useTranslation();
   const [validationTab, setValidationTab] = useState<'cnsf' | 'emssa'>('cnsf');
+
+  const validationColumns = useMemo(() => getValidationColumns(t), [t]);
 
   const lc = useGet<LeeCaterFitResponse>('/mortality/lee-carter');
   const proj = useGet<ProjectionResponse>('/mortality/projection');
@@ -101,8 +105,8 @@ export default function Mortalidad() {
                 color: '#C41E3A',
               },
             ]}
-            xTitle="Edad"
-            yTitle="ln(m_x)"
+            xTitle={t('charts.age')}
+            yTitle={t('charts.lnMx')}
             height={400}
           />
         </div>
@@ -169,7 +173,7 @@ export default function Mortalidad() {
                     name: 'a_x',
                     color: '#000',
                   }]}
-                  xTitle="Edad"
+                  xTitle={t('charts.age')}
                   yTitle="a_x"
                   height={300}
                 />
@@ -183,7 +187,7 @@ export default function Mortalidad() {
                     name: 'b_x',
                     color: '#C41E3A',
                   }]}
-                  xTitle="Edad"
+                  xTitle={t('charts.age')}
                   yTitle="b_x"
                   height={300}
                 />
@@ -197,7 +201,7 @@ export default function Mortalidad() {
                     name: 'k_t',
                     color: '#424242',
                   }]}
-                  xTitle="Año"
+                  xTitle={t('charts.year')}
                   yTitle="k_t"
                   height={300}
                 />
@@ -241,7 +245,7 @@ export default function Mortalidad() {
             upper={proj.data.kt_central.map((v, i) =>
               v + 1.96 * proj.data!.sigma * Math.sqrt(i + 1)
             )}
-            xTitle="Año"
+            xTitle={t('charts.year')}
             yTitle="k_t"
             height={400}
           />
@@ -276,8 +280,8 @@ export default function Mortalidad() {
             <>
               <div className={styles.metricsRow}>
                 <MetricBlock label="RMSE" value={activeValidation.data.rmse.toFixed(6)} />
-                <MetricBlock label="Ratio medio" value={activeValidation.data.mean_ratio.toFixed(3)} />
-                <MetricBlock label="Edades" value={activeValidation.data.n_ages} />
+                <MetricBlock label={t('tables.meanRatio')} value={activeValidation.data.mean_ratio.toFixed(3)} />
+                <MetricBlock label={t('tables.ages')} value={activeValidation.data.n_ages} />
               </div>
               <DataTable
                 columns={validationColumns}

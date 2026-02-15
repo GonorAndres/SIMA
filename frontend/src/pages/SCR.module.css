@@ -9,7 +9,7 @@
 
 .section {
   padding: 32px 0;
-  border-top: 1px solid #E0E0E0;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .sectionTitle {
@@ -39,8 +39,8 @@
 
 .computeBtn {
   padding: 16px 48px;
-  background: #C41E3A;
-  color: #fff;
+  background: var(--color-accent);
+  color: var(--color-white);
   border: none;
   border-radius: 0;
   text-transform: uppercase;
@@ -52,19 +52,19 @@
 }
 
 .computeBtn:hover {
-  background-color: #a3182f;
+  background-color: var(--color-accent-dark);
 }
 
 .computeBtn:disabled {
-  background-color: #E0E0E0;
+  background-color: var(--color-gray-200);
   cursor: not-allowed;
 }
 
 .resetBtn {
   padding: 8px 16px;
   background: transparent;
-  color: #9E9E9E;
-  border: 1px solid #E0E0E0;
+  color: var(--color-gray-500);
+  border: 1px solid var(--color-gray-200);
   border-radius: 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -75,15 +75,15 @@
 }
 
 .resetBtn:hover {
-  border-color: #000;
-  color: #000;
+  border-color: var(--color-black);
+  color: var(--color-black);
 }
 
 .addPolicyToggle {
   padding: 8px 16px;
   background: transparent;
-  color: #C41E3A;
-  border: 1px solid #C41E3A;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
   border-radius: 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -94,13 +94,29 @@
 }
 
 .addPolicyToggle:hover {
-  background-color: #F5E6E8;
+  background-color: var(--color-accent-light);
 }
 
 .btnRow {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.policyFormWrapper {
+  margin-bottom: 24px;
+  max-width: 480px;
+}
+
+.belSubheading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.errorText {
+  color: var(--color-accent);
 }
 
 @media (max-width: 768px) {

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import styles from './FormulaBlock.module.css';
 
 interface FormulaBlockProps {
   latex: string;
@@ -21,20 +22,9 @@ export default function FormulaBlock({ latex, label }: FormulaBlockProps) {
   }, [latex]);
 
   return (
-    <div style={{
-      background: '#F5F5F5',
-      padding: '24px',
-      margin: '16px 0',
-      textAlign: 'center',
-    }}>
+    <div className={styles.wrapper}>
       {label && (
-        <div style={{
-          textTransform: 'uppercase',
-          fontSize: '0.75rem',
-          color: '#9E9E9E',
-          letterSpacing: '0.05em',
-          marginBottom: '12px',
-        }}>
+        <div className={styles.label}>
           {label}
         </div>
       )}

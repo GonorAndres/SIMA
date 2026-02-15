@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import SliderInput from './SliderInput';
 import styles from './PremiumForm.module.css';
 
@@ -16,6 +17,7 @@ interface PremiumFormProps {
 }
 
 export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
+  const { t } = useTranslation();
   const [productType, setProductType] = useState('whole_life');
   const [age, setAge] = useState(30);
   const [sumAssured, setSumAssured] = useState(1000000);
@@ -38,30 +40,30 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Tipo de producto</label>
+        <label className={styles.label}>{t('forms.product')}</label>
         <select
           className={styles.select}
           value={productType}
           onChange={(e) => setProductType(e.target.value)}
         >
-          <option value="whole_life">Vida Entera</option>
-          <option value="term">Temporal</option>
-          <option value="endowment">Dotal</option>
+          <option value="whole_life">{t('forms.wholeLife')}</option>
+          <option value="term">{t('forms.termLife')}</option>
+          <option value="endowment">{t('forms.endowment')}</option>
         </select>
       </div>
 
       <SliderInput
-        label="Edad"
+        label={t('forms.age')}
         min={20}
         max={70}
         step={1}
         value={age}
         onChange={setAge}
-        unit="años"
+        unit={t('forms.years')}
       />
 
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Suma asegurada</label>
+        <label className={styles.label}>{t('forms.sumAssured')}</label>
         <input
           type="number"
           className={styles.input}
@@ -74,28 +76,28 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
 
       {needsTerm && (
         <SliderInput
-          label="Plazo"
+          label={t('forms.term')}
           min={5}
           max={40}
           step={1}
           value={term}
           onChange={setTerm}
-          unit="años"
+          unit={t('forms.years')}
         />
       )}
 
       <SliderInput
-        label="Tasa de interés"
+        label={t('forms.interestRate')}
         min={0.01}
         max={0.10}
         step={0.005}
         value={interestRate}
         onChange={setInterestRate}
-        unit="%"
+        formatValue={(v: number) => `${(v * 100).toFixed(1)}%`}
       />
 
       <button type="submit" className={styles.submitBtn} disabled={loading}>
-        {loading ? 'CALCULANDO...' : 'CALCULAR PRIMA'}
+        {loading ? t('forms.calculating') : t('forms.calculate')}
       </button>
     </form>
   );

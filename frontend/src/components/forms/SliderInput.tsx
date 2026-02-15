@@ -1,3 +1,5 @@
+import styles from './SliderInput.module.css';
+
 interface SliderInputProps {
   label: string;
   min: number;
@@ -6,33 +8,20 @@ interface SliderInputProps {
   value: number;
   onChange: (value: number) => void;
   unit?: string;
+  formatValue?: (v: number) => string;
 }
 
-export default function SliderInput({ label, min, max, step, value, onChange, unit }: SliderInputProps) {
+export default function SliderInput({ label, min, max, step, value, onChange, unit, formatValue }: SliderInputProps) {
+  const display = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ''}`;
+
   return (
-    <div style={{ marginBottom: '16px' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        marginBottom: '8px',
-      }}>
-        <label style={{
-          textTransform: 'uppercase',
-          fontSize: '0.75rem',
-          color: '#9E9E9E',
-          letterSpacing: '0.05em',
-          fontWeight: 500,
-        }}>
+    <div className={styles.wrapper}>
+      <div className={styles.header}>
+        <label className={styles.label}>
           {label}
         </label>
-        <span style={{
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: '#000',
-        }}>
-          {value}{unit ? ` ${unit}` : ''}
+        <span className={styles.display}>
+          {display}
         </span>
       </div>
       <input
@@ -42,17 +31,7 @@ export default function SliderInput({ label, min, max, step, value, onChange, un
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{
-          width: '100%',
-          appearance: 'none',
-          WebkitAppearance: 'none',
-          height: '4px',
-          background: '#E0E0E0',
-          outline: 'none',
-          borderRadius: '0',
-          cursor: 'pointer',
-          accentColor: '#C41E3A',
-        }}
+        className={styles.slider}
       />
     </div>
   );

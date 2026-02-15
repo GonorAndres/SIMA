@@ -8,13 +8,13 @@
 .label {
   text-transform: uppercase;
   font-size: 0.8rem;
-  color: #9E9E9E;
+  color: var(--color-gray-500);
   letter-spacing: 0.05em;
   font-weight: 500;
 }
 
 .mono {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -32,7 +32,7 @@
 
 .section {
   padding: 48px 0;
-  border-top: 1px solid #E0E0E0;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .sectionTitle {
@@ -44,8 +44,8 @@
 .btnPrimary {
   display: inline-block;
   padding: 12px 24px;
-  background-color: #C41E3A;
-  color: #fff;
+  background-color: var(--color-accent);
+  color: var(--color-white);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.875rem;
@@ -57,38 +57,38 @@
 }
 
 .btnPrimary:hover {
-  background-color: #a3182f;
+  background-color: var(--color-accent-dark);
 }
 
 .btnSecondary {
   display: inline-block;
   padding: 12px 24px;
   background-color: transparent;
-  color: #000;
+  color: var(--color-black);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.875rem;
   font-weight: 600;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--color-gray-200);
   border-radius: 0;
   cursor: pointer;
   transition: border-color 0.15s ease;
 }
 
 .btnSecondary:hover {
-  border-color: #000;
+  border-color: var(--color-black);
 }
 
 .card {
   padding: 24px;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--color-gray-200);
   border-radius: 0;
-  background: #fff;
+  background: var(--color-white);
 }
 
 .divider {
   border: none;
-  border-top: 1px solid #E0E0E0;
+  border-top: 1px solid var(--color-gray-200);
   margin: 24px 0;
 }
 

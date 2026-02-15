@@ -35,7 +35,7 @@ export default function MortalitySurface({ ages, years, values, title, height = 
     title: title ? { text: title, font: { size: 14, color: '#000' } } : undefined,
     height,
     scene: {
-      xaxis: { title: { text: 'Ano' } },
+      xaxis: { title: { text: 'Año' } },
       yaxis: { title: { text: 'Edad' } },
       zaxis: { title: { text: 'ln(m_x)' } },
     },

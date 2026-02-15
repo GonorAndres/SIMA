@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import PremiumForm from '../components/forms/PremiumForm';
@@ -17,18 +17,18 @@ const formulaMap: Record<string, string> = {
   endowment: 'P = SA \\cdot \\frac{M_x - M_{x+n} + D_{x+n}}{N_x - N_{x+n}}',
 };
 
-const productLabels: Record<string, string> = {
-  whole_life: 'Vida Entera',
-  term: 'Temporal',
-  endowment: 'Dotal',
-};
-
 export default function Tarificacion() {
   const { t } = useTranslation();
   const premium = usePost<PremiumFormData, PremiumResponse>('/pricing/premium');
   const reserve = usePost<PremiumFormData, ReserveResponse>('/pricing/reserve');
   const sensitivity = usePost<object, SensitivityResponse>('/pricing/sensitivity');
   const [lastRequest, setLastRequest] = useState<PremiumFormData | null>(null);
+
+  const productLabels: Record<string, string> = useMemo(() => ({
+    whole_life: t('forms.wholeLife'),
+    term: t('forms.termLife'),
+    endowment: t('forms.endowment'),
+  }), [t]);
 
   const handleSubmit = (req: PremiumFormData) => {
     setLastRequest(req);
@@ -58,13 +58,13 @@ export default function Tarificacion() {
 
         <div>
           {premium.loading && <LoadingState />}
-          {premium.error && <p style={{ color: '#C41E3A' }}>Error: {premium.error}</p>}
+          {premium.error && <p className={styles.errorText}>Error: {premium.error}</p>}
 
           {premium.data && (
             <div className={styles.resultPanel}>
               <div className={styles.productLabel}>
                 {productLabels[premium.data.product_type] ?? premium.data.product_type}
-                {' -- Edad '}{premium.data.age}
+                {` -- ${t('tarificacion.ageLabel')} `}{premium.data.age}
               </div>
               <MetricBlock
                 label={t('tarificacion.annualPremium')}
@@ -97,11 +97,11 @@ export default function Tarificacion() {
             traces={[{
               x: reserve.data.trajectory.map(p => p.duration),
               y: reserve.data.trajectory.map(p => p.reserve),
-              name: 'Reserva',
+              name: t('tarificacion.reserve'),
               color: '#C41E3A',
             }]}
-            xTitle="Duración (años)"
-            yTitle="Reserva ($)"
+            xTitle={t('tarificacion.durationYears')}
+            yTitle={t('tarificacion.reserveAmount')}
             height={350}
           />
         </div>
@@ -114,11 +114,11 @@ export default function Tarificacion() {
             traces={[{
               x: sensitivity.data.results.map(r => `${(r.interest_rate * 100).toFixed(0)}%`),
               y: sensitivity.data.results.map(r => r.annual_premium),
-              name: 'Prima anual',
+              name: t('tarificacion.annualPremiumChart'),
               color: '#C41E3A',
             }]}
-            xTitle="Tasa de interés"
-            yTitle="Prima anual ($)"
+            xTitle={t('tarificacion.interestRateAxis')}
+            yTitle={t('tarificacion.annualPremiumAxis')}
             height={350}
           />
         </div>

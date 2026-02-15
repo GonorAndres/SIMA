@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import SliderInput from '../components/forms/SliderInput';
@@ -9,6 +9,7 @@ import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
 import LoadingState from '../components/common/LoadingState';
 import { usePost, useGet } from '../hooks/useApi';
+import api from '../api/client';
 import type {
   SensitivityResponse,
   MortalityShockRequest,
@@ -21,33 +22,44 @@ import styles from './Sensibilidad.module.css';
 type TabKey = 'interest_rate' | 'mortality' | 'comparison' | 'covid';
 
 const rates = [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08];
+const COUNTRY_COLORS = ['#C41E3A', '#424242', '#9E9E9E', '#1E88E5', '#43A047', '#E65100'];
 const heatmapAges = [20, 30, 40, 50, 60];
 
-const sensColumns: Column[] = [
-  { key: 'interest_rate', label: 'Tasa', align: 'right', numeric: true, format: (v) => `${(Number(v) * 100).toFixed(0)}%` },
-  { key: 'annual_premium', label: 'Prima Anual', align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
-];
+function getSensColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'interest_rate', label: t('tables.interestRate'), align: 'right', numeric: true, format: (v) => `${(Number(v) * 100).toFixed(0)}%` },
+    { key: 'annual_premium', label: t('tables.annualPremium'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+  ];
+}
 
-const crossColumns: Column[] = [
-  { key: 'country', label: 'País', align: 'left' },
-  { key: 'drift', label: 'Drift', align: 'right', numeric: true },
-  { key: 'explained_var', label: 'Var. Explicada', align: 'right' },
-  { key: 'q60', label: 'q_60', align: 'right', numeric: true },
-  { key: 'premium_age40', label: 'Prima (edad 40)', align: 'right' },
-];
+function getCrossColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'country', label: t('tables.country'), align: 'left' },
+    { key: 'drift', label: t('tables.drift'), align: 'right', numeric: true },
+    { key: 'explained_var', label: t('tables.explainedVar'), align: 'right' },
+    { key: 'q60', label: t('tables.qx60'), align: 'right', numeric: true },
+    { key: 'premium_age40', label: t('tables.premiumAge40'), align: 'right' },
+  ];
+}
 
-const covidColumns: Column[] = [
-  { key: 'age', label: 'Edad', align: 'right', numeric: true },
-  { key: 'pre_covid', label: 'Pre-COVID', align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
-  { key: 'full', label: 'Completo', align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
-  { key: 'pct_change', label: '% Cambio', align: 'right', numeric: true, format: (v) => `+${Number(v).toFixed(2)}%` },
-];
+function getCovidColumns(t: (key: string) => string): Column[] {
+  return [
+    { key: 'age', label: t('tables.age'), align: 'right', numeric: true },
+    { key: 'pre_covid', label: t('tables.preCovid'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
+    { key: 'full', label: t('tables.fullPeriod'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
+    { key: 'pct_change', label: t('tables.premiumChange'), align: 'right', numeric: true, format: (v) => `+${Number(v).toFixed(2)}%` },
+  ];
+}
 
 export default function Sensibilidad() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('interest_rate');
   const [age, setAge] = useState(40);
   const [sumAssured, setSumAssured] = useState(1000000);
+
+  const sensColumns = useMemo(() => getSensColumns(t), [t]);
+  const crossColumns = useMemo(() => getCrossColumns(t), [t]);
+  const covidColumns = useMemo(() => getCovidColumns(t), [t]);
 
   // Tab 1: Interest rate analysis
   const wl = usePost<object, SensitivityResponse>('/pricing/sensitivity');
@@ -69,11 +81,12 @@ export default function Sensibilidad() {
   // Tab 4: COVID comparison from API
   const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
 
+  const crossExecute = crossCountry.execute;
+  const covidExecute = covid.execute;
   useEffect(() => {
-    crossCountry.execute();
-    covid.execute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    crossExecute();
+    covidExecute();
+  }, [crossExecute, covidExecute]);
 
   const handleRunInterestRate = async () => {
     // Run line chart analysis
@@ -84,7 +97,6 @@ export default function Sensibilidad() {
     // Run heatmap: for each age, get premiums at all rates
     setHeatmapLoading(true);
     try {
-      const { default: api } = await import('../api/client');
       const results = await Promise.all(
         heatmapAges.map(async (hAge) => {
           const res = await api.post('/pricing/sensitivity', {
@@ -137,7 +149,7 @@ export default function Sensibilidad() {
             {t('sensibilidad.interestIntro')}
           </p>
           <div className={styles.controls}>
-            <SliderInput label={t('sensibilidad.age')} min={20} max={70} step={1} value={age} onChange={setAge} unit="años" />
+            <SliderInput label={t('sensibilidad.age')} min={20} max={70} step={1} value={age} onChange={setAge} unit={t('forms.years')} />
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>{t('sensibilidad.sumAssured')}</label>
               <input
@@ -184,8 +196,8 @@ export default function Sensibilidad() {
                   },
                 ]}
                 title={t('sensibilidad.premiumVsRate')}
-                xTitle="Tasa de interés"
-                yTitle="Prima anual ($)"
+                xTitle={t('tarificacion.interestRateAxis')}
+                yTitle={t('tarificacion.annualPremiumAxis')}
                 height={400}
               />
 
@@ -206,9 +218,9 @@ export default function Sensibilidad() {
                 x={rates.map(r => `${(r * 100).toFixed(0)}%`)}
                 y={heatmapAges.map(a => `${a}`)}
                 z={heatmapData}
-                title="Prima Vida Entera: Edad x Tasa"
-                xTitle="Tasa de interés"
-                yTitle="Edad"
+                title={t('tarificacion.heatmapTitle')}
+                xTitle={t('tarificacion.interestRateAxis')}
+                yTitle={t('charts.age')}
                 height={350}
               />
             </div>
@@ -224,7 +236,7 @@ export default function Sensibilidad() {
             {t('sensibilidad.shockIntro')}
           </p>
           <div className={styles.controls}>
-            <SliderInput label={t('sensibilidad.age')} min={20} max={70} step={1} value={shockAge} onChange={setShockAge} unit="años" />
+            <SliderInput label={t('sensibilidad.age')} min={20} max={70} step={1} value={shockAge} onChange={setShockAge} unit={t('forms.years')} />
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>{t('sensibilidad.productType')}</label>
               <select
@@ -251,21 +263,21 @@ export default function Sensibilidad() {
           {shockApi.data && (
             <>
               <div className={styles.comparisonGrid}>
-                <MetricBlock label={t('sensibilidad.wholeLife')} value={`$${shockApi.data.base_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} unit={`edad ${shockApi.data.age}`} />
-                <MetricBlock label="+30% q_x" value={`+${shockApi.data.pct_changes[shockApi.data.pct_changes.length - 1]?.toFixed(1)}%`} unit="prima" />
-                <MetricBlock label="-30% q_x" value={`${shockApi.data.pct_changes[0]?.toFixed(1)}%`} unit="prima" />
+                <MetricBlock label={t('sensibilidad.wholeLife')} value={`$${shockApi.data.base_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} unit={`${t('tarificacion.ageLabel')} ${shockApi.data.age}`} />
+                <MetricBlock label="+30% q_x" value={`+${shockApi.data.pct_changes[shockApi.data.pct_changes.length - 1]?.toFixed(1)}%`} unit={t('tables.premium')} />
+                <MetricBlock label="-30% q_x" value={`${shockApi.data.pct_changes[0]?.toFixed(1)}%`} unit={t('tables.premium')} />
               </div>
 
               <LineChart
                 traces={[{
                   x: shockApi.data.factors.map(f => `${(f * 100).toFixed(0)}%`),
                   y: shockApi.data.premiums,
-                  name: `${t('sensibilidad.' + shockProduct)} (edad ${shockAge})`,
+                  name: `${t('sensibilidad.' + shockProduct)} (${t('tarificacion.ageLabel')} ${shockAge})`,
                   color: '#C41E3A',
                 }]}
                 title={t('sensibilidad.premiumVsShock')}
-                xTitle="Choque en q_x"
-                yTitle="Prima anual ($)"
+                xTitle={t('tarificacion.shockAxis')}
+                yTitle={t('tarificacion.annualPremiumAxis')}
                 height={350}
               />
 
@@ -291,7 +303,7 @@ export default function Sensibilidad() {
             <>
               <div className={styles.comparisonGrid}>
                 {crossCountry.data.countries.map(c => (
-                  <MetricBlock key={c.country} label={`Drift ${c.country}`} value={c.drift.toFixed(3)} unit="/año" />
+                  <MetricBlock key={c.country} label={`${t('tables.drift')} ${c.country}`} value={c.drift.toFixed(3)} unit={t('inicio.yearUnit')} />
                 ))}
               </div>
 
@@ -314,9 +326,9 @@ export default function Sensibilidad() {
                     x: p.years,
                     y: p.kt,
                     name: p.country,
-                    color: ['#C41E3A', '#424242', '#9E9E9E'][i],
+                    color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
-                  xTitle="Año"
+                  xTitle={t('charts.year')}
                   yTitle="k_t"
                   height={350}
                 />
@@ -331,9 +343,9 @@ export default function Sensibilidad() {
                     x: p.ages,
                     y: p.values,
                     name: p.country,
-                    color: ['#C41E3A', '#424242', '#9E9E9E'][i],
+                    color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
-                  xTitle="Edad"
+                  xTitle={t('charts.age')}
                   yTitle="a_x"
                   height={300}
                 />
@@ -348,9 +360,9 @@ export default function Sensibilidad() {
                     x: p.ages,
                     y: p.values,
                     name: p.country,
-                    color: ['#C41E3A', '#424242', '#9E9E9E'][i],
+                    color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
-                  xTitle="Edad"
+                  xTitle={t('charts.age')}
                   yTitle="b_x"
                   height={300}
                 />
@@ -374,9 +386,9 @@ export default function Sensibilidad() {
           {covid.data && (
             <>
               <div className={styles.comparisonGrid}>
-                <MetricBlock label={t('sensibilidad.covidDriftPre')} value={covid.data.pre_covid.drift.toFixed(3)} unit="/año" />
-                <MetricBlock label={t('sensibilidad.covidDriftFull')} value={covid.data.full_period.drift.toFixed(3)} unit="/año" />
-                <MetricBlock label={t('sensibilidad.covidDriftDiff')} value={`+${(covid.data.full_period.drift - covid.data.pre_covid.drift).toFixed(3)}`} unit="/año" />
+                <MetricBlock label={t('sensibilidad.covidDriftPre')} value={covid.data.pre_covid.drift.toFixed(3)} unit={t('inicio.yearUnit')} />
+                <MetricBlock label={t('sensibilidad.covidDriftFull')} value={covid.data.full_period.drift.toFixed(3)} unit={t('inicio.yearUnit')} />
+                <MetricBlock label={t('sensibilidad.covidDriftDiff')} value={`+${(covid.data.full_period.drift - covid.data.pre_covid.drift).toFixed(3)}`} unit={t('inicio.yearUnit')} />
               </div>
 
               {/* k_t overlay */}
@@ -397,7 +409,7 @@ export default function Sensibilidad() {
                       color: '#C41E3A',
                     },
                   ]}
-                  xTitle="Año"
+                  xTitle={t('charts.year')}
                   yTitle="k_t"
                   height={400}
                 />
