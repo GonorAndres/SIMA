@@ -9,8 +9,11 @@
   --color-gray-50: #F0F0F0;       /* Decorative large text */
   --color-gray-100: #F5F5F5;      /* Light gray backgrounds, table stripes */
   --color-gray-200: #E0E0E0;      /* Borders, dividers */
+  --color-gray-400: #BDBDBD;      /* Secondary labels, muted text (lighter) */
   --color-gray-500: #9E9E9E;      /* Muted text, labels */
   --color-gray-700: #424242;      /* Secondary text, body copy */
+  --color-warm-50: #FAF8F6;       /* Warm off-white for alternating sections */
+  --color-warm-100: #F0EDE8;      /* Warm light for borders/accents */
 
   /* Typography */
   --font-body: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;

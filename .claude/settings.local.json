@@ -32,7 +32,8 @@
       "Bash(/home/andtega349/SIMA/venv/bin/uvicorn:*)",
       "Bash(npx vite:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git status:*)"
     ]
   },
   "outputStyle": "Explanatory"

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDemo } from '../context/DemoContext';
 import PageLayout from '../components/layout/PageLayout';
 import SliderInput from '../components/forms/SliderInput';
 import MetricBlock from '../components/data/MetricBlock';
@@ -88,6 +89,16 @@ export default function Sensibilidad() {
     covidExecute();
   }, [crossExecute, covidExecute]);
 
+  // Auto-switch tabs when demo mode navigates to a section
+  const demo = useDemo();
+  useEffect(() => {
+    if (!demo?.active) return;
+    const key = demo.narrativeKey;
+    if (key === 'demo.step9') setActiveTab('interest_rate');
+    else if (key === 'demo.step10') setActiveTab('comparison');
+    else if (key === 'demo.step11') setActiveTab('covid');
+  }, [demo?.active, demo?.narrativeKey]);
+
   const handleRunInterestRate = async () => {
     // Run line chart analysis
     wl.execute({ product_type: 'whole_life', age, sum_assured: sumAssured, rates });
@@ -143,7 +154,7 @@ export default function Sensibilidad() {
 
       {/* Tab 1: Interest Rate */}
       {activeTab === 'interest_rate' && (
-        <div>
+        <div data-demo-section="interest">
           <h3 className={styles.sectionTitle}>{t('sensibilidad.interestHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.interestIntro')}
@@ -291,7 +302,7 @@ export default function Sensibilidad() {
 
       {/* Tab 3: Cross-Country Comparison */}
       {activeTab === 'comparison' && (
-        <div>
+        <div data-demo-section="cross-country">
           <h3 className={styles.sectionTitle}>{t('sensibilidad.crossHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.crossIntro')}
@@ -375,7 +386,7 @@ export default function Sensibilidad() {
 
       {/* Tab 4: COVID Impact */}
       {activeTab === 'covid' && (
-        <div>
+        <div data-demo-section="covid">
           <h3 className={styles.sectionTitle}>{t('sensibilidad.covidHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.covidIntro')}

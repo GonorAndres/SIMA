@@ -1,26 +1,13 @@
-import { useMemo } from 'react';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
 import styles from './FormulaBlock.module.css';
 
 interface FormulaBlockProps {
-  latex: string;
+  src: string;
+  alt: string;
   label?: string;
+  description?: string;
 }
 
-export default function FormulaBlock({ latex, label }: FormulaBlockProps) {
-  const html = useMemo(() => {
-    try {
-      return katex.renderToString(latex, {
-        throwOnError: false,
-        displayMode: true,
-        strict: false,
-      });
-    } catch {
-      return latex;
-    }
-  }, [latex]);
-
+export default function FormulaBlock({ src, alt, label, description }: FormulaBlockProps) {
   return (
     <div className={styles.wrapper}>
       {label && (
@@ -28,7 +15,14 @@ export default function FormulaBlock({ latex, label }: FormulaBlockProps) {
           {label}
         </div>
       )}
-      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <div className={styles.formula}>
+        <img src={src} alt={alt} className={styles.formulaImg} />
+      </div>
+      {description && (
+        <div className={styles.description}>
+          {description}
+        </div>
+      )}
     </div>
   );
 }

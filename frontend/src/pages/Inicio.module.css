@@ -59,6 +59,8 @@
 .heroRight {
   border-left: 2px solid var(--color-gray-200);
   padding-left: 48px;
+  background: var(--color-warm-50);
+  padding: 24px 24px 24px 48px;
 }
 
 .liveLabel {
@@ -73,6 +75,20 @@
 .sectionBlock {
   padding: 48px 0;
   border-top: 1px solid var(--color-gray-200);
+}
+
+.sectionBlockWarm {
+  composes: sectionBlock;
+  background: var(--color-warm-50);
+  padding: 48px 32px;
+  margin: 0 -32px;
+}
+
+.sectionBlockAccent {
+  composes: sectionBlock;
+  background: var(--color-accent-light);
+  padding: 48px 32px;
+  margin: 0 -32px;
 }
 
 .sectionTitle {

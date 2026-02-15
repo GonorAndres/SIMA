@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import Plot from 'react-plotly.js';
+import Plot from './Plot';
 import { defaultLayout, defaultConfig } from './chartDefaults';
 
 interface FanChartProps {

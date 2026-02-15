@@ -89,7 +89,7 @@ export default function Inicio() {
 
       {/* k_t mini chart */}
       {lc.data && (
-        <div className={styles.sectionBlock}>
+        <div className={styles.sectionBlockAccent} data-demo-section="hero">
           <h3 className={styles.sectionTitle}>{t('inicio.ktTrend')}</h3>
           <LineChart
             traces={[{
@@ -117,7 +117,7 @@ export default function Inicio() {
       </div>
 
       {/* Navigation sections */}
-      <div className={styles.sectionBlock}>
+      <div className={styles.sectionBlockWarm}>
         <h2 className={styles.sectionTitle}>{t('inicio.mortalityPipeline')}</h2>
         <p className={styles.sectionDesc}>{t('inicio.mortalityDesc')}</p>
         <DeepDiveLink text={t('inicio.viewMortality')} to="/mortalidad" />
@@ -129,7 +129,7 @@ export default function Inicio() {
         <DeepDiveLink text={t('inicio.calcPremiums')} to="/tarificacion" />
       </div>
 
-      <div className={styles.sectionBlock}>
+      <div className={styles.sectionBlockWarm}>
         <h2 className={styles.sectionTitle}>{t('inicio.capitalReqs')}</h2>
         <p className={styles.sectionDesc}>{t('inicio.capitalDesc')}</p>
         <DeepDiveLink text={t('inicio.viewSCR')} to="/scr" />

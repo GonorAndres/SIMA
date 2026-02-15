@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../common/LanguageToggle';
+import { useDemo } from '../../context/DemoContext';
 import styles from './TopNav.module.css';
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
 
 export default function TopNav() {
   const { t } = useTranslation();
+  const demo = useDemo();
 
   return (
     <nav className={styles.nav}>
@@ -36,6 +38,11 @@ export default function TopNav() {
             </li>
           ))}
         </ul>
+        {demo && !demo.active && (
+          <button className={styles.demoBtn} onClick={demo.start}>
+            DEMO
+          </button>
+        )}
         <LanguageToggle />
       </div>
     </nav>

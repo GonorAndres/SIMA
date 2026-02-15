@@ -1,14 +1,37 @@
 .wrapper {
-  background: var(--color-gray-100);
-  padding: var(--space-xl);
-  margin: var(--space-md) 0;
-  text-align: center;
+  background: var(--color-white);
+  border-left: 3px solid var(--color-accent);
+  padding: var(--space-lg) var(--space-xl);
+  margin: 12px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .label {
   text-transform: uppercase;
   font-size: var(--text-xs);
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   letter-spacing: 0.05em;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.formula {
+  text-align: center;
+  overflow-x: auto;
+}
+
+.formulaImg {
+  max-height: 60px;
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.description {
+  font-size: var(--text-small);
+  color: var(--color-gray-500);
+  line-height: 1.5;
+  margin-top: 8px;
+  font-style: italic;
+  text-align: left;
 }

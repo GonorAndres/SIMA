@@ -24,7 +24,7 @@ export default function Metodologia() {
   const { t } = useTranslation();
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-demo-section="top">
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>{t('metodologia.title')}</h1>
         <p className={styles.headerSubtitle}>{t('metodologia.subtitle')}</p>
@@ -43,8 +43,10 @@ export default function Metodologia() {
           tipo Gompertz.
         </p>
         <FormulaBlock
-          latex="m_{x,t} = \\frac{D_{x,t}}{E_{x,t}}"
+          src="/formulas/central_death_rate.png"
+          alt="m_{x,t} = D_{x,t} / E_{x,t}"
           label={t('metodologia.formulaLabels.centralDeathRate')}
+          description="D = observed deaths, E = population exposed to risk, x = age, t = year"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.dataYears')} value="30" unit={t('metodologia.metrics.yearsUnit')} />
@@ -71,8 +73,10 @@ export default function Metodologia() {
           estructura de banda, lo que permite resolverlo en tiempo O(n).
         </p>
         <FormulaBlock
-          latex="\\hat{g} = \\left(W + \\lambda D'D\\right)^{-1} W \\, m"
+          src="/formulas/whittaker_henderson.png"
+          alt="g_hat = (W + lambda D'D)^{-1} W m"
           label={t('metodologia.formulaLabels.graduation')}
+          description="W = diagonal weight matrix (exposures), D = difference matrix (order 3), lambda = smoothing parameter, m = raw rates"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label="Lambda" value="100,000" />
@@ -97,8 +101,10 @@ export default function Metodologia() {
           mexicana.
         </p>
         <FormulaBlock
-          latex="\\ln(m_{x,t}) = a_x + b_x \\cdot k_t + \\varepsilon_{x,t}"
+          src="/formulas/lee_carter.png"
+          alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
           label={t('metodologia.formulaLabels.leeCarter')}
+          description="a_x = average log-mortality by age, b_x = age sensitivity, k_t = temporal index, epsilon = residual"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.explainedVar')} value="77.7%" />
@@ -124,8 +130,10 @@ export default function Metodologia() {
           tablas de mortalidad proyectadas que alimentan al motor de tarificación.
         </p>
         <FormulaBlock
-          latex="k_{t+1} = k_t + d + \\sigma\\, Z_t, \\quad Z_t \\sim N(0,1)"
+          src="/formulas/rwd.png"
+          alt="k_{t+1} = k_t + d + sigma * Z_t, Z_t ~ N(0,1)"
           label={t('metodologia.formulaLabels.rwd')}
+          description="d = drift (annual improvement rate), sigma = volatility, Z = standard normal innovation"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.driftMexico')} value="-1.076" unit={t('metodologia.metrics.perYear')} />
@@ -148,8 +156,10 @@ export default function Metodologia() {
           aumenta la prima un 16.2%.
         </p>
         <FormulaBlock
-          latex="P = SA \\cdot \\frac{M_x}{N_x}"
+          src="/formulas/whole_life_premium.png"
+          alt="P = SA * M_x / N_x"
           label={t('metodologia.formulaLabels.wholeLifePremium')}
+          description="P = net annual premium, SA = sum assured, M_x = commutation (insurance), N_x = commutation (annuity)"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.premiumAge40')} value="$10,765" />
@@ -175,8 +185,10 @@ export default function Metodologia() {
           de mejor estimación, es la BEL que exige la regulación de la CNSF.
         </p>
         <FormulaBlock
-          latex="{}_tV = SA \\cdot A_{x+t} - P \\cdot \\ddot{a}_{x+t}"
+          src="/formulas/prospective_reserve.png"
+          alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
           label={t('metodologia.formulaLabels.prospectiveReserve')}
+          description="tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.belTotal')} value="$5.16M" />
@@ -204,8 +216,10 @@ export default function Metodologia() {
           pólizas del portafolio.
         </p>
         <FormulaBlock
-          latex="RCS = \\sqrt{\\vec{S}^{\\,T} \\cdot C \\cdot \\vec{S}}"
+          src="/formulas/rcs_aggregation.png"
+          alt="RCS = sqrt(S^T * C * S)"
           label={t('metodologia.formulaLabels.scrAggregation')}
+          description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.totalSCR')} value="$568,700" />

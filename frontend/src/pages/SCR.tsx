@@ -87,9 +87,12 @@ export default function SCR() {
       title={t('scr.title')}
       subtitle={t('scr.subtitle')}
     >
+      <div data-demo-section="top">
       <FormulaBlock
-        latex="SCR = \\sqrt{\\vec{S}^T \\cdot C \\cdot \\vec{S}}"
+        src="/formulas/scr_aggregation.png"
+        alt="SCR = sqrt(S^T * C * S)"
         label={t('scr.aggFormula')}
+        description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
       />
 
       {/* Portfolio section */}
@@ -133,6 +136,8 @@ export default function SCR() {
             />
           </>
         )}
+      </div>
+
       </div>
 
       {/* Compute SCR button */}

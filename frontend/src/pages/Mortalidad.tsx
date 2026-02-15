@@ -63,14 +63,16 @@ export default function Mortalidad() {
       {graduation.loading && <LoadingState message={t('mortalidad.loadingGraduation')} />}
 
       {graduation.data && (
-        <div className={styles.section}>
+        <div className={styles.section} data-demo-section="graduation">
           <h3 className={styles.sectionTitle}>{t('mortalidad.graduationTitle')}</h3>
           <p className={styles.narrative}>
             {t('mortalidad.graduationDesc')}
           </p>
           <FormulaBlock
-            latex="\\hat{g} = \\left(W + \\lambda D'D\\right)^{-1} W \\, m"
+            src="/formulas/whittaker_henderson.png"
+            alt="g_hat = (W + lambda D'D)^{-1} W m"
             label="Whittaker-Henderson"
+            description="W = diagonal weight matrix (exposures), D = difference matrix (order 3), lambda = smoothing parameter"
           />
           <div className={styles.metricsRow}>
             <MetricBlock
@@ -116,7 +118,7 @@ export default function Mortalidad() {
       {surface.loading && <LoadingState message={t('mortalidad.loadingSurface')} />}
 
       {surface.data && (
-        <div className={styles.section}>
+        <div className={styles.section} data-demo-section="surface">
           <h3 className={styles.sectionTitle}>{t('mortalidad.surfaceTitle')}</h3>
           <p className={styles.narrative}>
             {t('mortalidad.surfaceDesc')}
@@ -132,9 +134,12 @@ export default function Mortalidad() {
       )}
 
       {/* 3. Lee-Carter formula + fit */}
+      <div data-demo-section="lee-carter">
       <FormulaBlock
-        latex="\\ln(m_{x,t}) = a_x + b_x \\cdot k_t + \\varepsilon_{x,t}"
+        src="/formulas/lee_carter.png"
+        alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
         label={t('mortalidad.lcModel')}
+        description="a_x = average log-mortality by age, b_x = age sensitivity to change, k_t = temporal index"
       />
 
       {lc.loading && <LoadingState message={t('mortalidad.fitting')} />}
@@ -210,6 +215,7 @@ export default function Mortalidad() {
           </div>
         </>
       )}
+      </div>
 
       {/* 5. SVD Diagnostics */}
       {diagnostics.loading && <LoadingState message={t('mortalidad.loadingDiagnostics')} />}
@@ -233,7 +239,7 @@ export default function Mortalidad() {
       {proj.loading && <LoadingState message={t('mortalidad.projecting')} />}
 
       {proj.data && (
-        <div className={styles.section}>
+        <div className={styles.section} data-demo-section="projection">
           <h3 className={styles.sectionTitle}>{t('mortalidad.projTitle')}</h3>
           <MetricBlock label={t('mortalidad.drift')} value={proj.data.drift.toFixed(3)} />
           <FanChart
@@ -258,7 +264,7 @@ export default function Mortalidad() {
       )}
 
       {(validation.data || validationEmssa.data) && (
-        <div className={styles.validationSection}>
+        <div className={styles.validationSection} data-demo-section="validation">
           <h3 className={styles.sectionTitle}>{t('mortalidad.validationTitle')}</h3>
 
           <div className={styles.validationTabs}>

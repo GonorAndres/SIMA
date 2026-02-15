@@ -179,6 +179,7 @@ docs/
 | 09 | Sensitivity Analysis (interest rate, mortality shocks, cross-country) | `project/09_sensitivity_analysis_project.md` |
 | 10 | Capital Requirements (SCR, Phase 3) | `project/10_capital_requirements_project.md` |
 | 11 | Web Platform Implementation (Phase 4a + 4b) | `project/11_web_platform_implementation_project.md` |
+| 12 | 2026-02-15 ~18:00 -- Plotly.js bundle optimization: custom bundle (5.3MB->1.7MB), React.lazy code splitting, Vite manualChunks, global shim fix | `project/12_plotly_bundle_optimization_project.md` |
 
 **Additional Docs:**
 
@@ -326,11 +327,10 @@ backend/
 
 | Field | Value |
 |:------|:------|
-| VM Name | `claude-dev-20260207-022749` |
+| VM Name | `claude-dev-spot` |
 | Zone | `us-central1-c` |
-| Machine Type | `e2-standard-2` |
-| Internal IP | `10.128.0.2` |
-| External IP | `34.68.132.245` |
+| Internal IP | `10.128.0.3` |
+| External IP | `34.121.241.201` |
 | User | `andtega349` |
 
 ### Local Development Deploy
@@ -348,7 +348,7 @@ cd /home/andtega349/SIMA/frontend && npx vite --host 0.0.0.0 --port 5173
 **On your local machine** (SSH tunnel via gcloud):
 
 ```bash
-gcloud compute ssh andtega349@claude-dev-20260207-022749 --zone=us-central1-c -- -L 5173:localhost:5173 -L 8000:localhost:8000
+gcloud compute ssh andtega349@claude-dev-spot --zone=us-central1-c -- -L 5173:localhost:5173 -L 8000:localhost:8000
 ```
 
 Then open `http://localhost:5173` in your browser.

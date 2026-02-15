@@ -1,4 +1,4 @@
-import Plot from 'react-plotly.js';
+import Plot from './Plot';
 import { defaultLayout, defaultConfig } from './chartDefaults';
 
 interface WaterfallChartProps {

@@ -11,10 +11,16 @@ import { usePost } from '../hooks/useApi';
 import type { PremiumResponse, ReserveResponse, SensitivityResponse } from '../types';
 import styles from './Tarificacion.module.css';
 
-const formulaMap: Record<string, string> = {
-  whole_life: 'P = SA \\cdot \\frac{M_x}{N_x}',
-  term: 'P = SA \\cdot \\frac{M_x - M_{x+n}}{N_x - N_{x+n}}',
-  endowment: 'P = SA \\cdot \\frac{M_x - M_{x+n} + D_{x+n}}{N_x - N_{x+n}}',
+const formulaSrcMap: Record<string, string> = {
+  whole_life: '/formulas/whole_life_premium.png',
+  term: '/formulas/term_premium.png',
+  endowment: '/formulas/endowment_premium.png',
+};
+
+const formulaAltMap: Record<string, string> = {
+  whole_life: 'P = SA * M_x / N_x',
+  term: 'P = SA * (M_x - M_{x+n}) / (N_x - N_{x+n})',
+  endowment: 'P = SA * (M_x - M_{x+n} + D_{x+n}) / (N_x - N_{x+n})',
 };
 
 export default function Tarificacion() {
@@ -50,7 +56,7 @@ export default function Tarificacion() {
       title={t('tarificacion.title')}
       subtitle={t('tarificacion.subtitle')}
     >
-      <div className={styles.splitLayout}>
+      <div className={styles.splitLayout} data-demo-section="top">
         <div>
           <h3 className={styles.sectionTitle}>{t('tarificacion.calcTitle')}</h3>
           <PremiumForm onSubmit={handleSubmit} loading={loading} />
@@ -75,9 +81,10 @@ export default function Tarificacion() {
                 value={`${(premium.data.premium_rate * 100).toFixed(4)}%`}
               />
 
-              {lastRequest && formulaMap[lastRequest.product_type] && (
+              {lastRequest && formulaSrcMap[lastRequest.product_type] && (
                 <FormulaBlock
-                  latex={formulaMap[lastRequest.product_type]}
+                  src={formulaSrcMap[lastRequest.product_type]}
+                  alt={formulaAltMap[lastRequest.product_type]}
                   label={t('tarificacion.formula')}
                 />
               )}
@@ -90,8 +97,10 @@ export default function Tarificacion() {
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('tarificacion.reserveTitle')}</h3>
           <FormulaBlock
-            latex="{}_tV = SA \\cdot A_{x+t} - P \\cdot \\ddot{a}_{x+t}"
+            src="/formulas/prospective_reserve.png"
+            alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
             label={t('tarificacion.reserveFormula')}
+            description="tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium"
           />
           <LineChart
             traces={[{
