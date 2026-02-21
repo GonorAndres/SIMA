@@ -1,12 +1,19 @@
 """
 Precomputed data service.
 
-Loads mock data at application startup and caches the resulting objects
+Loads mortality data at application startup and caches the resulting objects
 in module-level variables. This avoids re-parsing CSVs on every request.
+
+Data source priority:
+    1. Real INEGI/CONAPO/CNSF data (if present in backend/data/{inegi,conapo,cnsf}/)
+    2. Mock synthetic data (backend/data/mock/) as fallback
 """
 
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Engine imports require backend/ on the path
 _backend_dir = str(Path(__file__).parent.parent.parent)
@@ -27,98 +34,139 @@ _lee_carter: LeeCarter | None = None
 _projection: MortalityProjection | None = None
 _cnsf_lt: LifeTable | None = None
 _emssa_lt: LifeTable | None = None
+_cnsf_lt_female: LifeTable | None = None
+_emssa_lt_female: LifeTable | None = None
+_data_source: str = "unknown"
+_load_error: str | None = None
 
-# Paths to mock data
-MOCK_DIR = Path(__file__).parent.parent.parent / "data" / "mock"
-MOCK_DEATHS = str(MOCK_DIR / "mock_inegi_deaths.csv")
-MOCK_POPULATION = str(MOCK_DIR / "mock_conapo_population.csv")
-MOCK_CNSF = str(MOCK_DIR / "mock_cnsf_2000_i.csv")
-MOCK_EMSSA = str(MOCK_DIR / "mock_emssa_2009.csv")
+# Data directories
+DATA_DIR = Path(__file__).parent.parent.parent / "data"
+MOCK_DIR = DATA_DIR / "mock"
+
+# Real data paths
+REAL_DEATHS = DATA_DIR / "inegi" / "inegi_deaths.csv"
+REAL_POPULATION = DATA_DIR / "conapo" / "conapo_population.csv"
+REAL_CNSF = DATA_DIR / "cnsf" / "cnsf_2000_i.csv"
+REAL_EMSSA = DATA_DIR / "cnsf" / "emssa_2009.csv"
+
+# Mock data paths (fallback)
+MOCK_DEATHS = MOCK_DIR / "mock_inegi_deaths.csv"
+MOCK_POPULATION = MOCK_DIR / "mock_conapo_population.csv"
+MOCK_CNSF = MOCK_DIR / "mock_cnsf_2000_i.csv"
+MOCK_EMSSA = MOCK_DIR / "mock_emssa_2009.csv"
+
+
+def _resolve_paths() -> tuple[str, str, str, str, str]:
+    """Resolve data file paths: prefer real data, fall back to mock."""
+    if REAL_DEATHS.exists() and REAL_POPULATION.exists():
+        deaths = str(REAL_DEATHS)
+        population = str(REAL_POPULATION)
+        source = "real"
+    else:
+        deaths = str(MOCK_DEATHS)
+        population = str(MOCK_POPULATION)
+        source = "mock"
+
+    cnsf = str(REAL_CNSF) if REAL_CNSF.exists() else str(MOCK_CNSF)
+    emssa = str(REAL_EMSSA) if REAL_EMSSA.exists() else str(MOCK_EMSSA)
+
+    return deaths, population, cnsf, emssa, source
 
 
 def load_all() -> None:
     """Load all precomputed data. Called once at startup."""
     global _mortality_data, _graduated, _lee_carter, _projection
-    global _cnsf_lt, _emssa_lt
+    global _cnsf_lt, _emssa_lt, _cnsf_lt_female, _emssa_lt_female
+    global _data_source, _load_error
 
-    # Load mortality data from mock INEGI/CONAPO
-    _mortality_data = MortalityData.from_inegi(
-        deaths_filepath=MOCK_DEATHS,
-        population_filepath=MOCK_POPULATION,
-        sex="Total",
-        year_start=1990,
-        year_end=2020,
-        age_max=100,
-    )
+    try:
+        deaths, population, cnsf, emssa, _data_source = _resolve_paths()
 
-    # Graduate
-    _graduated = GraduatedRates(
-        _mortality_data,
-        lambda_param=1e5,
-        diff_order=2,
-        weight_by_exposure=True,
-    )
+        # Load mortality data from INEGI/CONAPO
+        _mortality_data = MortalityData.from_inegi(
+            deaths_filepath=deaths,
+            population_filepath=population,
+            sex="Total",
+            year_start=1990,
+            year_end=2020,
+            age_max=100,
+        )
 
-    # Fit Lee-Carter (no reestimation -- graduated data makes it problematic)
-    _lee_carter = LeeCarter.fit(_graduated, reestimate_kt=False)
+        # Graduate
+        _graduated = GraduatedRates(
+            _mortality_data,
+            lambda_param=1e5,
+            diff_order=2,
+            weight_by_exposure=True,
+        )
 
-    # Project 30 years forward
-    _projection = MortalityProjection(
-        _lee_carter,
-        horizon=30,
-        n_simulations=500,
-        random_seed=42,
-    )
+        # Fit Lee-Carter (no reestimation -- graduated data makes it problematic)
+        _lee_carter = LeeCarter.fit(_graduated, reestimate_kt=False)
 
-    # Load regulatory tables
-    _cnsf_lt = LifeTable.from_regulatory_table(MOCK_CNSF, sex="male")
-    _emssa_lt = LifeTable.from_regulatory_table(MOCK_EMSSA, sex="male")
+        # Project 30 years forward
+        _projection = MortalityProjection(
+            _lee_carter,
+            horizon=30,
+            n_simulations=500,
+            random_seed=42,
+        )
+
+        # Load regulatory tables (both sexes)
+        _cnsf_lt = LifeTable.from_regulatory_table(cnsf, sex="male")
+        _emssa_lt = LifeTable.from_regulatory_table(emssa, sex="male")
+        _cnsf_lt_female = LifeTable.from_regulatory_table(cnsf, sex="female")
+        _emssa_lt_female = LifeTable.from_regulatory_table(emssa, sex="female")
+
+        _load_error = None
+        logger.info("Precomputed data loaded successfully (source: %s)", _data_source)
+    except Exception as exc:
+        _load_error = str(exc)
+        logger.error("Failed to load precomputed data: %s", exc, exc_info=True)
+
+
+def _check_loaded(obj, name: str):
+    """Check that precomputed data loaded successfully."""
+    if _load_error is not None:
+        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+    if obj is None:
+        raise RuntimeError(f"{name} not loaded. Call load_all() first.")
+    return obj
 
 
 def get_mortality_data() -> MortalityData:
-    if _mortality_data is None:
-        raise RuntimeError("Precomputed data not loaded. Call load_all() first.")
-    return _mortality_data
+    return _check_loaded(_mortality_data, "MortalityData")
 
 
 def get_graduated() -> GraduatedRates:
-    if _graduated is None:
-        raise RuntimeError("Precomputed data not loaded. Call load_all() first.")
-    return _graduated
+    return _check_loaded(_graduated, "GraduatedRates")
 
 
 def get_lee_carter() -> LeeCarter:
-    if _lee_carter is None:
-        raise RuntimeError("Precomputed data not loaded. Call load_all() first.")
-    return _lee_carter
+    return _check_loaded(_lee_carter, "LeeCarter")
 
 
 def get_projection() -> MortalityProjection:
-    if _projection is None:
-        raise RuntimeError("Precomputed data not loaded. Call load_all() first.")
-    return _projection
+    return _check_loaded(_projection, "MortalityProjection")
+
+
+def get_data_source() -> str:
+    """Return whether real or mock data is being used."""
+    return _data_source
 
 
 def get_regulatory_lt(table_type: str = "cnsf", sex: str = "male") -> LifeTable:
-    """Get a regulatory life table.
-
-    For the API, we preload the male tables. If a different sex is requested,
-    we load on-the-fly from the mock files.
-    """
-    if sex == "male":
-        if table_type == "cnsf":
-            if _cnsf_lt is None:
-                raise RuntimeError("Precomputed data not loaded.")
-            return _cnsf_lt
-        elif table_type == "emssa":
-            if _emssa_lt is None:
-                raise RuntimeError("Precomputed data not loaded.")
-            return _emssa_lt
-        else:
-            raise ValueError(f"Unknown table_type: {table_type}")
-    else:
-        filepath = MOCK_CNSF if table_type == "cnsf" else MOCK_EMSSA
-        return LifeTable.from_regulatory_table(filepath, sex=sex)
+    """Get a regulatory life table (both sexes cached at startup)."""
+    cache = {
+        ("cnsf", "male"): _cnsf_lt,
+        ("cnsf", "female"): _cnsf_lt_female,
+        ("emssa", "male"): _emssa_lt,
+        ("emssa", "female"): _emssa_lt_female,
+    }
+    key = (table_type, sex)
+    if key not in cache:
+        raise ValueError(f"Unknown table_type/sex: {table_type}/{sex}")
+    lt = cache[key]
+    return _check_loaded(lt, f"regulatory_lt({table_type}/{sex})")
 
 
 def get_projected_life_table(year: int) -> LifeTable:

@@ -18,22 +18,11 @@ if _project_dir not in sys.path:
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a02_commutation import CommutationFunctions
 from backend.engine.a04_premiums import PremiumCalculator
+from backend.engine.a12_scr import build_shocked_life_table
 from backend.api.services.precomputed import get_projected_life_table
 
 
 DEFAULT_INTEREST_RATE = 0.05
-
-
-def _build_shocked_lt(base_lt: LifeTable, factor: float) -> LifeTable:
-    """Scale q_x by (1+factor), clip at 1.0, rebuild l_x."""
-    ages = base_lt.ages
-    base_qx = [base_lt.q_x[a] for a in ages]
-    shocked_qx = [min(q * (1 + factor), 1.0) for q in base_qx]
-    radix = 100_000.0
-    l_x = [radix]
-    for i in range(len(ages) - 1):
-        l_x.append(l_x[-1] * (1 - shocked_qx[i]))
-    return LifeTable(ages=ages, l_x_values=l_x)
 
 
 def _compute_premium(
@@ -76,17 +65,16 @@ def mortality_shock_sweep(
         if factor == 0:
             lt = base_lt
         else:
-            lt = _build_shocked_lt(base_lt, factor)
+            lt = build_shocked_life_table(base_lt, 1 + factor)
         p = _compute_premium(lt, DEFAULT_INTEREST_RATE, product_type, age, sum_assured, term)
-        premiums.append(round(p, 2))
+        premiums.append(p)
         if factor == 0:
-            base_premium = round(p, 2)
+            base_premium = p
 
     # If 0 was not in factors, compute base separately
     if base_premium is None:
-        base_premium = round(
-            _compute_premium(base_lt, DEFAULT_INTEREST_RATE, product_type, age, sum_assured, term),
-            2,
+        base_premium = _compute_premium(
+            base_lt, DEFAULT_INTEREST_RATE, product_type, age, sum_assured, term,
         )
 
     pct_changes = [

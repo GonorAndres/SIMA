@@ -26,6 +26,8 @@ def mortality_shock(request: MortalityShockRequest):
         )
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/cross-country", response_model=CrossCountryResponse)

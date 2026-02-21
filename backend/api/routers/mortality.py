@@ -4,9 +4,10 @@ from fastapi import APIRouter, Query, HTTPException
 
 from backend.api.schemas.mortality import (
     LifeTableResponse,
-    LeeCaterFitResponse,
+    LeeCarterFitResponse,
     ProjectionResponse,
     MortalityDataSummary,
+    ValidationResponse,
     GraduationResponse,
     MortalitySurfaceResponse,
     LCDiagnosticsResponse,
@@ -22,7 +23,7 @@ def get_data_summary():
     return mortality_service.get_data_summary()
 
 
-@router.get("/lee-carter", response_model=LeeCaterFitResponse)
+@router.get("/lee-carter", response_model=LeeCarterFitResponse)
 def get_lee_carter():
     """Get the fitted Lee-Carter model parameters (a_x, b_x, k_t)."""
     return mortality_service.get_lee_carter_params()
@@ -41,6 +42,8 @@ def get_projection(
         )
     except (IndexError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/life-table", response_model=LifeTableResponse)
@@ -51,11 +54,13 @@ def get_life_table(
     """Get a regulatory life table (CNSF or EMSSA)."""
     try:
         return mortality_service.get_life_table_data(table_type, sex)
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/validation")
+@router.get("/validation", response_model=ValidationResponse)
 def get_validation(
     projection_year: int = Query(default=2040),
     table_type: str = Query(default="cnsf", pattern="^(cnsf|emssa)$"),
@@ -65,6 +70,8 @@ def get_validation(
         return mortality_service.get_validation(projection_year, table_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/graduation", response_model=GraduationResponse)

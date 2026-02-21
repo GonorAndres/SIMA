@@ -85,6 +85,8 @@ def calculate_reserve_trajectory(
         premium = pc.term(SA=sum_assured, x=age, n=term)
     elif product_type == "endowment":
         premium = pc.endowment(SA=sum_assured, x=age, n=term)
+    elif product_type == "pure_endowment":
+        premium = pc.pure_endowment(SA=sum_assured, x=age, n=term)
     else:
         raise ValueError(f"Unknown product_type: {product_type}")
 

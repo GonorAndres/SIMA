@@ -34,7 +34,7 @@ tools for that comparison.
 import numpy as np
 from typing import List
 
-from backend.engine.a01_life_table import LifeTable
+from .a01_life_table import LifeTable
 
 
 class MortalityComparison:
@@ -95,7 +95,9 @@ class MortalityComparison:
         proj_qx = np.array([self.projected.get_q(a) for a in ages])
         reg_qx = np.array([self.regulatory.get_q(a) for a in ages])
 
-        return proj_qx / reg_qx
+        # Guard against division by zero at ages where regulatory q_x = 0
+        safe_reg_qx = np.where(reg_qx == 0, np.nan, reg_qx)
+        return proj_qx / safe_reg_qx
 
     def qx_difference(self) -> np.ndarray:
         """

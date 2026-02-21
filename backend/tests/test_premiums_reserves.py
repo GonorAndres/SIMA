@@ -339,6 +339,65 @@ def test_validate_zero_reserve_method(rc):
 
 
 # =============================================================================
+# Test: Pure Endowment Reserve
+# =============================================================================
+
+def test_zero_reserve_at_issue_pure_endowment(rc):
+    """
+    THEORY: 0V = 0 for pure endowment (equivalence principle)
+
+    At t=0, the insurer has collected one premium that exactly offsets
+    the expected present value of the survival benefit. Reserve is zero.
+    """
+    SA = 100_000
+    x = 60
+    n = 3
+
+    reserve_0 = rc.reserve_pure_endowment(SA, x, n, t=0)
+
+    assert reserve_0 == pytest.approx(0.0, abs=0.01)
+
+
+def test_pure_endowment_reserve_at_maturity(rc):
+    """
+    THEORY: nV = SA at maturity for pure endowment
+
+    At t=n, the policyholder has survived and the full SA is due.
+    """
+    SA = 100_000
+    x = 60
+    n = 3
+
+    reserve_at_n = rc.reserve_pure_endowment(SA, x, n, t=n)
+
+    assert reserve_at_n == pytest.approx(SA)
+
+
+def test_pure_endowment_reserve_trajectory(rc):
+    """
+    THEORY: Pure endowment reserve increases over time
+
+    As the policyholder survives each year, the insurer must set aside
+    more to cover the certain future payment, net of remaining premiums.
+    """
+    SA = 100_000
+    x = 60
+    n = 3
+
+    trajectory = rc.reserve_trajectory(SA, x, product="pure_endowment", n=n)
+
+    # Starts at zero
+    assert trajectory[0][1] == pytest.approx(0.0, abs=0.01)
+
+    # Ends at SA
+    assert trajectory[-1][1] == pytest.approx(SA)
+
+    # Monotonically increasing
+    for i in range(1, len(trajectory)):
+        assert trajectory[i][1] >= trajectory[i - 1][1] - 0.01
+
+
+# =============================================================================
 # Run tests
 # =============================================================================
 

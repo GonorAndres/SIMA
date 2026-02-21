@@ -155,13 +155,27 @@ class MortalityProjection:
 
         return kt_last + drift_component + random_component
 
+    def _validate_projection_year(self, year: int) -> int:
+        """
+        Validate that a year is within the projected range and return its index.
+
+        Raises ValueError if the year is not in self.projected_years.
+        """
+        idx = np.searchsorted(self.projected_years, year)
+        if idx >= len(self.projected_years) or self.projected_years[idx] != year:
+            raise ValueError(
+                f"Year {year} not in projection range "
+                f"({int(self.projected_years[0])}-{int(self.projected_years[-1])})"
+            )
+        return int(idx)
+
     def get_projected_mx(self, age: int, year: int) -> float:
         """
         Get central projected death rate for a given age and future year.
 
         Uses: exp(a_x + b_x * k_t_central)
         """
-        year_idx = np.searchsorted(self.projected_years, year)
+        year_idx = self._validate_projection_year(year)
         kt = self.kt_central[year_idx]
         age_idx = np.searchsorted(self.lee_carter.ages, age)
         ax = self.lee_carter.ax[age_idx]
@@ -209,7 +223,7 @@ class MortalityProjection:
         Tuple[float, float]
             (lower_rate, upper_rate) at the specified quantiles.
         """
-        year_idx = np.searchsorted(self.projected_years, year)
+        year_idx = self._validate_projection_year(year)
         age_idx = np.searchsorted(self.lee_carter.ages, age)
 
         ax = self.lee_carter.ax[age_idx]
@@ -259,7 +273,7 @@ class MortalityProjection:
         LifeTable
             Ready to feed into CommutationFunctions -> Premiums -> Reserves.
         """
-        year_idx = np.searchsorted(self.projected_years, year)
+        year_idx = self._validate_projection_year(year)
         kt = self.kt_central[year_idx]
 
         ages = self.lee_carter.ages
@@ -323,7 +337,7 @@ class MortalityProjection:
         -------
         Tuple of (central, optimistic, pessimistic) LifeTables.
         """
-        year_idx = np.searchsorted(self.projected_years, year)
+        year_idx = self._validate_projection_year(year)
         ages = self.lee_carter.ages
         ax = self.lee_carter.ax
         bx = self.lee_carter.bx

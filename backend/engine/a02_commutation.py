@@ -45,6 +45,14 @@ class CommutationFunctions:
 
     Computes D, N, C, M values from a life table and interest rate.
 
+    NORMALIZATION: This implementation uses v^(x - min_age) instead of
+    the standard textbook v^x. This keeps values manageable and avoids
+    extreme underflow for high ages. Since all actuarial values (A_x, a_x,
+    nE_x, premiums, reserves) are ratios of commutation functions, the
+    normalization constant cancels exactly. However, the absolute D, N, C, M
+    values are NOT directly comparable to published commutation tables that
+    use the standard v^x convention.
+
     Attributes:
         life_table: Source LifeTable
         i: Interest rate (e.g., 0.05 for 5%)

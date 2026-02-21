@@ -97,20 +97,38 @@ class MortalityData:
         """Matrix shape (n_ages, n_years)."""
         return (self.n_ages, self.n_years)
 
+    def _validate_age(self, age: int) -> int:
+        """Validate and return array index for an age."""
+        idx = np.searchsorted(self.ages, age)
+        if idx >= len(self.ages) or self.ages[idx] != age:
+            raise ValueError(
+                f"Age {age} not in data (range: {self.ages[0]}-{self.ages[-1]})"
+            )
+        return idx
+
+    def _validate_year(self, year: int) -> int:
+        """Validate and return array index for a year."""
+        idx = np.searchsorted(self.years, year)
+        if idx >= len(self.years) or self.years[idx] != year:
+            raise ValueError(
+                f"Year {year} not in data (range: {self.years[0]}-{self.years[-1]})"
+            )
+        return idx
+
     def get_mx(self, age: int, year: int) -> float:
         """Get a single death rate by age and year."""
-        age_idx = np.searchsorted(self.ages, age)
-        year_idx = np.searchsorted(self.years, year)
+        age_idx = self._validate_age(age)
+        year_idx = self._validate_year(year)
         return float(self.mx[age_idx, year_idx])
 
     def year_slice(self, year: int) -> np.ndarray:
         """Get all death rates for a single year (vector of ages)."""
-        year_idx = np.searchsorted(self.years, year)
+        year_idx = self._validate_year(year)
         return self.mx[:, year_idx]
 
     def age_slice(self, age: int) -> np.ndarray:
         """Get all death rates for a single age (vector across years)."""
-        age_idx = np.searchsorted(self.ages, age)
+        age_idx = self._validate_age(age)
         return self.mx[age_idx, :]
 
     def summary(self) -> Dict:
@@ -397,9 +415,10 @@ def _validate(
     5. Recomputed rates d/L are close to provided m_x
     """
     # Shape consistency
-    assert mx.shape == dx.shape == ex.shape, (
-        f"Shape mismatch: mx={mx.shape}, dx={dx.shape}, ex={ex.shape}"
-    )
+    if not (mx.shape == dx.shape == ex.shape):
+        raise ValueError(
+            f"Shape mismatch: mx={mx.shape}, dx={dx.shape}, ex={ex.shape}"
+        )
 
     # No missing values
     for name, arr in [("mx", mx), ("dx", dx), ("ex", ex)]:

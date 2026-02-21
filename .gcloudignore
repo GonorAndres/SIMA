@@ -1,0 +1,59 @@
+# .gcloudignore -- controls what gcloud uploads to Cloud Build
+# Unlike .gitignore, this INCLUDES real data needed by the API
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.github/
+
+# Claude
+.claude/
+
+# Documentation (not needed at runtime)
+docs/
+subagents_outputs/
+SIMA-PROJECT-SPEC.md
+
+# HMD data (NOT used by API, large, and has redistribution restrictions)
+backend/data/hmd/
+
+# CONAPO raw XLSX files (large, only the processed CSV is needed)
+backend/data/conapo/*.xlsx
+
+# PDF files (large binaries not needed at runtime)
+*.pdf
+
+# Analysis result text files
+backend/analysis/results/
+
+# Tests (not needed in production)
+backend/tests/
+
+# Frontend build artifacts (Cloud Build rebuilds from source via Dockerfile)
+frontend/node_modules/
+frontend/dist/
+
+# NOTE: backend/data/inegi/, backend/data/conapo/*.csv, and backend/data/cnsf/
+# are intentionally NOT excluded -- the API needs real INEGI/CONAPO/CNSF data.

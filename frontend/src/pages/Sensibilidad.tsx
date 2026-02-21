@@ -22,6 +22,12 @@ import styles from './Sensibilidad.module.css';
 
 type TabKey = 'interest_rate' | 'mortality' | 'comparison' | 'covid';
 
+const productI18nKey: Record<string, string> = {
+  whole_life: 'wholeLife',
+  term: 'term',
+  endowment: 'endowment',
+};
+
 const rates = [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08];
 const COUNTRY_COLORS = ['#C41E3A', '#424242', '#9E9E9E', '#1E88E5', '#43A047', '#E65100'];
 const heatmapAges = [20, 30, 40, 50, 60];
@@ -120,6 +126,8 @@ export default function Sensibilidad() {
         })
       );
       setHeatmapData(results);
+    } catch (err: unknown) {
+      console.error('Heatmap fetch failed:', err);
     } finally {
       setHeatmapLoading(false);
     }
@@ -274,7 +282,7 @@ export default function Sensibilidad() {
           {shockApi.data && (
             <>
               <div className={styles.comparisonGrid}>
-                <MetricBlock label={t('sensibilidad.wholeLife')} value={`$${shockApi.data.base_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} unit={`${t('tarificacion.ageLabel')} ${shockApi.data.age}`} />
+                <MetricBlock label={t('sensibilidad.' + productI18nKey[shockProduct])} value={`$${shockApi.data.base_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} unit={`${t('tarificacion.ageLabel')} ${shockApi.data.age}`} />
                 <MetricBlock label="+30% q_x" value={`+${shockApi.data.pct_changes[shockApi.data.pct_changes.length - 1]?.toFixed(1)}%`} unit={t('tables.premium')} />
                 <MetricBlock label="-30% q_x" value={`${shockApi.data.pct_changes[0]?.toFixed(1)}%`} unit={t('tables.premium')} />
               </div>
@@ -283,7 +291,7 @@ export default function Sensibilidad() {
                 traces={[{
                   x: shockApi.data.factors.map(f => `${(f * 100).toFixed(0)}%`),
                   y: shockApi.data.premiums,
-                  name: `${t('sensibilidad.' + shockProduct)} (${t('tarificacion.ageLabel')} ${shockAge})`,
+                  name: `${t('sensibilidad.' + productI18nKey[shockProduct])} (${t('tarificacion.ageLabel')} ${shockAge})`,
                   color: '#C41E3A',
                 }]}
                 title={t('sensibilidad.premiumVsShock')}

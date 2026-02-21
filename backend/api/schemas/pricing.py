@@ -1,16 +1,16 @@
 """Pydantic schemas for pricing-related endpoints."""
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Tuple
+from typing import Literal, Optional, List, Tuple
 
 
 class PremiumRequest(BaseModel):
     """Request to calculate a net premium."""
-    product_type: str = Field(
+    product_type: Literal["whole_life", "term", "endowment", "pure_endowment"] = Field(
         description="'whole_life', 'term', 'endowment', or 'pure_endowment'"
     )
     age: int = Field(ge=0, le=100, description="Issue age")
-    sum_assured: float = Field(gt=0, description="Sum assured (face amount)")
+    sum_assured: float = Field(gt=0, le=1e12, description="Sum assured (face amount)")
     interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
     term: Optional[int] = Field(
         default=None, ge=1,
@@ -31,11 +31,11 @@ class PremiumResponse(BaseModel):
 
 class ReserveRequest(BaseModel):
     """Request to calculate a reserve trajectory."""
-    product_type: str = Field(
+    product_type: Literal["whole_life", "term", "endowment", "pure_endowment"] = Field(
         description="'whole_life', 'term', or 'endowment'"
     )
     age: int = Field(ge=0, le=100, description="Issue age")
-    sum_assured: float = Field(gt=0)
+    sum_assured: float = Field(gt=0, le=1e12)
     interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
     term: Optional[int] = Field(default=None, ge=1)
     duration: Optional[int] = Field(
@@ -75,12 +75,13 @@ class CommutationResponse(BaseModel):
 
 class SensitivityRequest(BaseModel):
     """Request for interest rate sensitivity analysis."""
-    product_type: str = Field(default="whole_life")
+    product_type: Literal["whole_life", "term", "endowment"] = Field(default="whole_life")
     age: int = Field(default=40, ge=0, le=100)
-    sum_assured: float = Field(default=1_000_000, gt=0)
+    sum_assured: float = Field(default=1_000_000, gt=0, le=1e12)
     term: Optional[int] = Field(default=20, ge=1)
     rates: List[float] = Field(
         default=[0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
+        max_length=50,
         description="Interest rates to evaluate"
     )
 

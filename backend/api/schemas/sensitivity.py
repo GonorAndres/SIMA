@@ -1,16 +1,17 @@
 """Pydantic schemas for sensitivity analysis endpoints."""
 
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Literal, List, Optional
 
 
 class MortalityShockRequest(BaseModel):
     """Request for mortality shock sweep analysis."""
     age: int = Field(default=40, ge=20, le=70)
-    sum_assured: float = Field(default=1_000_000, gt=0)
-    product_type: str = Field(default="whole_life")
+    sum_assured: float = Field(default=1_000_000, gt=0, le=1e12)
+    product_type: Literal["whole_life", "term", "endowment"] = Field(default="whole_life")
     factors: List[float] = Field(
         default=[-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30],
+        max_length=50,
         description="Shock factors to apply to q_x",
     )
     term: Optional[int] = Field(default=20, ge=1)

@@ -52,6 +52,8 @@ def compute_bel(request: PortfolioBELRequest):
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/policy")
@@ -74,6 +76,8 @@ def add_policy(policy: PolicyCreate):
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reset")

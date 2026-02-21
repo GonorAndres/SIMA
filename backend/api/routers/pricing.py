@@ -30,6 +30,8 @@ def calculate_premium(request: PremiumRequest):
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reserve", response_model=ReserveResponse)
@@ -46,6 +48,8 @@ def calculate_reserve(request: ReserveRequest):
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/commutation", response_model=CommutationResponse)
@@ -58,6 +62,8 @@ def get_commutation(
         return pricing_service.get_commutation_values(age, interest_rate)
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/sensitivity", response_model=SensitivityResponse)
@@ -74,3 +80,5 @@ def calculate_sensitivity(request: SensitivityRequest):
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

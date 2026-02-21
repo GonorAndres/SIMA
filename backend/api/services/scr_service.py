@@ -15,7 +15,10 @@ from backend.engine.a12_scr import run_full_scr
 from backend.api.services.precomputed import get_regulatory_lt
 
 
-# Module-level portfolio (can be modified via API)
+# Module-level portfolio (can be modified via API).
+# NOTE: This is global mutable state shared across all requests -- intentional
+# for this demo/portfolio project. In production, use per-session or per-user
+# state (e.g., database-backed or session-scoped dependency injection).
 _portfolio: Portfolio | None = None
 
 

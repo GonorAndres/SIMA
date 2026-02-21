@@ -212,7 +212,15 @@ class GraduatedRates:
     def get_graduated_mx(self, age: int, year: int) -> float:
         """Get a single graduated death rate by age and year."""
         age_idx = np.searchsorted(self.ages, age)
+        if age_idx >= len(self.ages) or self.ages[age_idx] != age:
+            raise ValueError(
+                f"Age {age} not in graduated data (range: {self.ages[0]}-{self.ages[-1]})"
+            )
         year_idx = np.searchsorted(self.years, year)
+        if year_idx >= len(self.years) or self.years[year_idx] != year:
+            raise ValueError(
+                f"Year {year} not in graduated data (range: {self.years[0]}-{self.years[-1]})"
+            )
         return float(self.mx[age_idx, year_idx])
 
     def residuals(self) -> np.ndarray:

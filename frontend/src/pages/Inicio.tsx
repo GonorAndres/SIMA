@@ -6,12 +6,12 @@ import DeepDiveLink from '../components/data/DeepDiveLink';
 import LineChart from '../components/charts/LineChart';
 import LoadingState from '../components/common/LoadingState';
 import { useGet, usePost } from '../hooks/useApi';
-import type { LeeCaterFitResponse, SCRResponse } from '../types';
+import type { LeeCarterFitResponse, SCRResponse } from '../types';
 import styles from './Inicio.module.css';
 
 export default function Inicio() {
   const { t } = useTranslation();
-  const lc = useGet<LeeCaterFitResponse>('/mortality/lee-carter');
+  const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const scr = usePost<object, SCRResponse>('/scr/compute');
 
   useEffect(() => {

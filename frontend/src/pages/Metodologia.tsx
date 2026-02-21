@@ -76,11 +76,11 @@ export default function Metodologia() {
           src="/formulas/whittaker_henderson.png"
           alt="g_hat = (W + lambda D'D)^{-1} W m"
           label={t('metodologia.formulaLabels.graduation')}
-          description="W = diagonal weight matrix (exposures), D = difference matrix (order 3), lambda = smoothing parameter, m = raw rates"
+          description="W = diagonal weight matrix (exposures), D = difference matrix (order 2), lambda = smoothing parameter, m = raw rates"
         />
         <div className={styles.metricsRow}>
           <MetricBlock label="Lambda" value="100,000" />
-          <MetricBlock label={t('metodologia.metrics.differenceOrder')} value="3" />
+          <MetricBlock label={t('metodologia.metrics.differenceOrder')} value="2" />
           <MetricBlock label={t('metodologia.metrics.weights')} value={t('metodologia.metrics.exposures')} />
         </div>
       </Section>

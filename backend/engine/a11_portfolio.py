@@ -121,6 +121,7 @@ def compute_policy_bel(
     policy: Policy,
     life_table: LifeTable,
     interest_rate: float,
+    comm: Optional[CommutationFunctions] = None,
 ) -> float:
     """
     Compute BEL for a single policy.
@@ -136,7 +137,8 @@ def compute_policy_bel(
     Returns:
         BEL amount (float)
     """
-    comm = CommutationFunctions(life_table, interest_rate=interest_rate)
+    if comm is None:
+        comm = CommutationFunctions(life_table, interest_rate=interest_rate)
 
     if policy.is_death_product:
         rc = ReserveCalculator(comm)
@@ -190,8 +192,9 @@ class Portfolio:
         Returns:
             Aggregate BEL (sum of individual policy BELs)
         """
+        comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         return sum(
-            compute_policy_bel(p, life_table, interest_rate)
+            compute_policy_bel(p, life_table, interest_rate, comm=comm)
             for p in self.policies
         )
 
@@ -205,8 +208,9 @@ class Portfolio:
             List of dicts with policy details and individual BEL.
         """
         breakdown = []
+        comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         for p in self.policies:
-            bel = compute_policy_bel(p, life_table, interest_rate)
+            bel = compute_policy_bel(p, life_table, interest_rate, comm=comm)
             entry = {
                 "policy_id": p.policy_id,
                 "product_type": p.product_type,
@@ -231,12 +235,13 @@ class Portfolio:
         Returns:
             Dict with "death_bel", "annuity_bel", "total_bel".
         """
+        comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         death_bel = sum(
-            compute_policy_bel(p, life_table, interest_rate)
+            compute_policy_bel(p, life_table, interest_rate, comm=comm)
             for p in self.death_products
         )
         annuity_bel = sum(
-            compute_policy_bel(p, life_table, interest_rate)
+            compute_policy_bel(p, life_table, interest_rate, comm=comm)
             for p in self.annuity_products
         )
         return {

@@ -25,6 +25,8 @@ def compute_scr(request: SCRRequest):
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/defaults", response_model=SCRResponse)
@@ -35,3 +37,5 @@ def compute_scr_defaults():
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

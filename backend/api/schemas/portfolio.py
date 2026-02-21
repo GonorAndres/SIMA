@@ -1,13 +1,13 @@
 """Pydantic schemas for portfolio-related endpoints."""
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Literal, Optional, List, Dict
 
 
 class PolicyCreate(BaseModel):
     """Schema for creating a policy."""
     policy_id: str
-    product_type: str = Field(
+    product_type: Literal["whole_life", "term", "endowment", "annuity"] = Field(
         description="'whole_life', 'term', 'endowment', or 'annuity'"
     )
     issue_age: int = Field(ge=0, le=100)

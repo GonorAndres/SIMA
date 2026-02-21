@@ -11,7 +11,7 @@ export interface MortalityDataSummary {
   mx_mean: number;
 }
 
-export interface LeeCaterFitResponse {
+export interface LeeCarterFitResponse {
   ages: number[];
   years: number[];
   ax: number[];

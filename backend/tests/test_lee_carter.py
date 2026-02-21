@@ -73,14 +73,33 @@ def spain_lc(spain_data):
 # Test: a_x Computation
 # =============================================================================
 
-def test_ax_equals_row_means(usa_data, usa_lc_no_reest):
+def test_ax_centering_preserves_reconstruction(usa_data, usa_lc_no_reest):
     """
-    THEORY: a_x = mean_t(ln(m_{x,t})).
-    For the non-re-estimated version, a_x should be exact row means.
+    THEORY: After centering k_t and absorbing the offset into a_x,
+    the fitted log-rates a_x + b_x * k_t should exactly reconstruct
+    the rank-1 SVD approximation of the residual matrix. This means
+    for each year j: mean_x(a_x + b_x*k_t[j]) matches the column
+    mean of the SVD approximation, not just the raw row means.
+
+    The key identity: since sum(k_t) = 0, we have
+    mean_t(a_x + b_x * k_t) = a_x for each age x.
     """
     log_mx = np.log(usa_data.mx)
-    expected_ax = np.mean(log_mx, axis=1)
-    np.testing.assert_allclose(usa_lc_no_reest.ax, expected_ax, rtol=1e-10)
+    row_means = np.mean(log_mx, axis=1)
+    residual = log_mx - row_means[:, np.newaxis]
+
+    # The rank-1 SVD approximation of the residual
+    U, S, Vt = np.linalg.svd(residual, full_matrices=False)
+    svd_approx = S[0] * np.outer(U[:, 0], Vt[0, :])
+
+    # Full rank-1 reconstruction = row_means + svd_approx
+    full_reconstruction = row_means[:, np.newaxis] + svd_approx
+
+    # The fitted model should match this reconstruction
+    fitted = usa_lc_no_reest.ax[:, np.newaxis] + np.outer(
+        usa_lc_no_reest.bx, usa_lc_no_reest.kt
+    )
+    np.testing.assert_allclose(fitted, full_reconstruction, rtol=1e-8)
 
 
 def test_ax_shape(usa_lc):

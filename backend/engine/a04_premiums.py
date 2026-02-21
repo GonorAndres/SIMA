@@ -117,6 +117,11 @@ class PremiumCalculator:
         numerator = M_x - M_x_n
         denominator = N_x - N_x_n
 
+        if abs(denominator) < 1e-12:
+            raise ValueError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            )
+
         return SA * (numerator / denominator)
 
     def endowment(self, SA: float, x: int, n: int) -> float:
@@ -158,6 +163,11 @@ class PremiumCalculator:
         # Denominator: n years of premium payments
         denominator = N_x - N_x_n
 
+        if abs(denominator) < 1e-12:
+            raise ValueError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            )
+
         return SA * (numerator / denominator)
 
     def pure_endowment(self, SA: float, x: int, n: int) -> float:
@@ -188,6 +198,11 @@ class PremiumCalculator:
 
         numerator = D_x_n
         denominator = N_x - N_x_n
+
+        if abs(denominator) < 1e-12:
+            raise ValueError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            )
 
         return SA * (numerator / denominator)
 
@@ -222,6 +237,11 @@ class PremiumCalculator:
 
         numerator = M_x
         denominator = N_x - N_x_m
+
+        if abs(denominator) < 1e-12:
+            raise ValueError(
+                f"Annuity-due denominator (N_{x} - N_{x+m}) is zero at age {x}, pay period {m}"
+            )
 
         return SA * (numerator / denominator)
 

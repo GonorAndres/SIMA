@@ -105,11 +105,11 @@ def test_sensitivity(client):
 
 
 def test_invalid_product_type(client):
-    """THEORY: Unknown product type should return 400 error."""
+    """THEORY: Unknown product type should return 422 (Pydantic Literal validation)."""
     response = client.post("/api/pricing/premium", json={
         "product_type": "unknown_product",
         "age": 40,
         "sum_assured": 1_000_000,
         "interest_rate": 0.05,
     })
-    assert response.status_code == 400
+    assert response.status_code == 422

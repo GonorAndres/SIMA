@@ -182,6 +182,46 @@ class ReserveCalculator:
 
         return reserve
 
+    def reserve_pure_endowment(self, SA: float, x: int, n: int, t: int) -> float:
+        """
+        Reserve at duration t for n-year pure endowment issued at age x.
+
+        For t < n:
+            tV = SA * nE_{x+t:n-t|} - P * a_{x+t:n-t|}
+
+        At t = n:
+            tV = SA (policyholder survived, payment due)
+
+        Args:
+            SA: Sum Assured (survival benefit)
+            x: Issue age
+            n: Survival period
+            t: Duration (years since issue)
+
+        Returns:
+            Reserve amount at duration t
+        """
+        if t >= n:
+            return SA
+
+        attained_age = x + t
+        remaining_term = n - t
+
+        if attained_age > self.comm.max_age:
+            return 0.0
+
+        # Premium set at issue
+        P = self.pc.pure_endowment(SA, x, n)
+
+        # Future values for remaining period
+        nE_remaining = self.av.nE_x(attained_age, remaining_term)
+        a_due_remaining = self.av.a_due_temporary(attained_age, remaining_term)
+
+        # Prospective reserve
+        reserve = SA * nE_remaining - P * a_due_remaining
+
+        return reserve
+
     def reserve_trajectory(self, SA: float, x: int,
                           product: str = "whole_life",
                           n: int = None) -> List[Tuple[int, float]]:
@@ -220,6 +260,13 @@ class ReserveCalculator:
                 raise ValueError("Endowment product requires n")
             for t in range(n + 1):
                 reserve = self.reserve_endowment(SA, x, n, t)
+                trajectory.append((t, reserve))
+
+        elif product == "pure_endowment":
+            if n is None:
+                raise ValueError("Pure endowment product requires n")
+            for t in range(n + 1):
+                reserve = self.reserve_pure_endowment(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         else:

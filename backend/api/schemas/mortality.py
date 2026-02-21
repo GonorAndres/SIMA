@@ -24,7 +24,7 @@ class LifeTableResponse(BaseModel):
     max_age: int
 
 
-class LeeCaterFitRequest(BaseModel):
+class LeeCarterFitRequest(BaseModel):
     """Request to fit a Lee-Carter model on preloaded mock data."""
     graduate: bool = Field(
         default=True,
@@ -40,7 +40,7 @@ class LeeCaterFitRequest(BaseModel):
     )
 
 
-class LeeCaterFitResponse(BaseModel):
+class LeeCarterFitResponse(BaseModel):
     """Lee-Carter model parameters returned to the client."""
     ages: List[int]
     years: List[int]
@@ -100,6 +100,19 @@ class MortalitySurfaceResponse(BaseModel):
     ages: List[int]
     years: List[int]
     log_mx: List[List[float]]
+
+
+class ValidationResponse(BaseModel):
+    """Mortality validation: projected vs regulatory table comparison."""
+    name: str
+    rmse: float
+    max_ratio: float
+    min_ratio: float
+    mean_ratio: float
+    n_ages: int
+    ages: List[int]
+    qx_ratios: List[float]
+    qx_differences: List[float]
 
 
 class LCDiagnosticsResponse(BaseModel):

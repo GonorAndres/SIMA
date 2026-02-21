@@ -11,7 +11,7 @@ import MortalitySurface from '../components/charts/MortalitySurface';
 import LoadingState from '../components/common/LoadingState';
 import { useGet } from '../hooks/useApi';
 import type {
-  LeeCaterFitResponse,
+  LeeCarterFitResponse,
   ProjectionResponse,
   ValidationResponse,
   GraduationResponse,
@@ -34,7 +34,7 @@ export default function Mortalidad() {
 
   const validationColumns = useMemo(() => getValidationColumns(t), [t]);
 
-  const lc = useGet<LeeCaterFitResponse>('/mortality/lee-carter');
+  const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const proj = useGet<ProjectionResponse>('/mortality/projection');
   const validation = useGet<ValidationResponse>('/mortality/validation');
   const graduation = useGet<GraduationResponse>('/mortality/graduation');
@@ -72,7 +72,7 @@ export default function Mortalidad() {
             src="/formulas/whittaker_henderson.png"
             alt="g_hat = (W + lambda D'D)^{-1} W m"
             label="Whittaker-Henderson"
-            description="W = diagonal weight matrix (exposures), D = difference matrix (order 3), lambda = smoothing parameter"
+            description="W = diagonal weight matrix (exposures), D = difference matrix (order 2), lambda = smoothing parameter"
           />
           <div className={styles.metricsRow}>
             <MetricBlock

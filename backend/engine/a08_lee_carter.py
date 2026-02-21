@@ -123,11 +123,17 @@ class LeeCarter:
         residual = log_mx - ax[:, np.newaxis]
 
         # Step 3-5: SVD decomposition with constraints
-        bx, kt, explained_var = cls._svd_decomposition(residual)
+        bx, kt, explained_var, kt_offset = cls._svd_decomposition(residual)
+
+        # Absorb k_t centering offset into a_x so that
+        # a_x + b_x * k_t exactly reconstructs the first SVD component
+        ax = ax + bx * kt_offset
 
         # Step 6: Re-estimate k_t to match observed deaths
         if reestimate_kt:
-            kt = cls._reestimate_kt(ax, bx, data.dx, data.ex)
+            kt, kt_reest_offset = cls._reestimate_kt(ax, bx, data.dx, data.ex)
+            # Absorb centering offset into a_x for model self-consistency
+            ax = ax + bx * kt_reest_offset
 
         return cls(
             ages=data.ages,
@@ -181,9 +187,9 @@ class LeeCarter:
         kt_raw = S[0] * Vt[0, :]
 
         # Apply identifiability constraints
-        bx, kt = LeeCarter._apply_constraints(bx_raw, kt_raw)
+        bx, kt, kt_offset = LeeCarter._apply_constraints(bx_raw, kt_raw)
 
-        return bx, kt, explained_var
+        return bx, kt, explained_var, kt_offset
 
     @staticmethod
     def _apply_constraints(bx_raw: np.ndarray, kt_raw: np.ndarray):
@@ -195,8 +201,10 @@ class LeeCarter:
         Since b_x * k_t is invariant under b_x -> c*b_x, k_t -> k_t/c,
         we normalize b_x to sum to 1 and scale k_t accordingly.
 
-        Then we center k_t by subtracting its mean (absorbed into a_x,
-        but since a_x is already computed, we just document this constraint).
+        Then we center k_t by subtracting its mean. The offset is returned
+        so that a_x can be adjusted: a_x_new = a_x + b_x * kt_offset.
+        This ensures the fitted rates a_x + b_x * k_t exactly reconstruct
+        the first SVD component of the log-mortality matrix.
         """
         # Normalize b_x to sum to 1
         bx_sum = np.sum(bx_raw)
@@ -211,10 +219,11 @@ class LeeCarter:
         bx = bx_raw / bx_sum
         kt = kt_raw * bx_sum
 
-        # Center k_t to sum to 0
-        kt = kt - np.mean(kt)
+        # Center k_t to sum to 0, capturing the offset for a_x adjustment
+        kt_offset = np.mean(kt)
+        kt = kt - kt_offset
 
-        return bx, kt
+        return bx, kt, kt_offset
 
     @staticmethod
     def _reestimate_kt(
@@ -278,24 +287,37 @@ class LeeCarter:
                     best_idx = np.argmin(np.abs(f_vals))
                     kt_new[t] = k_candidates[best_idx]
 
-        # Re-center to sum=0
-        kt_new = kt_new - np.mean(kt_new)
+        # Re-center to sum=0, return offset for a_x adjustment
+        kt_offset = np.mean(kt_new)
+        kt_new = kt_new - kt_offset
 
-        return kt_new
+        return kt_new, kt_offset
 
     def get_ax(self, age: int) -> float:
         """Get a_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
+        if idx >= len(self.ages) or self.ages[idx] != age:
+            raise ValueError(
+                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
+            )
         return float(self.ax[idx])
 
     def get_bx(self, age: int) -> float:
         """Get b_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
+        if idx >= len(self.ages) or self.ages[idx] != age:
+            raise ValueError(
+                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
+            )
         return float(self.bx[idx])
 
     def get_kt(self, year: int) -> float:
         """Get k_t for a specific year."""
         idx = np.searchsorted(self.years, year)
+        if idx >= len(self.years) or self.years[idx] != year:
+            raise ValueError(
+                f"Year {year} not in model (range: {self.years[0]}-{self.years[-1]})"
+            )
         return float(self.kt[idx])
 
     def fitted_rate(self, age: int, year: int) -> float:
