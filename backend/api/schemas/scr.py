@@ -65,6 +65,30 @@ class SolvencyResult(BaseModel):
     is_solvent: bool
 
 
+class LISFRiskModuleInfo(BaseModel):
+    """Regulatory context for a single risk module."""
+    module: str
+    lisf_reference: str
+    description_es: str
+    description_en: str
+    standard_shock: str
+    shock_basis: str
+
+
+class LISFComplianceResponse(BaseModel):
+    """LISF/CUSF regulatory compliance mapping."""
+    framework: str
+    framework_description_es: str
+    framework_description_en: str
+    risk_modules: List[LISFRiskModuleInfo]
+    correlation_matrix: Dict[str, float]
+    correlation_basis: str
+    risk_margin_rate: float
+    risk_margin_basis: str
+    coverage: List[str]
+    limitations: List[str]
+
+
 class SCRResponse(BaseModel):
     """Full SCR pipeline response."""
     bel_base: float

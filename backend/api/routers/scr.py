@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from backend.api.schemas.scr import SCRRequest, SCRResponse
+from backend.api.schemas.scr import SCRRequest, SCRResponse, LISFComplianceResponse
 from backend.api.services import scr_service
 
 router = APIRouter(prefix="/scr", tags=["scr"])
@@ -27,6 +27,12 @@ def compute_scr(request: SCRRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/compliance", response_model=LISFComplianceResponse)
+def get_lisf_compliance():
+    """Return LISF/CUSF regulatory compliance mapping for the SCR framework."""
+    return scr_service.get_lisf_compliance()
 
 
 @router.post("/defaults", response_model=SCRResponse)

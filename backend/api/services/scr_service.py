@@ -85,6 +85,129 @@ def compute_portfolio_bel(interest_rate: float = 0.05) -> dict:
     }
 
 
+def get_lisf_compliance() -> dict:
+    """Return LISF/CUSF regulatory compliance mapping for SCR computation."""
+    return {
+        "framework": "LISF/CUSF (Ley de Instituciones de Seguros y Fianzas / Circular Unica de Seguros y Fianzas)",
+        "framework_description_es": (
+            "El RCS (Requerimiento de Capital de Solvencia) es el capital que una aseguradora "
+            "debe mantener para absorber perdidas con un nivel de confianza del 99.5% en un "
+            "horizonte de un ano. Mexico adopta el marco de Solvencia II europeo a traves de "
+            "la LISF (2013) y la CUSF, supervisado por la CNSF."
+        ),
+        "framework_description_en": (
+            "The SCR (Solvency Capital Requirement, RCS in Spanish) is the capital an insurer "
+            "must hold to absorb losses at a 99.5% confidence level over a one-year horizon. "
+            "Mexico adopted the European Solvency II framework through LISF (2013) and CUSF, "
+            "supervised by the CNSF (Comision Nacional de Seguros y Fianzas)."
+        ),
+        "risk_modules": [
+            {
+                "module": "mortality",
+                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de mortalidad",
+                "description_es": (
+                    "Incremento permanente del 15% en las tasas de mortalidad q_x. "
+                    "Afecta solo productos de muerte (temporal, vitalicio, dotal). "
+                    "Las rentas vitalicias se benefician de mayor mortalidad."
+                ),
+                "description_en": (
+                    "Permanent 15% increase in mortality rates q_x. "
+                    "Affects only death products (term, whole life, endowment). "
+                    "Annuities benefit from higher mortality."
+                ),
+                "standard_shock": "+15% q_x (permanent)",
+                "shock_basis": "Solvency II Article 105(3)(a), CUSF Anexo 5.1.2",
+            },
+            {
+                "module": "longevity",
+                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de longevidad",
+                "description_es": (
+                    "Disminucion permanente del 20% en las tasas de mortalidad q_x. "
+                    "Afecta solo rentas vitalicias y pensiones. "
+                    "Los productos de muerte se benefician de menor mortalidad."
+                ),
+                "description_en": (
+                    "Permanent 20% decrease in mortality rates q_x. "
+                    "Affects only annuities and pensions. "
+                    "Death products benefit from lower mortality."
+                ),
+                "standard_shock": "-20% q_x (permanent)",
+                "shock_basis": "Solvency II Article 105(3)(b), CUSF Anexo 5.1.2",
+            },
+            {
+                "module": "interest_rate",
+                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion I - Riesgo de mercado (tasas de interes)",
+                "description_es": (
+                    "Desplazamiento paralelo de +/- 100 puntos base en la curva de rendimientos. "
+                    "Afecta todos los productos porque cada flujo futuro se descuenta. "
+                    "El escenario adverso es tipicamente la baja de tasas: menor descuento "
+                    "significa mayor valor presente de obligaciones."
+                ),
+                "description_en": (
+                    "Parallel shift of +/- 100 basis points in the yield curve. "
+                    "Affects all products because every future cash flow is discounted. "
+                    "The adverse scenario is typically the down shock: lower discount "
+                    "means higher present value of liabilities."
+                ),
+                "standard_shock": "+/- 100 bps parallel shift",
+                "shock_basis": "Solvency II Article 105(5)(a), CUSF Anexo 5.1.1",
+            },
+            {
+                "module": "catastrophe",
+                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de catastrofe de vida",
+                "description_es": (
+                    "Pico de mortalidad de un solo ano (+35%), no permanente. "
+                    "Calibrado con datos COVID-19 mexicanos (INEGI/CONAPO): "
+                    "el k_t de Lee-Carter revirtio ~6.76 unidades por encima de la tendencia. "
+                    "Solo afecta productos de muerte en el primer ano."
+                ),
+                "description_en": (
+                    "One-year mortality spike (+35%), not permanent. "
+                    "Calibrated from Mexican COVID-19 data (INEGI/CONAPO): "
+                    "Lee-Carter k_t reversed ~6.76 units above trend. "
+                    "Only affects death products in the first year."
+                ),
+                "standard_shock": "+35% one-year mortality spike (COVID-calibrated)",
+                "shock_basis": "Solvency II Article 105(3)(f), adapted with INEGI/CONAPO COVID data",
+            },
+        ],
+        "correlation_matrix": {
+            "mortality_longevity": -0.25,
+            "mortality_catastrophe": 0.25,
+            "longevity_catastrophe": 0.00,
+            "life_market": 0.25,
+        },
+        "correlation_basis": (
+            "Solvency II Article 136, Delegated Regulation Annex IV. "
+            "Mortality-longevity correlation is negative (-0.25) because they are natural opposites: "
+            "a pandemic increases death claims but decreases annuity obligations. "
+            "This natural hedge yields a diversification benefit of ~14.4%."
+        ),
+        "risk_margin_rate": 0.06,
+        "risk_margin_basis": (
+            "Cost-of-Capital rate of 6% per Solvency II Article 37(1). "
+            "MdR = CoC * SCR * annuity_factor. Represents the price another insurer would "
+            "charge to take over the portfolio's capital requirements."
+        ),
+        "coverage": [
+            "Life underwriting risk (4 sub-modules: mortality, longevity, interest rate, catastrophe)",
+            "Correlation-based aggregation (life module + market risk)",
+            "Risk margin via Cost-of-Capital method",
+            "Technical provisions (BEL + risk margin)",
+            "Solvency ratio computation",
+            "COVID-calibrated catastrophe scenario using Mexican demographic data",
+        ],
+        "limitations": [
+            "Simplified interest rate shock (parallel shift only, no term structure)",
+            "No lapse risk, expense risk, or revision risk sub-modules",
+            "No operational risk module (separate under Solvency II)",
+            "Risk margin uses simplified constant-SCR approach, not full run-off projection",
+            "Single life table for all policies (no policy-level underwriting adjustments)",
+            "No look-through approach for unit-linked products",
+        ],
+    }
+
+
 def run_scr(
     interest_rate: float = 0.05,
     mortality_shock: float = 0.15,

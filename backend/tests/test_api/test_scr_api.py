@@ -44,6 +44,24 @@ def test_scr_diversification(client):
     assert life_agg["scr_aggregated"] < life_agg["sum_individual"]
 
 
+def test_lisf_compliance(client):
+    """THEORY: Compliance endpoint should return LISF regulatory mapping with 4 risk modules."""
+    response = client.get("/api/scr/compliance")
+    assert response.status_code == 200
+    data = response.json()
+    assert "LISF" in data["framework"]
+    assert len(data["risk_modules"]) == 4
+    modules = {m["module"] for m in data["risk_modules"]}
+    assert modules == {"mortality", "longevity", "interest_rate", "catastrophe"}
+    for m in data["risk_modules"]:
+        assert "lisf_reference" in m
+        assert "CUSF" in m["lisf_reference"]
+    assert data["correlation_matrix"]["mortality_longevity"] == -0.25
+    assert data["risk_margin_rate"] == 0.06
+    assert len(data["coverage"]) >= 5
+    assert len(data["limitations"]) >= 5
+
+
 def test_scr_custom_shocks(client):
     """THEORY: Larger shocks should produce larger SCR."""
     client.post("/api/portfolio/reset")

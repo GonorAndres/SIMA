@@ -9,9 +9,10 @@ import type { PolicyData } from '../components/forms/PolicyForm';
 import WaterfallChart from '../components/charts/WaterfallChart';
 import SolvencyGauge from '../components/charts/SolvencyGauge';
 import FormulaBlock from '../components/data/FormulaBlock';
+import InsightCard from '../components/data/InsightCard';
 import LoadingState from '../components/common/LoadingState';
 import { usePost, useGet } from '../hooks/useApi';
-import type { SCRResponse, PortfolioSummaryResponse, PortfolioBELResponse } from '../types';
+import type { SCRResponse, PortfolioSummaryResponse, PortfolioBELResponse, LISFComplianceResponse } from '../types';
 import api from '../api/client';
 import styles from './SCR.module.css';
 
@@ -39,10 +40,12 @@ function getBelColumns(t: (key: string) => string): Column[] {
 }
 
 export default function SCR() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'es' ? 'es' : 'en';
   const portfolio = useGet<PortfolioSummaryResponse>('/portfolio/summary');
   const bel = usePost<object, PortfolioBELResponse>('/portfolio/bel');
   const scr = usePost<object, SCRResponse>('/scr/compute');
+  const compliance = useGet<LISFComplianceResponse>('/scr/compliance');
   const [computed, setComputed] = useState(false);
   const [showPolicyForm, setShowPolicyForm] = useState(false);
   const [addingPolicy, setAddingPolicy] = useState(false);
@@ -51,10 +54,12 @@ export default function SCR() {
   const belColumns = useMemo(() => getBelColumns(t), [t]);
 
   const portfolioExecute = portfolio.execute;
+  const complianceExecute = compliance.execute;
 
   useEffect(() => {
     portfolioExecute();
-  }, [portfolioExecute]);
+    complianceExecute();
+  }, [portfolioExecute, complianceExecute]);
 
   const handleCompute = async () => {
     await Promise.all([
@@ -82,11 +87,41 @@ export default function SCR() {
     setComputed(false);
   }, [portfolioExecute]);
 
+  // Helper to get description in current language
+  const desc = (m: { description_es: string; description_en: string }) =>
+    lang === 'es' ? m.description_es : m.description_en;
+
   return (
     <PageLayout
       title={t('scr.title')}
       subtitle={t('scr.subtitle')}
     >
+      {/* LISF Regulatory Context */}
+      {compliance.data && (
+        <div className={styles.section} style={{ borderTop: 'none', paddingTop: 0 }}>
+          <InsightCard variant="regulatory" title={t('scr.regulatoryTitle')}>
+            <p>{lang === 'es' ? compliance.data.framework_description_es : compliance.data.framework_description_en}</p>
+          </InsightCard>
+
+          <div className={styles.regulatoryGrid}>
+            {compliance.data.risk_modules.map((m) => (
+              <div key={m.module} className={styles.regulatoryModule}>
+                <div className={styles.moduleHeader}>
+                  <span className={styles.moduleName}>{t(`scr.${m.module === 'interest_rate' ? 'interestRate' : m.module}`)}</span>
+                  <span className={styles.moduleShock}>{m.standard_shock}</span>
+                </div>
+                <p className={styles.moduleDesc}>{desc(m)}</p>
+                <div className={styles.moduleRef}>{m.lisf_reference}</div>
+              </div>
+            ))}
+          </div>
+
+          <InsightCard variant="insight" title={t('scr.diversificationInsight')}>
+            <p>{compliance.data.correlation_basis}</p>
+          </InsightCard>
+        </div>
+      )}
+
       <div data-demo-section="top">
       <FormulaBlock
         src="/formulas/scr_aggregation.png"
@@ -161,6 +196,9 @@ export default function SCR() {
           {/* BEL Metrics */}
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>{t('scr.belTitle')}</h3>
+            <InsightCard variant="info" title={t('scr.belExplainTitle')}>
+              <p>{t('scr.belExplain')}</p>
+            </InsightCard>
             <div className={styles.metricsRow}>
               <MetricBlock label={t('scr.belTotal')} value={`$${(scr.data.bel_base / 1e6).toFixed(2)}M`} />
               <MetricBlock label={t('scr.belDeath')} value={`$${(scr.data.bel_death / 1e3).toFixed(0)}K`} />
@@ -184,6 +222,29 @@ export default function SCR() {
           {/* Risk Modules */}
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>{t('scr.riskModules')}</h3>
+
+            {/* Per-module insights */}
+            {compliance.data && (
+              <div className={styles.moduleInsights}>
+                {compliance.data.risk_modules.map((m) => {
+                  const scrVal = m.module === 'mortality' ? scr.data!.mortality.scr
+                    : m.module === 'longevity' ? scr.data!.longevity.scr
+                    : m.module === 'interest_rate' ? scr.data!.interest_rate.scr
+                    : scr.data!.catastrophe.scr;
+                  const pct = scr.data!.total_aggregation.scr_aggregated > 0
+                    ? (scrVal / scr.data!.total_aggregation.scr_aggregated * 100).toFixed(1)
+                    : '0';
+                  return (
+                    <InsightCard key={m.module} variant="info">
+                      <strong>{t(`scr.${m.module === 'interest_rate' ? 'interestRate' : m.module}`)}</strong>
+                      {' '}{fmt(scrVal)} ({pct}% {t('scr.ofTotal')})
+                      {' -- '}{desc(m)}
+                    </InsightCard>
+                  );
+                })}
+              </div>
+            )}
+
             <div className={styles.metricsRow}>
               <MetricBlock label={t('scr.scrMort')} value={fmt(scr.data.mortality.scr)} />
               <MetricBlock label={t('scr.scrLong')} value={fmt(scr.data.longevity.scr)} />
@@ -216,6 +277,11 @@ export default function SCR() {
           {/* Aggregation & Solvency */}
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>{t('scr.aggSolvency')}</h3>
+
+            <InsightCard variant="insight" title={t('scr.diversificationInsight')}>
+              <p>{t('scr.diversificationExplain')}</p>
+            </InsightCard>
+
             <div className={styles.splitLayout}>
               <div>
                 <MetricBlock
@@ -235,7 +301,35 @@ export default function SCR() {
                 )}
               </div>
             </div>
+
+            {/* Risk margin explanation */}
+            {compliance.data && (
+              <InsightCard variant="regulatory" title={t('scr.riskMarginExplainTitle')}>
+                <p>{compliance.data.risk_margin_basis}</p>
+              </InsightCard>
+            )}
           </div>
+
+          {/* Limitations disclosure */}
+          {compliance.data && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>{t('scr.coverageLimitations')}</h3>
+              <div className={styles.twoCol}>
+                <div>
+                  <h4 className={styles.belSubheading}>{t('scr.coverageTitle')}</h4>
+                  <ul className={styles.complianceList}>
+                    {compliance.data.coverage.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className={styles.belSubheading}>{t('scr.limitationsTitle')}</h4>
+                  <ul className={styles.complianceList}>
+                    {compliance.data.limitations.map((l, i) => <li key={i}>{l}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </PageLayout>

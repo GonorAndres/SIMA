@@ -1,0 +1,52 @@
+.card {
+  border-left: 4px solid var(--color-gray-200);
+  padding: 16px 20px;
+  margin: 16px 0;
+  background: var(--color-gray-100);
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.content {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-gray-700);
+}
+
+/* Variants */
+.info {
+  border-left-color: var(--color-gray-400);
+}
+
+.insight {
+  border-left-color: #2563eb;
+  background: #eff6ff;
+}
+
+.insight .title {
+  color: #1d4ed8;
+}
+
+.warning {
+  border-left-color: #d97706;
+  background: #fffbeb;
+}
+
+.warning .title {
+  color: #b45309;
+}
+
+.regulatory {
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+.regulatory .title {
+  color: var(--color-accent-dark);
+}

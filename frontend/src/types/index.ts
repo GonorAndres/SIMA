@@ -293,6 +293,28 @@ export interface SolvencyResult {
   is_solvent: boolean;
 }
 
+export interface LISFRiskModuleInfo {
+  module: string;
+  lisf_reference: string;
+  description_es: string;
+  description_en: string;
+  standard_shock: string;
+  shock_basis: string;
+}
+
+export interface LISFComplianceResponse {
+  framework: string;
+  framework_description_es: string;
+  framework_description_en: string;
+  risk_modules: LISFRiskModuleInfo[];
+  correlation_matrix: Record<string, number>;
+  correlation_basis: string;
+  risk_margin_rate: number;
+  risk_margin_basis: string;
+  coverage: string[];
+  limitations: string[];
+}
+
 export interface SCRResponse {
   bel_base: number;
   bel_death: number;
