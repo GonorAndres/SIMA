@@ -5,6 +5,7 @@ import PremiumForm from '../components/forms/PremiumForm';
 import type { PremiumRequest as PremiumFormData } from '../components/forms/PremiumForm';
 import MetricBlock from '../components/data/MetricBlock';
 import FormulaBlock from '../components/data/FormulaBlock';
+import InsightCard from '../components/data/InsightCard';
 import LineChart from '../components/charts/LineChart';
 import LoadingState from '../components/common/LoadingState';
 import { usePost } from '../hooks/useApi';
@@ -56,6 +57,10 @@ export default function Tarificacion() {
       title={t('tarificacion.title')}
       subtitle={t('tarificacion.subtitle')}
     >
+      <InsightCard variant="insight" title={t('tarificacion.equivalenceTitle')}>
+        <p>{t('tarificacion.equivalenceExplain')}</p>
+      </InsightCard>
+
       <div className={styles.splitLayout} data-demo-section="top">
         <div>
           <h3 className={styles.sectionTitle}>{t('tarificacion.calcTitle')}</h3>
@@ -96,6 +101,9 @@ export default function Tarificacion() {
       {reserve.data && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('tarificacion.reserveTitle')}</h3>
+          <InsightCard variant="info" title={t('tarificacion.reserveInsightTitle')}>
+            <p>{t('tarificacion.reserveInsight')}</p>
+          </InsightCard>
           <FormulaBlock
             src="/formulas/prospective_reserve.png"
             alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
@@ -119,6 +127,9 @@ export default function Tarificacion() {
       {sensitivity.data && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('tarificacion.sensitivityTitle')}</h3>
+          <InsightCard variant="warning" title={t('tarificacion.sensitivityInsightTitle')}>
+            <p>{t('tarificacion.sensitivityInsight')}</p>
+          </InsightCard>
           <LineChart
             traces={[{
               x: sensitivity.data.results.map(r => `${(r.interest_rate * 100).toFixed(0)}%`),

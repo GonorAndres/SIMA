@@ -7,6 +7,7 @@ import type { Column } from '../components/data/DataTable';
 import LineChart from '../components/charts/LineChart';
 import FanChart from '../components/charts/FanChart';
 import FormulaBlock from '../components/data/FormulaBlock';
+import InsightCard from '../components/data/InsightCard';
 import MortalitySurface from '../components/charts/MortalitySurface';
 import LoadingState from '../components/common/LoadingState';
 import { useGet } from '../hooks/useApi';
@@ -91,6 +92,9 @@ export default function Mortalidad() {
       {graduation.data && (
         <div className={styles.section} data-demo-section="graduation">
           <h3 className={styles.sectionTitle}>{t('mortalidad.graduationTitle')}</h3>
+          <InsightCard variant="insight" title={t('mortalidad.graduationInsightTitle')}>
+            <p>{t('mortalidad.graduationInsight')}</p>
+          </InsightCard>
           <p className={styles.narrative}>
             {t('mortalidad.graduationDesc')}
           </p>
@@ -146,6 +150,9 @@ export default function Mortalidad() {
       {surface.data && (
         <div className={styles.section} data-demo-section="surface">
           <h3 className={styles.sectionTitle}>{t('mortalidad.surfaceTitle')}</h3>
+          <InsightCard variant="info" title={t('mortalidad.surfaceInsightTitle')}>
+            <p>{t('mortalidad.surfaceInsight')}</p>
+          </InsightCard>
           <p className={styles.narrative}>
             {t('mortalidad.surfaceDesc')}
           </p>
@@ -249,6 +256,9 @@ export default function Mortalidad() {
       {diagnostics.data && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('mortalidad.svdTitle')}</h3>
+          <InsightCard variant="insight" title={t('mortalidad.svdInsightTitle')}>
+            <p>{t('mortalidad.svdInsight')}</p>
+          </InsightCard>
           <p className={styles.narrative}>
             {t('mortalidad.svdDesc')}
           </p>
