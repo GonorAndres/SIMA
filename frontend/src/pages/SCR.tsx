@@ -117,7 +117,7 @@ export default function SCR() {
           </div>
 
           <InsightCard variant="insight" title={t('scr.diversificationInsight')}>
-            <p>{compliance.data.correlation_basis}</p>
+            <p>{lang === 'es' ? compliance.data.correlation_basis_es : compliance.data.correlation_basis_en}</p>
           </InsightCard>
         </div>
       )}
@@ -305,7 +305,7 @@ export default function SCR() {
             {/* Risk margin explanation */}
             {compliance.data && (
               <InsightCard variant="regulatory" title={t('scr.riskMarginExplainTitle')}>
-                <p>{compliance.data.risk_margin_basis}</p>
+                <p>{lang === 'es' ? compliance.data.risk_margin_basis_es : compliance.data.risk_margin_basis_en}</p>
               </InsightCard>
             )}
           </div>

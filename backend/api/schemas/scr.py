@@ -82,9 +82,11 @@ class LISFComplianceResponse(BaseModel):
     framework_description_en: str
     risk_modules: List[LISFRiskModuleInfo]
     correlation_matrix: Dict[str, float]
-    correlation_basis: str
+    correlation_basis_es: str
+    correlation_basis_en: str
     risk_margin_rate: float
-    risk_margin_basis: str
+    risk_margin_basis_es: str
+    risk_margin_basis_en: str
     coverage: List[str]
     limitations: List[str]
 

@@ -308,9 +308,11 @@ export interface LISFComplianceResponse {
   framework_description_en: string;
   risk_modules: LISFRiskModuleInfo[];
   correlation_matrix: Record<string, number>;
-  correlation_basis: string;
+  correlation_basis_es: string;
+  correlation_basis_en: string;
   risk_margin_rate: number;
-  risk_margin_basis: string;
+  risk_margin_basis_es: string;
+  risk_margin_basis_en: string;
   coverage: string[];
   limitations: string[];
 }

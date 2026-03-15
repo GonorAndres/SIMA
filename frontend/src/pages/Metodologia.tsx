@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
@@ -23,6 +24,11 @@ function Section({ number, title, children }: SectionProps) {
 
 export default function Metodologia() {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    document.title = `${t('metodologia.title')} -- SIMA`;
+    return () => { document.title = 'SIMA -- Sistema Integral de Modelacion Actuarial'; };
+  }, [t]);
 
   return (
     <main className={styles.page} data-demo-section="top">

@@ -177,14 +177,25 @@ def get_lisf_compliance() -> dict:
             "longevity_catastrophe": 0.00,
             "life_market": 0.25,
         },
-        "correlation_basis": (
+        "correlation_basis_es": (
+            "Solvencia II Articulo 136, Reglamento Delegado Anexo IV. "
+            "La correlacion mortalidad-longevidad es negativa (-0.25) porque son opuestos naturales: "
+            "una pandemia incrementa siniestros por muerte pero reduce obligaciones de rentas. "
+            "Esta cobertura natural genera un beneficio por diversificacion de ~14.4%."
+        ),
+        "correlation_basis_en": (
             "Solvency II Article 136, Delegated Regulation Annex IV. "
             "Mortality-longevity correlation is negative (-0.25) because they are natural opposites: "
             "a pandemic increases death claims but decreases annuity obligations. "
             "This natural hedge yields a diversification benefit of ~14.4%."
         ),
         "risk_margin_rate": 0.06,
-        "risk_margin_basis": (
+        "risk_margin_basis_es": (
+            "Tasa de Costo de Capital del 6% segun Solvencia II Articulo 37(1). "
+            "MdR = CoC * RCS * factor_anualidad. Representa el precio que otra aseguradora "
+            "cobraria por asumir los requerimientos de capital del portafolio."
+        ),
+        "risk_margin_basis_en": (
             "Cost-of-Capital rate of 6% per Solvency II Article 37(1). "
             "MdR = CoC * SCR * annuity_factor. Represents the price another insurer would "
             "charge to take over the portfolio's capital requirements."
@@ -274,6 +285,12 @@ def run_scr(
             "scr_aggregated": result["total_aggregation"]["scr_total"],
             "sum_individual": result["total_aggregation"]["sum_individual"],
             "diversification_benefit": result["total_aggregation"]["diversification_benefit"],
+            "diversification_pct": (
+                result["total_aggregation"]["diversification_benefit"]
+                / result["total_aggregation"]["sum_individual"] * 100
+                if result["total_aggregation"]["sum_individual"] > 0
+                else 0.0
+            ),
         },
         "risk_margin": {
             "risk_margin": result["risk_margin"]["risk_margin"],
