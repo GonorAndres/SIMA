@@ -308,59 +308,30 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-01: GitHub Actions CI pipeline
+### P2-01: GitHub Actions CI pipeline -- DONE
 
-- [ ] Create `.github/workflows/ci.yml`:
-  - Trigger on push to main and PRs
-  - Python 3.12, install requirements
-  - Run `pytest backend/tests/ -v`
-  - Frontend: `npm ci && npm run build`
-- [ ] Add test badge to README.md
-
-**Why:** A portfolio project without CI suggests the candidate doesn't practice CI/CD. The badge on README is immediate credibility.
-
-**Effort:** M (1-2h)
-**Files:** `.github/workflows/ci.yml` (create), `README.md`
+- [x] `.github/workflows/ci.yml`: backend tests (unit + API) + frontend TS check + build
+- [x] CI badge added to README.md
 
 ---
 
-### P2-02: GitHub Actions CD pipeline (Cloud Run auto-deploy)
+### P2-02: GitHub Actions CD pipeline -- DONE
 
-- [ ] Create `.github/workflows/deploy.yml`:
-  - Trigger on push to main (or manual dispatch)
-  - Build Docker image, push to Artifact Registry, deploy to Cloud Run
-- [ ] Requires GCP service account key as GitHub secret
-
-**Why:** Auto-deploy on merge = production-level workflow. Shows DevOps awareness.
-
-**Effort:** L (3-4h)
-**Depends on:** P2-01
-**Files:** `.github/workflows/deploy.yml` (create)
+- [x] `.github/workflows/deploy.yml`: auto-deploy to Cloud Run on push to main
+- [ ] Requires GCP_SA_KEY and GCP_PROJECT_ID GitHub secrets (manual setup needed)
 
 ---
 
-### P2-03: Add httpx to requirements.txt
+### P2-03: Add httpx to requirements -- DONE (via requirements-dev.txt)
 
-- [ ] API tests use `TestClient` which requires `httpx`
-- [ ] Currently works in venv but not declared
-- [ ] Verify Docker build still works
-
-**Why:** CI pipeline will fail without it. Clean dependency declaration.
-
-**Effort:** S (15 min)
-**Files:** `requirements.txt`
+- [x] httpx included in requirements-dev.txt, CI uses it
 
 ---
 
-### P2-04: Create requirements-dev.txt
+### P2-04: Create requirements-dev.txt -- DONE
 
-- [ ] Include pytest, httpx, and any other dev-only dependencies
-- [ ] Update CI workflow to install from dev requirements
-
-**Why:** Separating prod and dev deps is basic engineering hygiene.
-
-**Effort:** S (30 min)
-**Files:** `requirements-dev.txt` (create), `.github/workflows/ci.yml`
+- [x] `requirements-dev.txt` with pytest + httpx
+- [x] CI workflow installs from dev requirements
 
 ---
 
@@ -384,29 +355,18 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-06: Fix portfolio site description alignment
+### P2-06: Fix portfolio site description alignment -- DONE (with P0-07)
 
-- [ ] Update SIMA description in portfolio `projects.ts`:
-  - Add "sex-differentiated mortality analysis (male/female/unisex)"
-  - Change "commutation tables" to "commutation functions for premium calculation"
-  - Mention "Lee-Carter with SVD" not just "Lee-Carter"
-- [ ] Update tags to include: React, TypeScript, Plotly, Solvency II
-- [ ] Update screenshot path if new screenshots available
-
-**Why:** Portfolio description should match actual app experience. "Commutation tables" implies visible tables; the app shows premium calculations.
-
-**Effort:** S (30 min)
-**Files:** Portfolio repo: `src/data/projects.ts`
+- [x] Tags updated to include React, TypeScript, SVD, Solvency II
+- [ ] Description text still needs updating (commutation tables -> functions)
 
 ---
 
-### P2-07: Serve LaTeX PDFs from frontend
+### P2-07: Serve LaTeX PDFs from frontend -- DONE
 
-- [ ] Metodologia references `docs/latex/*.pdf` but they aren't served by the web app
-- [ ] Option A: Copy PDFs to `frontend/public/docs/` (simplest)
-- [ ] Option B: Add API endpoint to serve from `docs/latex/`
-- [ ] Update Metodologia resourceCards with working download links
-- [ ] Test that clicking a resource card downloads the PDF
+- [x] 6 PDFs copied to `frontend/public/docs/`
+- [x] Metodologia resource cards now link to downloadable PDFs
+- [x] Cards are clickable `<a>` tags opening in new tab
 
 **Why:** Metodologia lists 6 LaTeX documents but none are downloadable. Broken promise to visitors.
 
@@ -416,12 +376,10 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-08: Add data source indicator to frontend
+### P2-08: Add data source indicator to frontend -- DONE
 
-- [ ] API already has `get_data_source()` returning "real" or "mock"
-- [ ] Add subtle indicator in Footer or TopNav:
-  - Real data: "INEGI/CONAPO (1990-2019)"
-  - Mock data: "Synthetic demo data"
+- [x] Footer fetches /api/health and shows data source badge
+- [x] Real data: "INEGI/CONAPO (1990-2024)", Mock: "Synthetic demo data"
 
 **Why:** Transparency prevents awkward interview moments. If an interviewer asks "is this real data?" the app itself should answer.
 
@@ -430,11 +388,9 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-09: Commit real-test/ manual test guide
+### P2-09: Commit real-test/ manual test guide -- DONE (Sprint 1)
 
-- [ ] Decide: track `real-test/manual_test_guide.md` or gitignore it
-- [ ] Recommendation: commit it -- 95 manual assertions show QA rigor
-- [ ] Reference in README under "Testing" section
+- [x] Committed in Sprint 1 alongside to-do.md
 
 **Why:** An untracked directory looks like forgotten debris. The QA guide is a portfolio artifact worth showing.
 
@@ -443,15 +399,9 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-10: Interview preparation cheat sheet
+### P2-10: Interview preparation cheat sheet -- DONE
 
-- [ ] Create `docs/project/13_interview_preparation.md` with:
-  - Top 20 interview questions about SIMA
-  - Key numbers to memorize (explained variance, drift, SCR, diversification benefit)
-  - Common "gotcha" questions and answers
-  - Architecture decisions and tradeoffs
-  - "What would you do differently?" prepared answers
-- [ ] Organize by topic: mortality, pricing, SCR, architecture, data
+- [x] `docs/project/13_interview_preparation.md`: 20 Q&As, key metrics table, architecture tradeoffs
 
 **Why:** The ultimate purpose of the project. A prep doc means practicing before interviews instead of recalling months-old details.
 
@@ -460,16 +410,10 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-11: Update CLAUDE.md with final project state
+### P2-11: Update CLAUDE.md with final project state -- DONE
 
-- [ ] Update "Project Status" section:
-  - 238 tests (205 unit + 33 API)
-  - Sex-differentiated pipelines
-  - LaTeX PDFs tracked
-  - README, CI/CD, LISF compliance endpoint
-  - Updated endpoint count (22+)
-- [ ] Update API Endpoints table
-- [ ] Update Key Files Structure if new files created
+- [x] Status updated to Phase 5 (Portfolio Polish), 238 tests, 23 endpoints
+- [x] Phase 5 components documented (InsightCard, compliance endpoint, CI/CD, etc.)
 
 **Why:** CLAUDE.md is the instruction manual for future sessions. Stale docs = wrong assumptions.
 
