@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
+import InsightCard from '../components/data/InsightCard';
 import LineChart from '../components/charts/LineChart';
 import LoadingState from '../components/common/LoadingState';
 import { useGet, usePost } from '../hooks/useApi';
@@ -88,6 +89,18 @@ export default function Inicio() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Elevator pitch */}
+      <InsightCard variant="insight" title={t('inicio.portfolioTitle')}>
+        <p>{t('inicio.portfolioPitch')}</p>
+      </InsightCard>
+
+      {/* Skills badges */}
+      <div className={styles.skillsRow}>
+        {['Python', 'FastAPI', 'React', 'TypeScript', 'Plotly', 'Lee-Carter', 'SVD', 'Solvency II', 'LISF/CUSF'].map((s) => (
+          <span key={s} className={styles.skillBadge}>{s}</span>
+        ))}
       </div>
 
       {/* Pipeline cards -- horizontal 3-column */}
