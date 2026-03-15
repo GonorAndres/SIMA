@@ -335,17 +335,11 @@ Complete within a week after P1. Infrastructure, documentation, and alignment ta
 
 ---
 
-### P2-05: Take screenshots for README and portfolio
+### P2-05: Take screenshots for README and portfolio -- DONE
 
-- [ ] Capture 4-5 screenshots of running app:
-  1. Inicio hero with stats sidebar
-  2. Mortalidad graduation + Lee-Carter parameters
-  3. Tarificacion premium form + results
-  4. SCR waterfall chart + solvency gauge
-  5. Sensibilidad cross-country comparison
-- [ ] Store in `docs/screenshots/`
-- [ ] Reference in README.md
-- [ ] Optionally update portfolio site with screenshots
+- [x] 5 full-page screenshots captured via Playwright MCP
+- [x] Stored in `docs/screenshots/` (01-05)
+- [x] Referenced in README.md Screenshots section
 
 **Why:** Screenshots in a README are worth a thousand lines of description. They convert "I'll look later" into "I want to learn more."
 
@@ -501,7 +495,7 @@ P2-05 (screenshots) --> P3-04 (og:image)
 The project is portfolio-ready when ALL of the following are true:
 
 1. [x] `main` branch is clean -- no uncommitted changes, no stale feature branches
-2. [x] Root `README.md` exists with live demo link, architecture overview (screenshots pending P2-05)
+2. [x] Root `README.md` exists with screenshots, live demo link, architecture overview
 3. [ ] Live URL works and matches README (pending deploy P1-10)
 4. [x] Portfolio site URL points to correct Cloud Run deployment
 5. [x] Every page has at least one narrative element explaining what the visitor sees
