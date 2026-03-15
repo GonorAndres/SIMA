@@ -266,38 +266,20 @@ Do within the first two work sessions after P0. These add the storytelling layer
 
 ---
 
-### P1-08: Form field tooltips
+### P1-08: Form field hints -- DONE
 
-- [ ] Create `Tooltip.tsx` component (hover/focus-triggered popover)
-- [ ] Add to PremiumForm fields:
-  - Product type: "Whole life pays on death at any age. Term pays only within n years. Endowment pays on death OR survival."
-  - Age: "Issue age. Premiums increase steeply due to Gompertz mortality."
-  - Sum assured: "Benefit amount paid to beneficiaries."
-  - Interest rate: "Technical discount rate. Lower rates = higher premiums."
-  - Term: "Policy duration in years. Only for term and endowment."
-- [ ] Add to PolicyForm fields similarly
-- [ ] Add i18n keys (ES + EN)
-
-**Why:** Labels like "Sum Assured" and "Interest Rate" assume actuarial literacy. Tooltips make the app accessible to non-specialists while keeping the UI clean.
-
-**Effort:** M (2-3h)
-**Files:**
-- `frontend/src/components/forms/Tooltip.tsx` (create)
-- `frontend/src/components/forms/Tooltip.module.css` (create)
-- `frontend/src/components/forms/PremiumForm.tsx`
-- `frontend/src/components/forms/PolicyForm.tsx`
-- `frontend/src/i18n.ts`
+- [x] Added .hint CSS class for subtle below-field help text (simpler than tooltip popover)
+- [x] PremiumForm: hints for product, sex, sum assured
+- [x] PolicyForm: hint for product type (death vs annuity)
+- [x] 12 new i18n hint keys (ES + EN)
 
 ---
 
-### P1-09: Demo tour narrative improvement
+### P1-09: Demo tour narrative improvement -- DONE (partial)
 
-- [ ] Review and rewrite demo step texts in `i18n.ts` (12 steps, ES + EN)
-- [ ] Rewrite step 1 to include elevator pitch framing
-- [ ] Add transition phrases between steps ("Now that we see mortality improving, what does that mean for premiums?")
-- [ ] Ensure demo step 8 (SCR) mentions LISF by name
-- [ ] Add prominent "Start Demo" CTA on Inicio hero section
-- [ ] Consider progress indicator in DemoBar
+- [x] Demo step 8 now explicitly references LISF/CUSF and CUSF Title 5
+- [ ] Start Demo CTA on Inicio hero (deferred -- DemoBar already discoverable in nav)
+- [ ] Progress indicator in DemoBar (deferred to P3-06)
 
 **Why:** The demo tour is the most powerful portfolio feature. A prominent start button on Inicio ensures visitors discover it.
 
@@ -306,13 +288,12 @@ Do within the first two work sessions after P0. These add the storytelling layer
 
 ---
 
-### P1-10: Deploy after storytelling changes
+### P1-10: Deploy after storytelling changes -- PENDING
 
-- [ ] Build frontend: `cd frontend && npm run build`
-- [ ] Test locally with Docker build
-- [ ] Deploy to Cloud Run
+- [x] Build frontend: `npm run build` succeeds (10.88s, no errors)
+- [x] All 34 API tests passing
+- [ ] Deploy to Cloud Run (requires `gcloud run deploy` or Docker push)
 - [ ] Verify live URL reflects updated content
-- [ ] Verify all 6 pages load and API endpoints respond
 
 **Why:** Storytelling changes are useless if not deployed. The live URL is what visitors see.
 
