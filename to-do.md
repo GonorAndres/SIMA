@@ -92,19 +92,14 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-04: Add LISF/CUSF regulatory context to SCR page
+### P0-04: Add LISF/CUSF regulatory context to SCR page -- DONE
 
-- [ ] Add narrative intro section at top of SCR.tsx explaining:
-  - What SCR/RCS is in plain language ("capital buffer against 1-in-200-year loss")
-  - The LISF/CUSF regulatory framework (Mexican adaptation of Solvency II)
-  - How the four risk modules map to LISF Title 5 Chapter 1
-  - What the correlation matrix represents (natural hedging between mortality and longevity)
-- [ ] Create `RegulatoryCallout` component (styled box with accent border) showing:
-  - LISF article reference for each risk module
-  - Standard shock parameters and their regulatory basis
-  - "CNSF requires..." framing for each computation
-- [ ] Add i18n keys for all new text (ES + EN)
-- [ ] Connect SCR parameters (mortality_shock=0.15, longevity_shock=0.20) to regulatory justification
+- [x] Add narrative intro section at top of SCR.tsx (LISF framework description, bilingual)
+- [x] Per-module regulatory cards with CUSF references, standard shocks, descriptions
+- [x] InsightCard component created (4 variants: info, insight, warning, regulatory)
+- [x] Diversification insight, BEL explanation, risk margin LISF basis
+- [x] Coverage and limitations disclosure section
+- [x] 22 new i18n keys (ES + EN)
 
 **Why:** CRITICAL gap. The portfolio describes "stress testing under LISF/CUSF" but the SCR page shows numbers without regulatory context. A hiring manager at a Mexican insurer needs to see regulatory awareness, not just computation ability.
 
@@ -118,16 +113,12 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-05: Add LISF compliance endpoint to API
+### P0-05: Add LISF compliance endpoint to API -- DONE
 
-- [ ] Create `GET /api/scr/compliance` endpoint returning:
-  - Mapping of each risk module to LISF/CUSF article numbers
-  - Standard formula parameters with regulatory references
-  - Compliance coverage status (what this implementation covers vs. full production)
-  - Limitations disclosure
-- [ ] Add `LISFComplianceResponse` schema in `schemas/scr.py`
-- [ ] Add service function in existing or new `scr_service.py`
-- [ ] Add test for the new endpoint
+- [x] GET /api/scr/compliance endpoint with 4 risk modules, CUSF references
+- [x] LISFComplianceResponse schema + LISFRiskModuleInfo
+- [x] get_lisf_compliance() service function with regulatory mapping
+- [x] Test: test_lisf_compliance (34 API tests total now)
 
 **Why:** Structured compliance data gives the SCR page (P0-04) concrete regulatory references to display. Also serves as interview-ready documentation.
 
@@ -153,11 +144,10 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-07: Fix portfolio site URL
+### P0-07: Fix portfolio site URL -- DONE
 
-- [ ] Update `/home/andtega349/portafolio/repositorio/src/data/projects.ts` line 34
-- [ ] Change `https://sima-451451662791.us-central1.run.app/` to `https://sima-d3qj5vwxtq-uc.a.run.app`
-- [ ] Also update the comment on line 21
+- [x] Updated URL in projects.ts (line 21 comment + line 34 url field)
+- [x] Also updated tags to include React, TypeScript, SVD, Solvency II (pulled P2-06 forward)
 
 **Why:** Broken link on the portfolio site = visitors click "Live Demo" and get nothing. The most basic portfolio failure.
 
@@ -172,12 +162,11 @@ Do within the first two work sessions after P0. These add the storytelling layer
 
 ---
 
-### P1-01: Create InsightCard reusable component
+### P1-01: Create InsightCard reusable component -- DONE (created with P0-04)
 
-- [ ] Build `InsightCard.tsx` with props: `title`, `children`, `variant` (info | insight | warning | regulatory)
-- [ ] Styled with left border accent (similar to existing COVID teaser in `Inicio.module.css .covidTeaser`)
-- [ ] Add `InsightCard.module.css` with variant-specific colors
-- [ ] This component will be used across all 6 pages for narrative callouts
+- [x] InsightCard.tsx with 4 variants (info, insight, warning, regulatory)
+- [x] InsightCard.module.css with variant-specific border colors and backgrounds
+- [x] Already used in SCR page (6 instances) and Inicio page (1 instance)
 
 **Why:** Every page needs contextual narrative boxes. Currently only the COVID teaser on Inicio has this pattern, hardcoded. A reusable component enables consistent storytelling without code duplication.
 
@@ -188,15 +177,12 @@ Do within the first two work sessions after P0. These add the storytelling layer
 
 ---
 
-### P1-02: Inicio page storytelling overhaul
+### P1-02: Inicio page storytelling overhaul -- DONE
 
-- [ ] Add "elevator pitch" paragraph above pipeline cards explaining what SIMA demonstrates as a portfolio project
-- [ ] Rewrite pipeline card descriptions to explain problems solved, not just techniques:
-  - Mortality: "How long will policyholders live? Raw INEGI data is noisy -- I graduate it, model it, and project 30 years forward."
-  - Pricing: "What should a policy cost? The equivalence principle says premiums must equal expected benefits."
-  - Capital: "Can the insurer survive a crisis? Four stress scenarios aggregated under LISF regulation answer this."
-- [ ] Add "Skills Demonstrated" badge row: Python, FastAPI, React, Lee-Carter, SVD, Solvency II, LISF
-- [ ] Add i18n keys (ES + EN)
+- [x] InsightCard elevator pitch: 3 competencies + tech stack summary
+- [x] Problem-oriented pipeline cards ("How long?", "What cost?", "Can survive?")
+- [x] Skills badges row (9 technologies/frameworks)
+- [x] Bilingual i18n keys (ES + EN)
 
 **Why:** The landing page currently speaks to actuaries. The first 10 seconds must communicate: "This person built a full-stack actuarial platform with real data, proper statistical methods, and regulatory awareness."
 
