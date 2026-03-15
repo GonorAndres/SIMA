@@ -20,8 +20,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Set up mock HMD data
+        run: |
+          mkdir -p backend/data/hmd/usa backend/data/hmd/spain
+          cp backend/data/mock/hmd/usa/* backend/data/hmd/usa/
+          cp backend/data/mock/hmd/spain/* backend/data/hmd/spain/
+
       - name: Run unit tests
-        run: pytest backend/tests/test_engine/ -v --tb=short
+        run: pytest backend/tests/ -v --tb=short
 
       - name: Run API tests
         run: pytest backend/tests/test_api/ -v --tb=short

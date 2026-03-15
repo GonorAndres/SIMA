@@ -73,7 +73,7 @@ INEGI/CONAPO Data
 | Layer | Technology |
 |-------|-----------|
 | Calculation Engine | Python 3.12, NumPy, SciPy (sparse matrices, SVD, Brent's method), Pandas |
-| API | FastAPI, Pydantic v2, Uvicorn -- 22 REST endpoints across 5 routers |
+| API | FastAPI, Pydantic v2, Uvicorn -- 23 REST endpoints across 5 routers |
 | Frontend | React 19, TypeScript, Vite, Plotly.js (custom bundle), i18n (ES/EN) |
 | Deployment | Docker (multi-stage), Google Cloud Run |
 | Testing | pytest -- 205 unit tests + 33 API tests = 238 total |
