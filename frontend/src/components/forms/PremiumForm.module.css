@@ -48,6 +48,13 @@
   border-color: var(--color-black);
 }
 
+.hint {
+  font-size: 0.7rem;
+  color: var(--color-gray-400);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
 .submitBtn {
   padding: 12px 24px;
   background-color: var(--color-accent);

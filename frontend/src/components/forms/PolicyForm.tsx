@@ -69,6 +69,7 @@ export default function PolicyForm({ onSubmit, loading }: PolicyFormProps) {
           <option value="endowment">{t('forms.endowment')}</option>
           <option value="annuity">{t('forms.lifeAnnuity')}</option>
         </select>
+        <span className={styles.hint}>{t('hints.productPolicy')}</span>
       </div>
 
       <div className={styles.fieldGroup}>

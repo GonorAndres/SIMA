@@ -53,6 +53,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
           <option value="term">{t('forms.termLife')}</option>
           <option value="endowment">{t('forms.endowment')}</option>
         </select>
+        <span className={styles.hint}>{t('hints.product')}</span>
       </div>
 
       <div className={styles.fieldGroup}>
@@ -66,6 +67,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
           <option value="female">{t('forms.female')}</option>
           <option value="unisex">{t('forms.unisex')}</option>
         </select>
+        <span className={styles.hint}>{t('hints.sex')}</span>
       </div>
 
       <SliderInput
@@ -88,6 +90,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
           min={10000}
           step={10000}
         />
+        <span className={styles.hint}>{t('hints.sumAssured')}</span>
       </div>
 
       {needsTerm && (
