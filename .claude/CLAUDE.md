@@ -192,7 +192,7 @@ docs/
 
 ---
 
-## Project Status (Updated: 2026-02-09, Phase 4b Complete)
+## Project Status (Updated: 2026-03-15, Portfolio Polish Complete)
 
 ### Completed
 
@@ -222,9 +222,19 @@ docs/
 | Phase 4b | Mortalidad page enrichment (graduation, 3D surface, SVD, EMSSA) | `frontend/src/pages/Mortalidad.tsx` |
 | Phase 4b | Sensibilidad page enrichment (dynamic shock, API cross-country, COVID tab) | `frontend/src/pages/Sensibilidad.tsx` |
 | Phase 4b | Inicio COVID teaser + Metodologia resources section | `frontend/src/pages/Inicio.tsx`, `Metodologia.tsx` |
-| All | Tests (191 passing) | `backend/tests/` |
+| All | Tests (238 passing: 205 unit + 33 API) | `backend/tests/` |
+| Phase 5 | Sex-differentiated mortality pipelines (male/female/unisex) | `backend/api/services/precomputed.py` |
+| Phase 5 | LISF/CUSF compliance API endpoint | `backend/api/routers/scr.py` (`GET /compliance`) |
+| Phase 5 | InsightCard narrative component (4 variants) | `frontend/src/components/data/InsightCard.tsx` |
+| Phase 5 | Portfolio storytelling: InsightCards on all 6 pages | `frontend/src/pages/*.tsx` |
+| Phase 5 | Form field hints (PremiumForm, PolicyForm) | `frontend/src/components/forms/` |
+| Phase 5 | LaTeX PDFs served from frontend | `frontend/public/docs/` |
+| Phase 5 | Data source indicator in footer | `frontend/src/components/layout/Footer.tsx` |
+| Phase 5 | CI/CD pipelines (GitHub Actions) | `.github/workflows/ci.yml`, `deploy.yml` |
+| Phase 5 | README with architecture + CI badge | `README.md` |
+| Phase 5 | Interview preparation guide | `docs/project/13_interview_preparation.md` |
 
-### API Endpoints (21 total)
+### API Endpoints (23 total)
 
 | Router | Endpoint | Method |
 |--------|----------|--------|
@@ -246,6 +256,7 @@ docs/
 | portfolio | `/portfolio/reset` | POST |
 | scr | `/scr/compute` | POST |
 | scr | `/scr/defaults` | POST |
+| scr | `/scr/compliance` | GET (NEW Phase 5) |
 | sensitivity | `/sensitivity/mortality-shock` | POST (NEW 4b) |
 | sensitivity | `/sensitivity/cross-country` | GET (NEW 4b) |
 | sensitivity | `/sensitivity/covid-comparison` | GET (NEW 4b) |
