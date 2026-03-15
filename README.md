@@ -8,6 +8,22 @@ End-to-end actuarial modeling platform for life insurance: from raw demographic 
 
 ---
 
+## Screenshots
+
+| Inicio | Mortalidad |
+|--------|------------|
+| ![Inicio](docs/screenshots/01_inicio.png) | ![Mortalidad](docs/screenshots/02_mortalidad.png) |
+
+| Tarificacion | SCR |
+|--------------|-----|
+| ![Tarificacion](docs/screenshots/03_tarificacion.png) | ![SCR](docs/screenshots/04_scr.png) |
+
+| Sensibilidad (Cross-country) |
+|------------------------------|
+| ![Sensibilidad](docs/screenshots/05_sensibilidad.png) |
+
+---
+
 ## What This Project Demonstrates
 
 Three core actuarial competencies implemented as production software:
@@ -119,7 +135,7 @@ docker run -p 8080:8080 sima
 
 ## API Endpoints
 
-22 endpoints across 5 routers:
+23 endpoints across 5 routers:
 
 | Router | Endpoints | Description |
 |--------|-----------|-------------|
@@ -127,7 +143,7 @@ docker run -p 8080:8080 sima
 | `/api/pricing` | 4 | Premium calculation, reserve trajectory, commutation functions, pricing sensitivity |
 | `/api/sensitivity` | 3 | Mortality shock, cross-country comparison, COVID impact |
 | `/api/portfolio` | 4 | Portfolio summary, BEL computation, policy management, reset |
-| `/api/scr` | 2 | SCR computation, default parameters |
+| `/api/scr` | 3 | SCR computation, default parameters, LISF compliance |
 
 All mortality/pricing/sensitivity endpoints accept a `sex` parameter (`male`, `female`, `unisex`).
 
