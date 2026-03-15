@@ -243,21 +243,21 @@ export default function Metodologia() {
         </p>
         <div className={styles.resourcesGrid}>
           {[
-            { titleKey: 'metodologia.resources.leeCarter.title', descKey: 'metodologia.resources.leeCarter.desc', pdfPath: 'docs/latex/lee_carter_reestimation.pdf', pages: '~16 pp.' },
-            { titleKey: 'metodologia.resources.graduation.title', descKey: 'metodologia.resources.graduation.desc', pdfPath: 'docs/latex/graduation_reestimation_intuition.pdf', pages: '~10 pp.' },
-            { titleKey: 'metodologia.resources.quadratic.title', descKey: 'metodologia.resources.quadratic.desc', pdfPath: 'docs/latex/quadratic_minimization_matrix.pdf', pages: '~9 pp.' },
-            { titleKey: 'metodologia.resources.svd.title', descKey: 'metodologia.resources.svd.desc', pdfPath: 'docs/latex/svd_bilinear_identifiability_lee_carter.pdf', pages: '~10 pp.' },
-            { titleKey: 'metodologia.resources.whittaker.title', descKey: 'metodologia.resources.whittaker.desc', pdfPath: 'docs/latex/whittaker_henderson_graduation.pdf', pages: '~11 pp.' },
-            { titleKey: 'metodologia.resources.euGender.title', descKey: 'metodologia.resources.euGender.desc', pdfPath: 'docs/latex/eu_gender_directive_unisex_pricing.pdf', pages: '~29 pp.' },
+            { titleKey: 'metodologia.resources.leeCarter.title', descKey: 'metodologia.resources.leeCarter.desc', pdfPath: '/docs/lee_carter_reestimation.pdf', pages: '~16 pp.' },
+            { titleKey: 'metodologia.resources.graduation.title', descKey: 'metodologia.resources.graduation.desc', pdfPath: '/docs/graduation_reestimation_intuition.pdf', pages: '~10 pp.' },
+            { titleKey: 'metodologia.resources.quadratic.title', descKey: 'metodologia.resources.quadratic.desc', pdfPath: '/docs/quadratic_minimization_matrix.pdf', pages: '~9 pp.' },
+            { titleKey: 'metodologia.resources.svd.title', descKey: 'metodologia.resources.svd.desc', pdfPath: '/docs/svd_bilinear_identifiability_lee_carter.pdf', pages: '~10 pp.' },
+            { titleKey: 'metodologia.resources.whittaker.title', descKey: 'metodologia.resources.whittaker.desc', pdfPath: '/docs/whittaker_henderson_graduation.pdf', pages: '~11 pp.' },
+            { titleKey: 'metodologia.resources.euGender.title', descKey: 'metodologia.resources.euGender.desc', pdfPath: '/docs/eu_gender_directive_unisex_pricing.pdf', pages: '~29 pp.' },
           ].map((res) => (
-            <div key={res.pdfPath} className={styles.resourceCard}>
+            <a key={res.pdfPath} href={res.pdfPath} target="_blank" rel="noopener noreferrer" className={styles.resourceCard} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className={styles.resourceTitle}>{t(res.titleKey)}</div>
               <div className={styles.resourceDesc}>{t(res.descKey)}</div>
               <div className={styles.resourceMeta}>
-                <span className={styles.resourcePath}>{res.pdfPath}</span>
                 <span className={styles.resourcePages}>{res.pages}</span>
+                <span className={styles.resourcePath}>PDF</span>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </Section>
