@@ -20,6 +20,7 @@ export interface LeeCarterFitResponse {
   explained_variance: number;
   drift: number;
   sigma: number;
+  sex: string;
   validations: Record<string, boolean>;
 }
 
@@ -37,6 +38,7 @@ export interface ProjectionResponse {
   kt_central: number[];
   drift: number;
   sigma: number;
+  sex: string;
   life_table?: LifeTableResponse;
 }
 
@@ -63,6 +65,7 @@ export interface GraduationResponse {
   roughness_graduated: number;
   roughness_reduction: number;
   lambda_param: number;
+  sex: string;
 }
 
 export interface MortalitySurfaceResponse {
@@ -87,6 +90,7 @@ export interface MortalityShockRequest {
   product_type: string;
   factors: number[];
   term?: number;
+  sex?: 'male' | 'female' | 'unisex';
 }
 
 export interface MortalityShockResponse {
@@ -96,6 +100,7 @@ export interface MortalityShockResponse {
   pct_changes: number[];
   age: number;
   product_type: string;
+  sex: string;
 }
 
 export interface CrossCountryEntry {
@@ -155,6 +160,7 @@ export interface PremiumRequest {
   sum_assured: number;
   interest_rate: number;
   term?: number;
+  sex?: 'male' | 'female' | 'unisex';
 }
 
 export interface PremiumResponse {
@@ -163,6 +169,7 @@ export interface PremiumResponse {
   sum_assured: number;
   interest_rate: number;
   term?: number;
+  sex: string;
   annual_premium: number;
   premium_rate: number;
 }
@@ -179,6 +186,7 @@ export interface ReserveResponse {
   sum_assured: number;
   interest_rate: number;
   term?: number;
+  sex: string;
   annual_premium: number;
   trajectory: ReservePoint[];
 }

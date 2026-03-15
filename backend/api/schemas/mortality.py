@@ -50,6 +50,7 @@ class LeeCarterFitResponse(BaseModel):
     explained_variance: float
     drift: float
     sigma: float
+    sex: str
     validations: Dict[str, bool]
 
 
@@ -68,6 +69,7 @@ class ProjectionResponse(BaseModel):
     kt_central: List[float]
     drift: float
     sigma: float
+    sex: str
     life_table: Optional[LifeTableResponse] = None
 
 
@@ -93,6 +95,7 @@ class GraduationResponse(BaseModel):
     roughness_graduated: float
     roughness_reduction: float
     lambda_param: float
+    sex: str
 
 
 class MortalitySurfaceResponse(BaseModel):

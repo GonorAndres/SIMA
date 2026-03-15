@@ -1,17 +1,17 @@
 /* === Inicio (Landing) Page === */
 
+/* --- Hero: 5fr left + 1fr right --- */
 .hero {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 5fr 1fr;
   gap: 48px;
   align-items: start;
   margin-bottom: 48px;
 }
 
-.heroLeft {
-  padding-right: 24px;
-}
+.heroLeft {}
 
+/* --- Header --- */
 .projectTitle {
   font-size: 2.441rem;
   font-weight: 600;
@@ -24,43 +24,114 @@
   font-size: 1rem;
   line-height: 1.75;
   margin: 0 0 32px 0;
-  max-width: 540px;
+  max-width: 720px;
+  text-align: justify;
 }
 
-.statGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+/* --- Context (inside heroLeft) --- */
+.context {
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: 32px;
 }
 
-.statItem {
-  padding: 16px;
-  border: 1px solid var(--color-gray-200);
-}
-
-.statNumber {
-  font-size: 1.953rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-black);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.statLabel {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-gray-500);
-  font-weight: 500;
-}
-
+/* --- Stats Sidebar (heroRight) --- */
 .heroRight {
   border-left: 2px solid var(--color-gray-200);
-  padding-left: 48px;
+  padding: 24px 16px 24px 24px;
   background: var(--color-warm-50);
-  padding: 24px 24px 24px 48px;
+  position: sticky;
+  top: 80px;
+}
+
+.statsLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.contextTitle {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+}
+
+.contextParagraph {
+  color: var(--color-gray-700);
+  font-size: 1rem;
+  line-height: 1.75;
+  margin: 0 0 16px 0;
+  max-width: 720px;
+  text-align: justify;
+}
+
+.contextParagraph:last-child {
+  margin-bottom: 0;
+}
+
+.githubLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-black);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-gray-300);
+  transition: border-color 0.2s;
+}
+
+.githubLink:hover {
+  border-color: var(--color-black);
+}
+
+.githubIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* --- Pipeline Grid --- */
+.pipelineSection {
+  margin-bottom: 48px;
+}
+
+.pipelineLabel {
+  font-size: 1.563rem;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+}
+
+.pipelineGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+
+.pipelineCard {
+  padding: 32px 24px;
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-warm-50);
+}
+
+.pipelineCardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.pipelineCardDesc {
+  color: var(--color-gray-700);
+  line-height: 1.65;
+  margin: 0 0 16px 0;
+  font-size: 0.875rem;
+}
+
+/* --- Live Metrics (below pipeline, full width) --- */
+.liveSection {
+  padding: 48px 0;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .liveLabel {
@@ -69,26 +140,22 @@
   letter-spacing: 0.1em;
   color: var(--color-accent);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
-.sectionBlock {
-  padding: 48px 0;
-  border-top: 1px solid var(--color-gray-200);
+.metricsRow {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
 }
 
-.sectionBlockWarm {
-  composes: sectionBlock;
-  background: var(--color-warm-50);
-  padding: 48px 32px;
-  margin: 0 -32px;
-}
-
+/* --- Chart Section --- */
 .sectionBlockAccent {
-  composes: sectionBlock;
-  background: var(--color-accent-light);
   padding: 48px 32px;
   margin: 0 -32px;
+  background: var(--color-accent-light);
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .sectionTitle {
@@ -97,13 +164,7 @@
   margin: 0 0 16px 0;
 }
 
-.sectionDesc {
-  color: var(--color-gray-700);
-  max-width: 720px;
-  line-height: 1.65;
-  margin: 0 0 16px 0;
-}
-
+/* --- COVID Teaser --- */
 .covidTeaser {
   padding: 32px 0 32px 24px;
   border-left: 3px solid var(--color-accent);
@@ -129,6 +190,7 @@
   margin-bottom: 16px;
 }
 
+/* --- Responsive --- */
 @media (max-width: 768px) {
   .hero {
     grid-template-columns: 1fr;
@@ -137,11 +199,16 @@
   .heroRight {
     border-left: none;
     border-top: 2px solid var(--color-gray-200);
-    padding-left: 0;
-    padding-top: 32px;
+    padding: 24px 0 0 0;
+    position: static;
   }
 
-  .statGrid {
+  .pipelineGrid {
     grid-template-columns: 1fr;
+  }
+
+  .metricsRow {
+    flex-direction: column;
+    gap: 16px;
   }
 }

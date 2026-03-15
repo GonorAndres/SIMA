@@ -28,7 +28,7 @@ def test_cross_country(client):
     data = response.json()
     assert len(data["countries"]) == 3
     country_names = [c["country"] for c in data["countries"]]
-    assert "Mexico" in country_names
+    assert "México" in country_names
     assert len(data["kt_profiles"]) == 3
     assert len(data["ax_profiles"]) == 3
     assert len(data["bx_profiles"]) == 3
@@ -47,3 +47,21 @@ def test_covid_comparison(client):
     # All COVID premium impacts should be positive (premiums increased)
     for impact in data["premium_impact"]:
         assert impact["pct_change"] > 0
+
+
+def test_mortality_shock_with_sex(client):
+    """THEORY: Mortality shock should work with explicit sex=female and return valid results."""
+    response = client.post("/api/sensitivity/mortality-shock", json={
+        "age": 40,
+        "sum_assured": 1_000_000,
+        "product_type": "whole_life",
+        "factors": [-0.30, 0, 0.30],
+        "sex": "female",
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sex"] == "female"
+    assert data["base_premium"] > 0
+    # Same directional test: negative shock -> lower, positive -> higher
+    assert data["premiums"][0] < data["base_premium"]
+    assert data["premiums"][2] > data["base_premium"]

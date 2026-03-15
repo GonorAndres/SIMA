@@ -9,6 +9,7 @@ export interface PremiumRequest {
   sum_assured: number;
   term?: number;
   interest_rate: number;
+  sex: 'male' | 'female' | 'unisex';
 }
 
 interface PremiumFormProps {
@@ -19,6 +20,7 @@ interface PremiumFormProps {
 export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
   const { t } = useTranslation();
   const [productType, setProductType] = useState('whole_life');
+  const [sex, setSex] = useState<'male' | 'female' | 'unisex'>('male');
   const [age, setAge] = useState(30);
   const [sumAssured, setSumAssured] = useState(1000000);
   const [term, setTerm] = useState(20);
@@ -34,6 +36,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
       sum_assured: sumAssured,
       term: needsTerm ? term : undefined,
       interest_rate: interestRate,
+      sex,
     });
   };
 
@@ -49,6 +52,19 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
           <option value="whole_life">{t('forms.wholeLife')}</option>
           <option value="term">{t('forms.termLife')}</option>
           <option value="endowment">{t('forms.endowment')}</option>
+        </select>
+      </div>
+
+      <div className={styles.fieldGroup}>
+        <label className={styles.label}>{t('forms.sex')}</label>
+        <select
+          className={styles.select}
+          value={sex}
+          onChange={(e) => setSex(e.target.value as 'male' | 'female' | 'unisex')}
+        >
+          <option value="male">{t('forms.male')}</option>
+          <option value="female">{t('forms.female')}</option>
+          <option value="unisex">{t('forms.unisex')}</option>
         </select>
       </div>
 

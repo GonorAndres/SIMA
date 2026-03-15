@@ -1,5 +1,10 @@
 """
 Pricing service: bridges API requests to engine modules a01-a05.
+
+Sex routing:
+    - "male" / "female": uses regulatory life table (CNSF/EMSSA)
+    - "unisex": uses projected life table from Total LC model
+      (regulatory tables have no unisex column)
 """
 
 import sys
@@ -16,7 +21,14 @@ from backend.engine.a03_actuarial_values import ActuarialValues
 from backend.engine.a04_premiums import PremiumCalculator
 from backend.engine.a05_reserves import ReserveCalculator
 
-from backend.api.services.precomputed import get_regulatory_lt
+from backend.api.services.precomputed import get_regulatory_lt, get_projected_life_table
+
+
+def _get_life_table(table_type: str, sex: str) -> LifeTable:
+    """Get the appropriate life table for a given sex."""
+    if sex == "unisex":
+        return get_projected_life_table(2029, sex="unisex")
+    return get_regulatory_lt(table_type, sex)
 
 
 def calculate_premium(
@@ -29,7 +41,7 @@ def calculate_premium(
     sex: str = "male",
 ) -> dict:
     """Calculate a net premium using the equivalence principle."""
-    lt = get_regulatory_lt(table_type, sex)
+    lt = _get_life_table(table_type, sex)
     comm = CommutationFunctions(lt, interest_rate=interest_rate)
     pc = PremiumCalculator(comm)
 
@@ -58,6 +70,7 @@ def calculate_premium(
         "sum_assured": sum_assured,
         "interest_rate": interest_rate,
         "term": term,
+        "sex": sex,
         "annual_premium": premium,
         "premium_rate": premium_rate,
     }
@@ -73,7 +86,7 @@ def calculate_reserve_trajectory(
     sex: str = "male",
 ) -> dict:
     """Calculate the full reserve trajectory for a policy."""
-    lt = get_regulatory_lt(table_type, sex)
+    lt = _get_life_table(table_type, sex)
     comm = CommutationFunctions(lt, interest_rate=interest_rate)
     rc = ReserveCalculator(comm)
     pc = PremiumCalculator(comm)
@@ -98,6 +111,7 @@ def calculate_reserve_trajectory(
         "sum_assured": sum_assured,
         "interest_rate": interest_rate,
         "term": term,
+        "sex": sex,
         "annual_premium": premium,
         "trajectory": [
             {"duration": t, "age": age + t, "reserve": v}
@@ -113,7 +127,7 @@ def get_commutation_values(
     sex: str = "male",
 ) -> dict:
     """Get commutation function values and actuarial values at a given age."""
-    lt = get_regulatory_lt(table_type, sex)
+    lt = _get_life_table(table_type, sex)
     comm = CommutationFunctions(lt, interest_rate=interest_rate)
     av = ActuarialValues(comm)
 
@@ -138,7 +152,7 @@ def calculate_sensitivity(
     sex: str = "male",
 ) -> dict:
     """Calculate premium at multiple interest rates."""
-    lt = get_regulatory_lt(table_type, sex)
+    lt = _get_life_table(table_type, sex)
     results = []
 
     for rate in rates:

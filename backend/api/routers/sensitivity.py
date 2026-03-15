@@ -23,6 +23,7 @@ def mortality_shock(request: MortalityShockRequest):
             product_type=request.product_type,
             factors=request.factors,
             term=request.term,
+            sex=request.sex,
         )
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))

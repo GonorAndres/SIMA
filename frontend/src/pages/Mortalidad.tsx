@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import MetricBlock from '../components/data/MetricBlock';
@@ -20,6 +20,8 @@ import type {
 } from '../types';
 import styles from './Mortalidad.module.css';
 
+type SexKey = 'male' | 'female' | 'unisex';
+
 function getValidationColumns(t: (key: string) => string): Column[] {
   return [
     { key: 'age', label: t('tables.age'), align: 'right', numeric: true },
@@ -30,7 +32,8 @@ function getValidationColumns(t: (key: string) => string): Column[] {
 
 export default function Mortalidad() {
   const { t } = useTranslation();
-  const [validationTab, setValidationTab] = useState<'cnsf' | 'emssa'>('cnsf');
+  const [validationTab, setValidationTab] = useState<'cnsf' | 'cnsf_2013' | 'emssa'>('cnsf');
+  const [sex, setSex] = useState<SexKey>('unisex');
 
   const validationColumns = useMemo(() => getValidationColumns(t), [t]);
 
@@ -40,25 +43,48 @@ export default function Mortalidad() {
   const graduation = useGet<GraduationResponse>('/mortality/graduation');
   const surface = useGet<MortalitySurfaceResponse>('/mortality/surface');
   const diagnostics = useGet<LCDiagnosticsResponse>('/mortality/diagnostics');
+  const validationCnsf2013 = useGet<ValidationResponse>('/mortality/validation');
   const validationEmssa = useGet<ValidationResponse>('/mortality/validation');
 
-  useEffect(() => {
-    lc.execute();
-    proj.execute({ horizon: 30, projection_year: 2040 });
-    validation.execute({ projection_year: 2040, table_type: 'cnsf' });
-    graduation.execute();
-    surface.execute();
-    diagnostics.execute();
-    validationEmssa.execute({ projection_year: 2040, table_type: 'emssa' });
-  }, []);
+  const fetchAll = useCallback(() => {
+    lc.execute({ sex });
+    proj.execute({ horizon: 30, projection_year: 2040, sex });
+    validation.execute({ projection_year: 2040, table_type: 'cnsf', sex });
+    validationCnsf2013.execute({ projection_year: 2040, table_type: 'cnsf_2013', sex });
+    graduation.execute({ sex });
+    surface.execute({ sex });
+    diagnostics.execute({ sex });
+    validationEmssa.execute({ projection_year: 2040, table_type: 'emssa', sex });
+  }, [sex]);
 
-  const activeValidation = validationTab === 'cnsf' ? validation : validationEmssa;
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const activeValidation = validationTab === 'cnsf'
+    ? validation
+    : validationTab === 'cnsf_2013'
+      ? validationCnsf2013
+      : validationEmssa;
 
   return (
     <PageLayout
       title={t('mortalidad.title')}
       subtitle={t('mortalidad.subtitle')}
     >
+      {/* Sex selector */}
+      <div className={styles.validationTabs} style={{ marginBottom: '2rem' }}>
+        {(['unisex', 'male', 'female'] as SexKey[]).map((s) => (
+          <button
+            key={s}
+            className={`${styles.validationTab} ${sex === s ? styles.validationTabActive : ''}`}
+            onClick={() => setSex(s)}
+          >
+            {t(`forms.${s}`)}
+          </button>
+        ))}
+      </div>
+
       {/* 1. Graduation: raw vs graduated */}
       {graduation.loading && <LoadingState message={t('mortalidad.loadingGraduation')} />}
 
@@ -259,13 +285,19 @@ export default function Mortalidad() {
       )}
 
       {/* 7. Validation with CNSF/EMSSA tabs */}
-      {(validation.loading || validationEmssa.loading) && (
+      {(validation.loading || validationCnsf2013.loading || validationEmssa.loading) && (
         <LoadingState message={t('mortalidad.loadingValidation')} />
       )}
 
-      {(validation.data || validationEmssa.data) && (
+      {(validation.data || validationCnsf2013.data || validationEmssa.data) && (
         <div className={styles.validationSection} data-demo-section="validation">
           <h3 className={styles.sectionTitle}>{t('mortalidad.validationTitle')}</h3>
+          <ul className={styles.narrative}>
+            <li>{t('mortalidad.validationDescRatio')}</li>
+            <li>{t('mortalidad.validationDescDiff')}</li>
+            <li>{t('mortalidad.validationDescOptimistic')}</li>
+            <li>{t('mortalidad.validationDescConservative')}</li>
+          </ul>
 
           <div className={styles.validationTabs}>
             <button
@@ -273,6 +305,12 @@ export default function Mortalidad() {
               onClick={() => setValidationTab('cnsf')}
             >
               {t('mortalidad.validationCnsf')}
+            </button>
+            <button
+              className={`${styles.validationTab} ${validationTab === 'cnsf_2013' ? styles.validationTabActive : ''}`}
+              onClick={() => setValidationTab('cnsf_2013')}
+            >
+              {t('mortalidad.validationCnsf2013')}
             </button>
             <button
               className={`${styles.validationTab} ${validationTab === 'emssa' ? styles.validationTabActive : ''}`}

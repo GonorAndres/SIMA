@@ -15,6 +15,10 @@ class MortalityShockRequest(BaseModel):
         description="Shock factors to apply to q_x",
     )
     term: Optional[int] = Field(default=20, ge=1)
+    sex: Literal["male", "female", "unisex"] = Field(
+        default="unisex",
+        description="Sex for base mortality table"
+    )
 
 
 class MortalityShockResponse(BaseModel):
@@ -25,6 +29,7 @@ class MortalityShockResponse(BaseModel):
     pct_changes: List[float]
     age: int
     product_type: str
+    sex: str
 
 
 class CrossCountryEntry(BaseModel):

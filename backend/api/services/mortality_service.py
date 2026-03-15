@@ -23,9 +23,9 @@ from backend.api.services.precomputed import (
 )
 
 
-def get_data_summary() -> dict:
+def get_data_summary(sex: str = "unisex") -> dict:
     """Return summary of the loaded mortality data."""
-    md = get_mortality_data()
+    md = get_mortality_data(sex)
     s = md.summary()
     return {
         "country": s["country"],
@@ -39,10 +39,10 @@ def get_data_summary() -> dict:
     }
 
 
-def get_lee_carter_params() -> dict:
+def get_lee_carter_params(sex: str = "unisex") -> dict:
     """Return Lee-Carter fitted parameters."""
-    lc = get_lee_carter()
-    proj = get_projection()
+    lc = get_lee_carter(sex)
+    proj = get_projection(sex)
 
     return {
         "ages": [int(a) for a in lc.ages],
@@ -53,13 +53,18 @@ def get_lee_carter_params() -> dict:
         "explained_variance": lc.explained_variance,
         "drift": proj.drift,
         "sigma": proj.sigma,
+        "sex": sex,
         "validations": lc.validate(),
     }
 
 
-def get_projection_data(horizon: int = 30, projection_year: int = 2040) -> dict:
+def get_projection_data(
+    horizon: int = 30,
+    projection_year: int = 2040,
+    sex: str = "unisex",
+) -> dict:
     """Return projection data including a projected life table."""
-    proj = get_projection()
+    proj = get_projection(sex)
 
     # Build a life table for the requested year
     lt = None
@@ -82,6 +87,7 @@ def get_projection_data(horizon: int = 30, projection_year: int = 2040) -> dict:
         "kt_central": [float(v) for v in proj.kt_central[:horizon]],
         "drift": proj.drift,
         "sigma": proj.sigma,
+        "sex": sex,
         "life_table": lt,
     }
 
@@ -102,10 +108,10 @@ def get_life_table_data(
     }
 
 
-def get_graduation_data() -> dict:
+def get_graduation_data(sex: str = "unisex") -> dict:
     """Return raw vs graduated mortality rates + diagnostics."""
-    md = get_mortality_data()
-    grad = get_graduated()
+    md = get_mortality_data(sex)
+    grad = get_graduated(sex)
 
     ages = list(grad.ages)
 
@@ -135,12 +141,13 @@ def get_graduation_data() -> dict:
         "roughness_graduated": float(summary["graduated_roughness"]),
         "roughness_reduction": float(summary["roughness_reduction"]),
         "lambda_param": float(summary["lambda"]),
+        "sex": sex,
     }
 
 
-def get_surface_data() -> dict:
+def get_surface_data(sex: str = "unisex") -> dict:
     """Return 2D log(mx) matrix for 3D surface visualization."""
-    grad = get_graduated()
+    grad = get_graduated(sex)
 
     ages = [int(a) for a in grad.ages]
     years = [int(y) for y in grad.years]
@@ -156,9 +163,9 @@ def get_surface_data() -> dict:
     }
 
 
-def get_diagnostics_data() -> dict:
+def get_diagnostics_data(sex: str = "unisex") -> dict:
     """Return Lee-Carter goodness-of-fit diagnostics."""
-    lc = get_lee_carter()
+    lc = get_lee_carter(sex)
 
     gof = lc.goodness_of_fit()
 
@@ -185,9 +192,13 @@ def get_diagnostics_data() -> dict:
     }
 
 
-def get_validation(projection_year: int = 2040, table_type: str = "cnsf") -> dict:
+def get_validation(
+    projection_year: int = 2040,
+    table_type: str = "cnsf",
+    sex: str = "unisex",
+) -> dict:
     """Compare projected life table against a regulatory benchmark."""
-    proj = get_projection()
+    proj = get_projection(sex)
     last_year = int(proj.projected_years[-1])
     first_year = int(proj.projected_years[0])
 
@@ -197,7 +208,9 @@ def get_validation(projection_year: int = 2040, table_type: str = "cnsf") -> dic
         )
 
     projected_lt = proj.to_life_table(year=projection_year, radix=100_000)
-    regulatory_lt = get_regulatory_lt(table_type, sex="male")
+    # Regulatory tables have no unisex -- use male for comparison when sex=unisex
+    reg_sex = "male" if sex == "unisex" else sex
+    regulatory_lt = get_regulatory_lt(table_type, sex=reg_sex)
 
     comp = MortalityComparison(
         projected_lt, regulatory_lt,

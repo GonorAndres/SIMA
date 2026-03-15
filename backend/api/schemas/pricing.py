@@ -16,6 +16,10 @@ class PremiumRequest(BaseModel):
         default=None, ge=1,
         description="Term in years (required for term/endowment)"
     )
+    sex: Literal["male", "female", "unisex"] = Field(
+        default="male",
+        description="Sex for mortality table selection"
+    )
 
 
 class PremiumResponse(BaseModel):
@@ -25,6 +29,7 @@ class PremiumResponse(BaseModel):
     sum_assured: float
     interest_rate: float
     term: Optional[int]
+    sex: str
     annual_premium: float
     premium_rate: float
 
@@ -42,6 +47,10 @@ class ReserveRequest(BaseModel):
         default=None, ge=0,
         description="Specific duration to evaluate (if None, returns trajectory)"
     )
+    sex: Literal["male", "female", "unisex"] = Field(
+        default="male",
+        description="Sex for mortality table selection"
+    )
 
 
 class ReservePoint(BaseModel):
@@ -58,6 +67,7 @@ class ReserveResponse(BaseModel):
     sum_assured: float
     interest_rate: float
     term: Optional[int]
+    sex: str
     annual_premium: float
     trajectory: List[ReservePoint]
 
@@ -83,6 +93,10 @@ class SensitivityRequest(BaseModel):
         default=[0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
         max_length=50,
         description="Interest rates to evaluate"
+    )
+    sex: Literal["male", "female", "unisex"] = Field(
+        default="male",
+        description="Sex for mortality table selection"
     )
 
 

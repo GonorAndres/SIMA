@@ -21,6 +21,7 @@ import type {
 import styles from './Sensibilidad.module.css';
 
 type TabKey = 'interest_rate' | 'mortality' | 'comparison' | 'covid';
+type SexKey = 'male' | 'female' | 'unisex';
 
 const productI18nKey: Record<string, string> = {
   whole_life: 'wholeLife',
@@ -61,6 +62,7 @@ function getCovidColumns(t: (key: string) => string): Column[] {
 export default function Sensibilidad() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('interest_rate');
+  const [sex, setSex] = useState<SexKey>('male');
   const [age, setAge] = useState(40);
   const [sumAssured, setSumAssured] = useState(1000000);
 
@@ -107,9 +109,9 @@ export default function Sensibilidad() {
 
   const handleRunInterestRate = async () => {
     // Run line chart analysis
-    wl.execute({ product_type: 'whole_life', age, sum_assured: sumAssured, rates });
-    term.execute({ product_type: 'term', age, sum_assured: sumAssured, term: 20, rates });
-    endow.execute({ product_type: 'endowment', age, sum_assured: sumAssured, term: 20, rates });
+    wl.execute({ product_type: 'whole_life', age, sum_assured: sumAssured, rates, sex });
+    term.execute({ product_type: 'term', age, sum_assured: sumAssured, term: 20, rates, sex });
+    endow.execute({ product_type: 'endowment', age, sum_assured: sumAssured, term: 20, rates, sex });
 
     // Run heatmap: for each age, get premiums at all rates
     setHeatmapLoading(true);
@@ -121,6 +123,7 @@ export default function Sensibilidad() {
             age: hAge,
             sum_assured: sumAssured,
             rates,
+            sex,
           });
           return (res.data as SensitivityResponse).results.map((r) => r.annual_premium);
         })
@@ -147,6 +150,19 @@ export default function Sensibilidad() {
       title={t('sensibilidad.title')}
       subtitle={t('sensibilidad.subtitle')}
     >
+      {/* Global sex selector */}
+      <div className={styles.tabRow} style={{ marginBottom: '1rem' }}>
+        {(['male', 'female', 'unisex'] as SexKey[]).map((s) => (
+          <button
+            key={s}
+            onClick={() => setSex(s)}
+            className={`${styles.tab} ${sex === s ? styles.tabActive : ''}`}
+          >
+            {t(`forms.${s}`)}
+          </button>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div className={styles.tabRow}>
         {tabs.map((tab) => (
@@ -269,7 +285,7 @@ export default function Sensibilidad() {
               </select>
             </div>
             <button
-              onClick={() => shockApi.execute({ age: shockAge, sum_assured: sumAssured, product_type: shockProduct, factors: [-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30] })}
+              onClick={() => shockApi.execute({ age: shockAge, sum_assured: sumAssured, product_type: shockProduct, factors: [-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30], sex })}
               disabled={shockApi.loading}
               className={styles.runBtn}
             >

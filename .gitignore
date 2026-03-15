@@ -42,6 +42,9 @@ docs/*.pdf
 # Subagent outputs
 subagents_outputs/
 
+# Supplementary research documents
+supplementary-docs/
+
 # Claude ephemeral (config files ARE tracked)
 .claude/cache/
 .claude/debug/

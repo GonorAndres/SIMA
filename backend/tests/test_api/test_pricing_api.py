@@ -104,6 +104,50 @@ def test_sensitivity(client):
     assert results[1]["annual_premium"] > results[2]["annual_premium"]
 
 
+def test_premium_sex_parameter(client):
+    """THEORY: Sex parameter should be echoed back and produce valid premiums for all values."""
+    for sex in ["male", "female", "unisex"]:
+        resp = client.post("/api/pricing/premium", json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": sex,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["sex"] == sex
+        assert data["annual_premium"] > 0
+        assert data["annual_premium"] < 1_000_000
+
+
+def test_premium_unisex_uses_projected(client):
+    """THEORY: Unisex premium uses the projected LC life table (Total population).
+    It should differ from male/female regulatory-table premiums since it comes
+    from a completely different data source (Lee-Carter projection vs CNSF table)."""
+    male = client.post("/api/pricing/premium", json={
+        "product_type": "whole_life",
+        "age": 40,
+        "sum_assured": 1_000_000,
+        "interest_rate": 0.05,
+        "sex": "male",
+    }).json()
+
+    unisex = client.post("/api/pricing/premium", json={
+        "product_type": "whole_life",
+        "age": 40,
+        "sum_assured": 1_000_000,
+        "interest_rate": 0.05,
+        "sex": "unisex",
+    }).json()
+
+    assert unisex["sex"] == "unisex"
+    assert unisex["annual_premium"] > 0
+    # Unisex comes from projected LC table, male from CNSF regulatory table:
+    # they should be different (different data sources)
+    assert unisex["annual_premium"] != male["annual_premium"]
+
+
 def test_invalid_product_type(client):
     """THEORY: Unknown product type should return 422 (Pydantic Literal validation)."""
     response = client.post("/api/pricing/premium", json={

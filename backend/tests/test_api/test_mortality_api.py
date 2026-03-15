@@ -102,3 +102,25 @@ def test_diagnostics(client):
     assert data["rmse"] >= 0
     assert data["explained_variance"] > 0.5
     assert len(data["residuals_sample"]) > 0
+
+
+def test_data_summary_male(client):
+    """THEORY: Male data should report Hombres sex from INEGI."""
+    response = client.get("/api/mortality/data/summary?sex=male")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sex"] == "Hombres"
+    assert data["mx_min"] > 0
+
+
+def test_lee_carter_by_sex(client):
+    """THEORY: Male and female LC fits should produce different drifts."""
+    male = client.get("/api/mortality/lee-carter?sex=male").json()
+    female = client.get("/api/mortality/lee-carter?sex=female").json()
+
+    assert male["sex"] == "male"
+    assert female["sex"] == "female"
+    assert male["drift"] != female["drift"]
+    # Both should still explain a reasonable fraction of variance
+    assert male["explained_variance"] > 0.3
+    assert female["explained_variance"] > 0.3

@@ -26,6 +26,7 @@ def calculate_premium(request: PremiumRequest):
             sum_assured=request.sum_assured,
             interest_rate=request.interest_rate,
             term=request.term,
+            sex=request.sex,
         )
         return result
     except (ValueError, KeyError) as e:
@@ -44,6 +45,7 @@ def calculate_reserve(request: ReserveRequest):
             sum_assured=request.sum_assured,
             interest_rate=request.interest_rate,
             term=request.term,
+            sex=request.sex,
         )
         return result
     except (ValueError, KeyError) as e:
@@ -56,10 +58,11 @@ def calculate_reserve(request: ReserveRequest):
 def get_commutation(
     age: int = Query(ge=0, le=100),
     interest_rate: float = Query(default=0.05, ge=0.001, le=1.0),
+    sex: str = Query(default="male", pattern="^(male|female|unisex)$"),
 ):
     """Get commutation function values (D, N, C, M) and actuarial values at a given age."""
     try:
-        return pricing_service.get_commutation_values(age, interest_rate)
+        return pricing_service.get_commutation_values(age, interest_rate, sex=sex)
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
@@ -76,6 +79,7 @@ def calculate_sensitivity(request: SensitivityRequest):
             sum_assured=request.sum_assured,
             rates=request.rates,
             term=request.term,
+            sex=request.sex,
         )
         return result
     except (ValueError, KeyError) as e:
