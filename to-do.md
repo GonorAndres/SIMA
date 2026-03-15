@@ -4,7 +4,7 @@
 **Author:** Andres Gonzalez Ortega
 **Created:** 2026-03-15
 **Branch:** `main` (merged from 14feb on 2026-03-15)
-**Live URL:** https://sima-d3qj5vwxtq-uc.a.run.app
+**Live URL:** https://sima-451451662791.us-central1.run.app
 **Tests:** 205 unit + 33 API = 238 total, all passing
 
 ---
@@ -288,17 +288,12 @@ Do within the first two work sessions after P0. These add the storytelling layer
 
 ---
 
-### P1-10: Deploy after storytelling changes -- PENDING
+### P1-10: Deploy after storytelling changes -- DONE
 
-- [x] Build frontend: `npm run build` succeeds (10.88s, no errors)
-- [x] All 34 API tests passing
-- [ ] Deploy to Cloud Run (requires `gcloud run deploy` or Docker push)
-- [ ] Verify live URL reflects updated content
-
-**Why:** Storytelling changes are useless if not deployed. The live URL is what visitors see.
-
-**Effort:** S (1h)
-**Depends on:** P1-02 through P1-09
+- [x] Deployed via `gcloud run deploy sima --source .` (2026-03-15)
+- [x] Live URL: https://sima-451451662791.us-central1.run.app
+- [x] Health endpoint returns `data_source: "real"` (INEGI/CONAPO)
+- [x] All 6 pages verified via Playwright on production URL
 
 ---
 
@@ -468,6 +463,32 @@ Do if time permits, in any order. Each independently valuable.
 
 ---
 
+## P4 -- Post-Deploy
+
+---
+
+### P4-01: Make CI/CD badge green on GitHub
+
+The CI workflow (`.github/workflows/ci.yml`) currently fails because:
+1. **Backend tests need real INEGI/CONAPO data** -- 58 tests require HMD/INEGI files that aren't in the repo
+2. **CD workflow needs GCP secrets** -- `GCP_SA_KEY` and `GCP_PROJECT_ID` GitHub secrets
+
+**Steps:**
+- [ ] Split backend tests in CI into two jobs:
+  - `core-tests`: run only mock-data tests (`test_life_table.py`, `test_commutation.py`, `test_premiums_reserves.py`, `test_portfolio.py`, `test_scr.py`, `test_api/`) -- these pass without HMD data
+  - `data-tests`: mark as optional/skipped (needs `backend/data/hmd/`)
+- [ ] Add `GCP_SA_KEY` GitHub secret (service account JSON for Cloud Run deploy)
+- [ ] Add `GCP_PROJECT_ID` GitHub secret (`project-ad7a5be2-a1c7-4510-82d`)
+- [ ] Verify CI badge turns green on push
+- [ ] Verify CD auto-deploys to Cloud Run on merge to main
+
+**Why:** A red CI badge on the README is worse than no badge. Recruiters see red = broken.
+
+**Effort:** M (1-2h)
+**Files:** `.github/workflows/ci.yml`, GitHub repo settings (Secrets)
+
+---
+
 ## Dependency Graph
 
 ```
@@ -496,11 +517,11 @@ The project is portfolio-ready when ALL of the following are true:
 
 1. [x] `main` branch is clean -- no uncommitted changes, no stale feature branches
 2. [x] Root `README.md` exists with screenshots, live demo link, architecture overview
-3. [ ] Live URL works and matches README (pending deploy P1-10)
+3. [x] Live URL works and matches README (deployed 2026-03-15)
 4. [x] Portfolio site URL points to correct Cloud Run deployment
 5. [x] Every page has at least one narrative element explaining what the visitor sees
 6. [x] SCR page explicitly references LISF/CUSF regulation with article numbers
 7. [x] LaTeX PDFs are downloadable from the web app
-8. [ ] CI pipeline runs on push and reports green (needs GCP secrets for CD)
+8. [ ] CI pipeline runs on push and reports green (see P4-01 below)
 9. [x] Demo tour completes start-to-finish without confusion
 10. [x] A 5-minute live walkthrough can be delivered confidently in an interview

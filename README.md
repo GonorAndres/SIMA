@@ -4,7 +4,7 @@
 
 End-to-end actuarial modeling platform for life insurance: from raw demographic data to solvency capital requirements under Mexican regulation (LISF/CUSF).
 
-**[Live Demo](https://sima-d3qj5vwxtq-uc.a.run.app)** | **[Methodology](https://sima-d3qj5vwxtq-uc.a.run.app/#/metodologia)**
+**[Live Demo](https://sima-451451662791.us-central1.run.app)** | **[Methodology](https://sima-451451662791.us-central1.run.app/#/metodologia)**
 
 ---
 
@@ -158,7 +158,7 @@ This project includes 64+ documentation files:
 - **12 project logs** -- session decisions, tradeoffs, findings (`docs/project/`)
 - **6 LaTeX PDFs** -- graduate-level derivations (`docs/latex/`)
 
-See the [Methodology page](https://sima-d3qj5vwxtq-uc.a.run.app/#/metodologia) for an interactive overview.
+See the [Methodology page](https://sima-451451662791.us-central1.run.app/#/metodologia) for an interactive overview.
 
 ---
 
