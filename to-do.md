@@ -3,7 +3,7 @@
 **Project:** Sistema Integral de Modelacion Actuarial
 **Author:** Andres Gonzalez Ortega
 **Created:** 2026-03-15
-**Branch:** `14feb` (11 commits ahead of `main`, 28 modified files)
+**Branch:** `main` (merged from 14feb on 2026-03-15)
 **Live URL:** https://sima-d3qj5vwxtq-uc.a.run.app
 **Tests:** 205 unit + 33 API = 238 total, all passing
 
@@ -44,11 +44,11 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-01: Commit 14feb working tree changes
+### P0-01: Commit 14feb working tree changes -- DONE
 
-- [ ] Stage the 28 modified files (sex-differentiated pipelines, i18n, schemas, tests)
-- [ ] Commit with descriptive message
-- [ ] Verify 238 tests still pass
+- [x] Stage the 28 modified files (sex-differentiated pipelines, i18n, schemas, tests)
+- [x] Commit with descriptive message
+- [x] Verify 238 tests still pass
 
 **Why:** 28 uncommitted files = weeks of work at risk. The sex-differentiated pipeline (male/female/unisex) is a major feature that needs to be preserved in git history.
 
@@ -57,12 +57,12 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-02: Merge 14feb to main
+### P0-02: Merge 14feb to main -- DONE
 
-- [ ] Ensure all tests pass on 14feb
-- [ ] Merge 14feb into main (fast-forward or merge commit)
-- [ ] Push main to origin
-- [ ] Decide on `real-test/`: commit the manual QA guide or add to `.gitignore`
+- [x] Ensure all tests pass on 14feb
+- [x] Merge 14feb into main (fast-forward)
+- [x] Push main to origin
+- [x] Committed `real-test/` (95-assertion QA guide is a portfolio artifact)
 
 **Why:** GitHub visitors see `main`. A portfolio project with work stuck on a feature branch looks unfinished. The branch name `14feb` is meaningless to reviewers.
 
@@ -71,18 +71,18 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-03: Create root README.md
+### P0-03: Create root README.md -- DONE
 
-- [ ] Project title + one-line description + live demo link
-- [ ] Architecture diagram (text-based: Data -> Graduation -> Lee-Carter -> Projection -> Pricing -> SCR)
-- [ ] 3-4 screenshots of the running app (store in `docs/screenshots/`)
-- [ ] Feature highlights: 12 engine modules, 238 tests, 21 API endpoints, sex-differentiated analysis
-- [ ] Tech stack: Python 3.12, FastAPI, React 19, Plotly.js, Vite, Docker, GCP Cloud Run
-- [ ] Quick start instructions (backend + frontend)
-- [ ] Docker deployment instructions
-- [ ] Link to Metodologia page and LaTeX documents
-- [ ] HMD data attribution (CC BY 4.0 required)
-- [ ] Author section with UNAM affiliation
+- [x] Project title + one-line description + live demo link
+- [x] Architecture diagram (text-based dependency flow)
+- [ ] 3-4 screenshots of the running app (deferred to P2-05)
+- [x] Feature highlights: 12 engine modules, 238 tests, 22 API endpoints, sex-differentiated analysis
+- [x] Tech stack: Python 3.12, FastAPI, React 19, Plotly.js, Vite, Docker, GCP Cloud Run
+- [x] Quick start instructions (backend + frontend)
+- [x] Docker deployment instructions
+- [x] Link to Metodologia page and LaTeX documents
+- [x] HMD data attribution (CC BY 4.0 required)
+- [x] Author section with UNAM affiliation
 
 **Why:** A GitHub repo without a README is invisible. This is the first thing any interviewer or recruiter sees after clicking through from the portfolio site.
 
@@ -140,11 +140,11 @@ Items that must be done before any external visibility (interviewers, recruiters
 
 ---
 
-### P0-06: Track LaTeX PDFs in git
+### P0-06: Track LaTeX PDFs in git -- DONE
 
-- [ ] Update `.gitignore` to stop excluding `docs/latex/*.pdf`
-- [ ] Stage and commit the 6 LaTeX PDFs currently untracked
-- [ ] These are original authored works, not third-party binaries
+- [x] Update `.gitignore` to stop excluding `docs/latex/*.pdf`
+- [x] Stage and commit the 6 LaTeX PDFs
+- [x] Consolidated stray .tex sources into `docs/latex/` alongside PDFs
 
 **Why:** The Metodologia page references these PDFs but they are gitignored. GitHub visitors and the deployed app cannot access them. These documents demonstrate mathematical depth -- a major portfolio differentiator.
 
