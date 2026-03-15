@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../common/LanguageToggle';
@@ -16,14 +17,23 @@ const navItems = [
 export default function TopNav() {
   const { t } = useTranslation();
   const demo = useDemo();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <nav className={styles.nav}>
+    <nav className={styles.nav} aria-label="Main navigation">
       <div className={styles.inner}>
-        <NavLink to="/" className={styles.brand}>
+        <NavLink to="/" className={styles.brand} aria-label="SIMA Home">
           SIMA
         </NavLink>
-        <ul className={styles.links}>
+        <button
+          className={styles.hamburger}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? '\u2715' : '\u2630'}
+        </button>
+        <ul className={`${styles.links} ${menuOpen ? styles.linksOpen : ''}`}>
           {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
@@ -32,6 +42,7 @@ export default function TopNav() {
                 className={({ isActive }) =>
                   `${styles.link} ${isActive ? styles.linkActive : ''}`
                 }
+                onClick={() => setMenuOpen(false)}
               >
                 {t(`nav.${item.key}`)}
               </NavLink>
@@ -39,7 +50,7 @@ export default function TopNav() {
           ))}
         </ul>
         {demo && !demo.active && (
-          <button className={styles.demoBtn} onClick={demo.start}>
+          <button className={styles.demoBtn} onClick={demo.start} aria-label="Start guided demo tour">
             DEMO
           </button>
         )}

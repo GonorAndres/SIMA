@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import styles from './PageLayout.module.css';
 
 interface PageLayoutProps {
@@ -8,6 +8,13 @@ interface PageLayoutProps {
 }
 
 export default function PageLayout({ children, title, subtitle }: PageLayoutProps) {
+  useEffect(() => {
+    if (title) {
+      document.title = `${title} -- SIMA`;
+    }
+    return () => { document.title = 'SIMA -- Sistema Integral de Modelacion Actuarial'; };
+  }, [title]);
+
   return (
     <main className={styles.main}>
       {title && (

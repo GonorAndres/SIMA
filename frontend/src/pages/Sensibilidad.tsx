@@ -91,12 +91,17 @@ export default function Sensibilidad() {
   // Tab 4: COVID comparison from API
   const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
 
+  // Lazy-load: fetch cross-country and COVID data only when their tab is active
   const crossExecute = crossCountry.execute;
   const covidExecute = covid.execute;
   useEffect(() => {
-    crossExecute();
-    covidExecute();
-  }, [crossExecute, covidExecute]);
+    if (activeTab === 'comparison' && !crossCountry.data && !crossCountry.loading) {
+      crossExecute();
+    }
+    if (activeTab === 'covid' && !covid.data && !covid.loading) {
+      covidExecute();
+    }
+  }, [activeTab, crossExecute, covidExecute, crossCountry.data, crossCountry.loading, covid.data, covid.loading]);
 
   // Auto-switch tabs when demo mode navigates to a section
   const demo = useDemo();
