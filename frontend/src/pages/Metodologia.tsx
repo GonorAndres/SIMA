@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import FormulaBlock from '../components/data/FormulaBlock';
+import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
 import styles from './Metodologia.module.css';
@@ -29,6 +30,10 @@ export default function Metodologia() {
         <h1 className={styles.headerTitle}>{t('metodologia.title')}</h1>
         <p className={styles.headerSubtitle}>{t('metodologia.subtitle')}</p>
       </header>
+
+      <InsightCard variant="insight" title={t('metodologia.portfolioFramingTitle')}>
+        <p>{t('metodologia.portfolioFraming')}</p>
+      </InsightCard>
 
       {/* SECTION 1: DATOS */}
       <Section number="01" title={t('metodologia.sections.datos')}>

@@ -8,6 +8,7 @@ import LineChart from '../components/charts/LineChart';
 import HeatmapChart from '../components/charts/HeatmapChart';
 import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
+import InsightCard from '../components/data/InsightCard';
 import LoadingState from '../components/common/LoadingState';
 import { usePost, useGet } from '../hooks/useApi';
 import api from '../api/client';
@@ -179,6 +180,9 @@ export default function Sensibilidad() {
       {/* Tab 1: Interest Rate */}
       {activeTab === 'interest_rate' && (
         <div data-demo-section="interest">
+          <InsightCard variant="warning" title={t('sensibilidad.interestInsightTitle')}>
+            <p>{t('sensibilidad.interestInsight')}</p>
+          </InsightCard>
           <h3 className={styles.sectionTitle}>{t('sensibilidad.interestHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.interestIntro')}
@@ -266,6 +270,9 @@ export default function Sensibilidad() {
       {/* Tab 2: Mortality Shock */}
       {activeTab === 'mortality' && (
         <div>
+          <InsightCard variant="insight" title={t('sensibilidad.shockInsightTitle')}>
+            <p>{t('sensibilidad.shockInsight')}</p>
+          </InsightCard>
           <h3 className={styles.sectionTitle}>{t('sensibilidad.shockHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.shockIntro')}
@@ -327,6 +334,9 @@ export default function Sensibilidad() {
       {/* Tab 3: Cross-Country Comparison */}
       {activeTab === 'comparison' && (
         <div data-demo-section="cross-country">
+          <InsightCard variant="info" title={t('sensibilidad.crossInsightTitle')}>
+            <p>{t('sensibilidad.crossInsight')}</p>
+          </InsightCard>
           <h3 className={styles.sectionTitle}>{t('sensibilidad.crossHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.crossIntro')}
@@ -411,6 +421,9 @@ export default function Sensibilidad() {
       {/* Tab 4: COVID Impact */}
       {activeTab === 'covid' && (
         <div data-demo-section="covid">
+          <InsightCard variant="regulatory" title={t('sensibilidad.covidInsightTitle')}>
+            <p>{t('sensibilidad.covidInsight')}</p>
+          </InsightCard>
           <h3 className={styles.sectionTitle}>{t('sensibilidad.covidHeader')}</h3>
           <p className={styles.narrative}>
             {t('sensibilidad.covidIntro')}
