@@ -1,5 +1,7 @@
 # SIMA -- Sistema Integral de Modelacion Actuarial
 
+[![CI](https://github.com/GonorAndres/SIMA/actions/workflows/ci.yml/badge.svg)](https://github.com/GonorAndres/SIMA/actions/workflows/ci.yml)
+
 End-to-end actuarial modeling platform for life insurance: from raw demographic data to solvency capital requirements under Mexican regulation (LISF/CUSF).
 
 **[Live Demo](https://sima-d3qj5vwxtq-uc.a.run.app)** | **[Methodology](https://sima-d3qj5vwxtq-uc.a.run.app/#/metodologia)**
