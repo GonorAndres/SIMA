@@ -5,21 +5,22 @@
 \usepackage{mathtools}
 \usepackage{bm}
 \usepackage{tcolorbox}
+\tcbuselibrary{breakable}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{hyperref}
 \usepackage[margin=2.5cm]{geometry}
 
-\newtcolorbox{formaldef}[1][]{colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{intuition}[1][]{colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{application}[1][]{colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{dimcheck}{colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
+\newtcolorbox{formaldef}[1][]{breakable,colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{intuition}[1][]{breakable,colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{application}[1][]{breakable,colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{dimcheck}{breakable,colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
 
 \title{\textbf{Quadratic Minimization in Matrix Form:\\From Sums to Systems}\\[0.5em]
 \large A Bridge Document for SIMA --- The Engine Behind OLS, Ridge, and Graduation}
-\author{SIMA Project}
-\date{}
+\author{Andr\'{e}s Gonz\'{a}lez Ortega --- SIMA, febrero 2026}
+\date{\today}
 
 \begin{document}
 \maketitle
@@ -57,7 +58,7 @@ $\bm{I}$ & Identity matrix & $\bm{I}\bm{x} = \bm{x}$ \\
 \noindent\textbf{Convention:} All vectors are column vectors. A row vector is written $\bm{x}'$ (the transpose of a column). The product $\bm{a}'\bm{x}$ is a scalar (dot product). The product $\bm{x}'\bm{A}\bm{x}$ is also a scalar (quadratic form).
 
 %=============================================================================
-\section{Scalar Warm-Up: Minimizing $f(x) = ax^2 + bx + c$}
+\section{Scalar Warm-Up: Minimizing \texorpdfstring{$f(x) = ax^2 + bx + c$}{f(x) = ax² + bx + c}}
 %=============================================================================
 
 Before any matrices, let us solve the simplest optimization problem.
@@ -116,7 +117,7 @@ The graph of $f(x,y)$ is a surface in three dimensions. When the quadratic part 
 Notice how the two scalar equations \eqref{eq:partial_x}--\eqref{eq:partial_y} become a single matrix equation $\bm{A}\bm{x} = \bm{r}$. This is the key transition: \emph{many equations become one matrix equation.}
 
 %=============================================================================
-\section{The General Case: $f(\bm{x}) = \bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x} + c$}
+\section{The General Case: \texorpdfstring{$f(\bm{x}) = \bm{x}'\bm{A}\bm{x} + \bm{b}'\bm{x} + c$}{f(x) = x'Ax + b'x + c}}
 %=============================================================================
 
 Now we state the general result that covers all dimensions at once.

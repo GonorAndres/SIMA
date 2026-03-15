@@ -1,0 +1,1460 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{float}
+
+% Hyperref configuration
+\hypersetup{
+  colorlinks=true,
+  linkcolor=NavyBlue,
+  citecolor=OliveGreen,
+  urlcolor=RoyalBlue
+}
+
+% Theorem environments
+\newtheorem{definition}{Definition}[section]
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{example}[definition]{Example}
+
+% Custom commands
+\newcommand{\qx}[1]{q_{#1}}
+\newcommand{\mx}[1]{m_{#1}}
+\newcommand{\lx}[1]{l_{#1}}
+\newcommand{\dx}[1]{d_{#1}}
+\newcommand{\Dx}[1]{D_{#1}}
+\newcommand{\Nx}[1]{N_{#1}}
+\newcommand{\Mx}[1]{M_{#1}}
+\newcommand{\Cx}[1]{C_{#1}}
+\newcommand{\Ax}[1]{A_{#1}}
+\newcommand{\ax}[1]{\ddot{a}_{#1}}
+\newcommand{\nEx}[2]{{{}_{#1}E_{#2}}}
+\newcommand{\SA}{\text{SA}}
+% Actuarial angle notation: \anmark{n} produces n with angle bracket
+\newcommand{\anmark}[1]{\overline{#1}\mkern-3.5mu|}
+
+\title{\textbf{The EU Gender Directive and} \\ \textbf{Unisex Insurance Pricing} \\[0.5em]
+\large A Comparative Analysis with Mexican Regulation \\[0.3em]
+\normalsize SIMA -- Sistema Integral de Modelaci\'{o}n Actuarial}
+\author{Andr\'{e}s Gonz\'{a}lez Ortega --- SIMA, febrero 2026}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\sloppy
+This document examines the intersection of actuarial science and anti-discrimination law
+through the lens of the European Union's Gender Directive (2004/113/EC) and the landmark
+\emph{Test-Achats} ruling (Case C-236/09, 2011). We develop the mathematical framework
+for unisex premium construction, prove the ordering of sex-specific and unisex premiums,
+and quantify cross-subsidization effects using real Mexican mortality data (EMSSA~2009)
+computed through the SIMA actuarial engine. Under a 50/50 blend at age~40, the female
+surcharge ranges from $+2.4\%$ (endowment) to $+190.6\%$ (20-year term insurance),
+while annuities exhibit the reverse cross-subsidy with a $+3.6\%$ male surcharge.
+We analyze the economic consequences of prohibiting sex-based pricing---including a
+welfare economics assessment through Pareto, Kaldor-Hicks, and rights-based frameworks---and
+present empirical evidence from over a decade of EU implementation showing that the predicted
+adverse selection spiral has not materialized. The Solvency~II interaction (unisex pricing
+with sex-differentiated reserving) is examined as a source of basis risk. We contrast the EU's
+equal-treatment philosophy with Mexico's LISF framework, which explicitly permits
+sex-differentiated actuarial tables, and survey the Latin American regulatory landscape.
+The document concludes with an analysis of how SIMA accommodates both regulatory paradigms
+through its table-agnostic architecture and aggregate population methodology.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=============================================================================
+\section{Introduction: Why Sex Matters in Actuarial Pricing}
+\label{sec:introduction}
+%=============================================================================
+
+Consider two 40-year-old Mexicans purchasing identical life insurance policies.
+According to the EMSSA~2009 experience mortality table, the male faces a
+one-year probability of death $\qx{40}^M = 0.00218$, while the female faces
+$\qx{40}^F = 0.00052$. The male is \textbf{4.19 times} more likely to die
+within the year. Over a 20-year term policy with $\SA = \$100{,}000$, this
+translates into net annual premiums of \$315.48 for the male versus \$65.68
+for the female---a ratio of 4.8 to 1. Prohibiting sex as a pricing factor, as
+the EU mandated in 2012, forces both into a single ``unisex'' premium of
+\$190.87: the female's cost nearly \emph{triples}, while the male's drops by
+40\%.
+
+These are not hypothetical numbers. They are computed from the official Mexican
+social security mortality table (EMSSA~2009) using the SIMA actuarial engine's
+commutation function framework at $i = 5\%$. This document examines why such
+large differentials exist, how the EU Gender Directive and the \emph{Test-Achats}
+ruling responded to them, and what the mathematical consequences of unisex
+pricing are for premiums, reserves, and cross-subsidization across product types.
+
+\subsection{The Sex-Mortality Differential}
+
+Across virtually all human populations studied, male mortality exceeds female
+mortality at nearly every age \cite{beltran2015}. Let $\qx{x}^M$ and $\qx{x}^F$ denote the
+probability of death within one year for a male and female aged $x$,
+respectively. The \emph{sex-mortality ratio} is defined as:
+\begin{equation}
+\label{eq:sex-ratio}
+  R(x) = \frac{\qx{x}^M}{\qx{x}^F}
+\end{equation}
+
+Using EMSSA~2009 data (Table~\ref{tab:sex-ratio}), we observe a striking
+age pattern that differs substantially from patterns reported for
+developed-country mortality tables.
+
+\begin{table}[H]
+\centering
+\caption{Sex-mortality ratios from EMSSA~2009 at selected ages. The ratio peaks
+near age 50 and exhibits a remarkable crossover at age~88.}
+\label{tab:sex-ratio}
+\begin{tabular}{rcccc}
+\toprule
+\textbf{Age} & $\bm{\qx{x}^M}$ & $\bm{\qx{x}^F}$ & $\bm{R(x)}$ & \textbf{Interpretation} \\
+\midrule
+ 0  & 0.000730 & 0.000410 & 1.78 & Neonatal excess \\
+10  & 0.000820 & 0.000410 & 2.00 & Pre-hump \\
+20  & 0.001040 & 0.000420 & 2.48 & Young-adult hump onset \\
+30  & 0.001450 & 0.000440 & 3.30 & External-cause peak \\
+40  & 0.002180 & 0.000520 & 4.19 & Sustained excess \\
+50  & 0.003520 & 0.000700 & \textbf{5.03} & \textbf{Peak ratio} \\
+60  & 0.006040 & 0.001210 & 4.99 & Pre-retirement \\
+70  & 0.010960 & 0.002850 & 3.85 & Elderly convergence \\
+80  & 0.020950 & 0.010140 & 2.07 & Advanced age \\
+87  & 0.033810 & 0.033000 & 1.02 & Near-parity \\
+90  & 0.045600 & 0.065160 & \textbf{0.70} & \textbf{Crossover} \\
+100 & 0.211620 & 0.268140 & 0.79 & Female excess mortality \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Four features are immediately apparent from the EMSSA~2009 data:
+\begin{enumerate}
+  \item $R(x) > 1$ for ages 0 through 87---male mortality exceeds female
+        across the vast majority of the lifespan.
+  \item The ratio does \emph{not} peak at the traditional ``mortality hump''
+        ages (15--25) as often described for developed countries. Instead,
+        $R(x)$ increases monotonically through the working ages, peaking near
+        age 50 at $R(50) = 5.03$. This pattern reflects Mexico's high
+        male external-cause mortality (homicide, traffic accidents) persisting
+        well beyond the young-adult years.
+  \item A \textbf{mortality crossover} occurs at approximately age~88, after
+        which $R(x) < 1$ and female mortality exceeds male. This crossover,
+        observed in several Latin American mortality tables, may reflect
+        selective survival effects: males who survive to advanced ages
+        constitute a hardier subpopulation, while females face increasing
+        frailty-related mortality.
+  \item The EMSSA~2009 sex differential is substantially larger than in many
+        European tables. For comparison, the CNSF~2000-I regulatory table
+        (Section~\ref{subsec:cnsf-discovery}) contains \emph{identical} male
+        and female columns---it is effectively a unisex table despite its format.
+\end{enumerate}
+
+\begin{remark}[On the EMSSA 2009 vs.\ CNSF 2000-I discrepancy]
+\label{rem:cnsf-identical}
+The CNSF~2000-I mortality table stored in SIMA's data directory has identical
+$\qx{x}^{\text{male}}$ and $\qx{x}^{\text{female}}$ columns for all ages 12--99.
+This means it is effectively a unisex table. By contrast, EMSSA~2009 exhibits
+genuine sex differentiation with ratios ranging from 0.70 (age~90) to 5.03
+(age~50). All sex-differentiated computations in this document therefore use
+EMSSA~2009.
+\end{remark}
+
+\subsection{The Young Adult Mortality Hump---Mexican Context}
+\label{subsec:hump}
+
+The young adult mortality hump is overwhelmingly a \emph{male} phenomenon
+\cite{remund2018}. In developed countries, this hump peaks around ages 18--25
+and is driven primarily by traffic accidents. In Mexico, the picture is different:
+
+\begin{itemize}
+  \item \textbf{Homicide}: Mexico's homicide rate contributes significantly to
+        male mortality well into middle age. INEGI data show homicide as a
+        leading cause of death for males aged 15--50.
+  \item \textbf{Traffic accidents}: A major contributor, but with a broader age
+        distribution than in European countries.
+  \item \textbf{Occupational hazards}: Higher male participation in hazardous
+        industries (construction, mining, agriculture).
+  \item \textbf{Behavioral factors}: Higher rates of alcohol consumption,
+        tobacco use, and risk-taking behavior among Mexican males.
+\end{itemize}
+
+The result is that the sex-mortality ratio in Mexico does not exhibit the
+classic peaked hump at ages 18--25 but rather a \emph{sustained plateau} from
+ages 30 through 60, with $R(x) > 3$ throughout this range. This makes the
+Mexican case particularly interesting for unisex pricing analysis: the ages
+most relevant for insurance purchasing (30--60) are precisely where the sex
+differential is largest.
+
+\subsection{Quantitative Impact on Life Expectancy}
+
+Using EMSSA~2009, the curtate life expectancies computed via the SIMA engine are:
+
+\begin{table}[H]
+\centering
+\caption{Curtate life expectancy by sex (EMSSA~2009, SIMA engine).}
+\label{tab:life-exp}
+\begin{tabular}{rccc}
+\toprule
+\textbf{Age} & $\bm{e_x^M}$ & $\bm{e_x^F}$ & \textbf{Gap (years)} \\
+\midrule
+ 0 & 84.0 & 90.6 & 6.6 \\
+40 & 46.9 & 51.8 & 5.0 \\
+65 & 25.5 & 27.7 & 2.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At birth, the female advantage exceeds 6 years \cite{colchero2016}. By age 65 (typical retirement),
+the gap narrows but remains significant for annuity pricing.
+
+\subsection{Implications for Insurance Pricing}
+
+The mortality sex differential creates \emph{opposite} pricing implications
+depending on whether the insured event is death or survival:
+
+\begin{itemize}
+  \item \textbf{Life insurance} (pays upon death): Since $\qx{x}^M > \qx{x}^F$
+        for ages 0--87, the expected present value of the death benefit is higher
+        for males. Therefore, $P^M > P^F$ for all standard product types.
+  \item \textbf{Annuities} (pays while alive): Females survive longer, meaning
+        the insurer expects to make more payments. Therefore, the annuity present
+        value is higher for females: $\ax{x}^F > \ax{x}^M$, and the cost of
+        securing a given annual pension is higher for females.
+\end{itemize}
+
+This duality is fundamental: any ban on sex-based pricing simultaneously creates
+\emph{opposite} cross-subsidies in the life insurance and annuity markets.
+Under EMSSA~2009 at age 65, the whole life annuity-due values are
+$\ax{65}^M = 14.36$ and $\ax{65}^F = 15.42$---a 7.4\% difference that directly
+translates into pension cost differentials.
+
+
+%=============================================================================
+\section{Legal Framework}
+\label{sec:legal}
+%=============================================================================
+
+\subsection{EU Gender Directive 2004/113/EC}
+\label{subsec:directive}
+
+Council Directive 2004/113/EC, adopted unanimously by the Council of Ministers on December 13, 2004, implemented the principle of equal treatment between men and women in access to and supply of goods and services \cite{directive2004}. The Directive was grounded in Articles 13 and 141 of the EC Treaty (now Articles 19 and 157 TFEU), which establish the EU's competence to combat discrimination based on sex. It represented the first extension of EU anti-discrimination law from the employment sphere into the broader market for goods and services.
+
+The Directive's application to insurance was its most controversial dimension. While few objected to equal treatment in housing or education services, the insurance industry argued that sex-based pricing was fundamentally different: it reflected genuine, measurable risk differences, not prejudice or stereotype.
+
+\subsubsection{The General Rule: Article 5(1)}
+
+Article 5(1) established the core principle:
+
+\begin{quote}
+\emph{``Member States shall ensure that in all new contracts concluded after [transposition date] at the latest, the use of sex as a factor in the calculation of premiums and benefits for the purposes of insurance and related financial services shall not result in differences in individuals' premiums and benefits.''}
+\end{quote}
+
+This provision placed sex alongside race, ethnicity, and religion as a characteristic that could not lawfully generate price differentials in consumer markets.
+
+\subsubsection{The Derogation: Article 5(2) and the Political Compromise}
+
+Article 5(2) provided what appeared to be a durable exception. Member States could permit \emph{proportionate differences} in premiums and benefits where sex was a determining factor in risk assessment, subject to three cumulative conditions:
+
+\begin{enumerate}
+  \item The use of sex must be based on \emph{relevant and accurate actuarial and statistical data}.
+  \item The data must be \emph{compiled, published, and regularly updated}.
+  \item The Member State must \emph{review} the application of this derogation five years after transposition (i.e., by December 21, 2012).
+\end{enumerate}
+
+Fourteen of the then twenty-seven EU Member States adopted this derogation, including the United Kingdom, Germany, France, Belgium, the Netherlands, and Ireland \cite{directive2004}. The remaining thirteen---including Finland, Sweden, and Denmark---chose not to invoke it, applying unisex pricing from the outset.
+
+The derogation reflected a political compromise forged during difficult Council negotiations. The insurance industry, represented prominently by the Comit\'{e} Europ\'{e}en des Assurances (CEA, now Insurance Europe), had argued that sex-based pricing was not discriminatory but rather \emph{actuarially fair}. Recital 18 of the Directive acknowledged this tension, stating that the use of sex-based actuarial factors was ``widespread'' in insurance and that a period of adaptation might be needed.
+
+\subsubsection{The Structural Defect: No Sunset Clause}
+
+The critical structural feature of Article 5(2) was what it \emph{lacked}: a sunset clause. The derogation required Member States to \emph{review} its application after five years, but it did not require \emph{termination}. A review obligation without a convergence mechanism created an indefinite permission---Member States could review the derogation repeatedly and conclude, each time, that it remained justified.
+
+This architectural choice reflected the strength of the insurance industry's lobbying position during the legislative process. The European Parliament had initially proposed a more restrictive version with mandatory phase-out, but the Council---acting under the unanimity requirement of Article 13 EC Treaty---adopted the open-ended formulation as the price of consensus.
+
+As the CJEU would later observe, this created an internal contradiction: the Directive proclaimed equal treatment as its objective while simultaneously permitting its indefinite negation.
+
+\subsection{The \emph{Test-Achats} Ruling (Case C-236/09)}
+\label{subsec:test-achats}
+
+\subsubsection{Background and Procedural History}
+
+In 2008, the Belgian consumer association \emph{Test-Achats} (Association belge des Consommateurs Test-Achats ASBL), along with two individual complainants---a man and a woman who had been quoted different insurance premiums based on sex---challenged the Belgian law transposing Article 5(2) into national legislation \cite{testachats2011}.
+
+The Belgian Constitutional Court (\emph{Cour constitutionnelle}) referred the matter to the Court of Justice of the European Union (CJEU) for a preliminary ruling under Article 267 TFEU. The question was unprecedented: could a provision of an EU Directive be declared invalid by the CJEU on the grounds that it violated higher-ranking EU law (the Charter of Fundamental Rights)?
+
+\subsubsection{Advocate General Kokott's Opinion (September 30, 2010)}
+
+Advocate General Juliane Kokott delivered her opinion on September 30, 2010, recommending that Article 5(2) be declared invalid \cite{kokott2010}. Her reasoning contained arguments of lasting significance for actuarial practice and anti-discrimination law.
+
+\paragraph{Argument 1: Statistical correlation does not justify differential treatment.}
+
+At paragraph 61 of her Opinion, AG Kokott addressed the insurance industry's central defense---that sex-based pricing merely reflects observed statistical differences in risk. She acknowledged that male and female mortality profiles differ, but argued that this statistical correlation alone could not constitute a legally sufficient justification for differential treatment under EU equality law.
+
+Her reasoning drew a powerful analogy: many other personal characteristics---ethnicity, socioeconomic status, geographic origin, genetic predisposition---also correlate strongly with mortality and morbidity. If statistical correlation were sufficient to justify differential pricing, then pricing based on race or national origin would be equally defensible from a purely actuarial standpoint. Yet no one seriously proposed that racial pricing should be permitted. The legal question, AG Kokott argued, was not \emph{whether} sex predicts risk (it does), but \emph{whether} its use for pricing purposes is compatible with the principle of equal dignity.
+
+\paragraph{Argument 2: The distinction between biological and behavioral differences.}
+
+AG Kokott drew a crucial distinction between two types of sex-linked mortality differences. She observed that the insurance industry's assumptions about sex-based risk rested on ``a sweeping assumption that the different life expectancies of male and female insured persons \ldots are essentially due to their sex.'' She then noted that ``in view of social change and the accompanying loss of meaning of traditional role models, the effects of behavioural factors on a person's health and life expectancy can no longer clearly be linked with his sex.''
+
+In other words, the behavioral component of the sex-mortality differential (risky driving, occupational hazards, health-seeking behavior) is socially constructed and evolving, not biologically immutable. AG Kokott conceded that ``clearly demonstrable biological differences between the sexes'' might \emph{potentially} constitute a justification, but argued that Article 5(2) was not limited to biologically-grounded risk differences.
+
+\paragraph{Argument 3: Financial equilibrium is not an absolute justification.}
+
+AG Kokott addressed the insurance industry's argument that unisex pricing would threaten financial stability. She acknowledged that the transition would require adjustments, but held that financial considerations could not override fundamental rights:
+
+\begin{quote}
+\emph{The protection of the freedom to conduct a business cannot call into question the prohibition on discrimination.}
+\end{quote}
+
+She noted that insurers have other risk classification tools available---medical underwriting, lifestyle questionnaires, occupation-based rating---that could partially replace sex as a rating factor.
+
+\subsubsection{The Judgment of the Grand Chamber (March 1, 2011)}
+
+The CJEU's Grand Chamber ruled on March 1, 2011, declaring Article 5(2) invalid with effect from December 21, 2012 \cite{testachats2011}. The reasoning was concise but powerful:
+
+\begin{enumerate}
+  \item \textbf{The standard of review}: Articles 21 and 23 of the Charter of Fundamental Rights prohibit discrimination based on sex and require the promotion of equality ``in all areas.''
+
+  \item \textbf{The Directive's own objective}: The Directive itself proclaims equal treatment as its purpose. Recital 18 acknowledges that the insurance derogation should be reviewed with a view to progressive convergence.
+
+  \item \textbf{The incompatibility}: Article 5(2) permitted Member States to maintain sex-based pricing \emph{without temporal limitation}. The Court stated: ``Such a provision, which enables the Member States in question to maintain without temporal limitation an exemption from the rule of unisex premiums and benefits, works against the achievement of the objective of equal treatment.''
+
+  \item \textbf{The conclusion}: Article 5(2) is invalid upon expiry of a transitional period ending December 21, 2012.
+\end{enumerate}
+
+\begin{remark}[What the ruling did \emph{not} hold]
+The CJEU did not hold that sex-based actuarial tables are scientifically wrong---only that their use in consumer-facing pricing is legally impermissible under EU fundamental rights law. Insurers may still use sex-differentiated tables for (a) internal reserving and risk management, (b) best-estimate liability calculations under Solvency~II, and (c) reinsurance pricing.
+\end{remark}
+
+\subsection{European Commission Implementation Guidelines}
+\label{subsec:guidelines}
+
+Following the ruling, the European Commission published detailed implementation guidelines (2012/C 11/01) on January 13, 2012 \cite{ec_guidelines2012}.
+
+\subsubsection{Scope: What Constitutes a ``New Contract''}
+
+The guidelines defined a ``new contract'' as one requiring mutual consent by all parties, where the latest expression of consent occurred on or after December 21, 2012. Existing contracts entered into before that date were grandfathered---they continued under their original sex-differentiated terms. This created a dual-pricing regime that persisted for years and continues for long-duration policies.
+
+\subsubsection{The ``Proxy'' Distinction}
+
+The guidelines drew a crucial distinction between risk factors that are \emph{correlated with} sex and those that are \emph{proxies for} sex. A factor correlated with sex remains permissible if it constitutes a ``true risk factor in its own right.''
+
+\textbf{Permitted}: gender-specific medical screening (mammograms, prostate exams) assessed through individual underwriting; car engine size in motor insurance; family history where clinical relevance differs by sex.
+
+\textbf{Prohibited}: direct premium differentiation based on sex; body measurements used solely to identify sex rather than as genuine health risk factors.
+
+\subsubsection{Occupational Pensions: The Carve-Out}
+
+The \emph{Test-Achats} ruling applies to consumer insurance under Directive 2004/113/EC, not to occupational pensions under Directive 2006/54/EC. Sex-differentiated actuarial factors remain permissible for funded defined-benefit pension calculations. However, where employees purchase annuities directly from insurers, the transaction falls under the insurance directive and must use unisex pricing.
+
+\subsection{Implementation Across EU Member States}
+\label{subsec:implementation}
+
+All then twenty-seven EU Member States implemented unisex pricing by the December 21, 2012 deadline:
+
+\begin{itemize}
+  \item \textbf{United Kingdom}: The FSA (now FCA) required all new insurance contracts to use unisex premiums and benefits. The UK applied the ruling broadly across motor, life, health, and annuity products. Post-Brexit, the UK has retained unisex pricing as established practice.
+
+  \item \textbf{Germany}: BaFin implemented the ruling for all personal lines. Germany's large private health insurance sector (\emph{PKV}) was significantly affected due to substantial prior sex-based premium differentials.
+
+  \item \textbf{France}: The ACP (now ACPR) mandated unisex pricing for all new individual insurance contracts. France had a relatively smooth transition, partly due to its extensive social security health coverage.
+
+  \item \textbf{Netherlands}: The AFM implemented unisex pricing, with particular impact on the annuity and pension buyout market given the extensive Dutch funded pension system.
+\end{itemize}
+
+Most insurers adopted a \emph{portfolio-mix approach}: setting the unisex premium as a weighted average of the former sex-specific premiums, with weights reflecting the anticipated portfolio composition.
+
+\subsection{The Solvency~II Interaction}
+\label{subsec:solvency-ii}
+
+A critical practical question arose: how does unisex \emph{pricing} interact with Solvency~II \emph{reserving}?
+
+Under Solvency~II (Directive 2009/138/EC) \cite{solvencyii2009}, insurers must calculate best-estimate liabilities (BEL) using ``realistic'' assumptions ``based upon up-to-date and credible information.'' This creates a fundamental duality:
+
+\begin{itemize}
+  \item \textbf{Pricing}: Must be unisex---no sex-based premium differentiation.
+  \item \textbf{Reserving}: Must be best-estimate---sex-differentiated tables should be used if they provide more accurate liability estimates.
+\end{itemize}
+
+The European Commission's 2012 guidelines explicitly permit this duality. This creates a structural \emph{basis risk}: if the portfolio's sex composition deviates from the assumed mix, the unisex premium may prove inadequate relative to the sex-differentiated BEL, potentially affecting the insurer's Solvency Capital Requirement (SCR).
+
+For the SIMA project, this duality is directly relevant. SIMA's SCR engine (module \texttt{a12\_scr.py}) computes capital requirements using sex-specific or aggregate mortality tables at the BEL level. The same engine could assess the capital impact of portfolio sex-composition shifts under unisex pricing---a natural extension for future development.
+
+
+%=============================================================================
+\section{Actuarial Impact: The Mathematics of Unisex Pricing}
+\label{sec:actuarial}
+%=============================================================================
+
+\subsection{Constructing Unisex Mortality Tables}
+\label{subsec:unisex-construction}
+
+There are three principal methods for constructing a unisex mortality table, each
+with different mathematical properties and practical implications.
+
+\begin{definition}[Weighted Premium Method]
+\label{def:weighted-premium}
+Given sex-specific net premiums $P^M$ and $P^F$ for a given product, age, and
+term, the unisex premium is defined as:
+\begin{equation}
+\label{eq:weighted-premium}
+  P^U = \alpha \cdot P^M + (1 - \alpha) \cdot P^F
+\end{equation}
+where $\alpha \in [0,1]$ represents the proportion of males in the relevant
+portfolio or reference population.
+\end{definition}
+
+This method is straightforward but does not produce a unisex life table---only
+a unisex price.
+
+\begin{definition}[Blended Mortality Table Method]
+\label{def:blended-table}
+A unisex mortality table is constructed by blending sex-specific mortality rates:
+\begin{equation}
+\label{eq:blended-qx}
+  \qx{x}^U = \alpha \cdot \qx{x}^M + (1 - \alpha) \cdot \qx{x}^F, \quad \forall x
+\end{equation}
+where $\alpha$ is a fixed mixing proportion applied uniformly across all ages.
+All subsequent actuarial calculations (commutation functions, premiums, reserves)
+are then performed using $\qx{x}^U$.
+\end{definition}
+
+\begin{definition}[Aggregate Population Method]
+\label{def:aggregate-method}
+Using combined population data directly:
+\begin{equation}
+\label{eq:aggregate-mx}
+  \mx{x,t}^U = \frac{d_{x,t}^{\text{Total}}}{L_{x,t}^{\text{Total}}}
+\end{equation}
+where $d_{x,t}$ denotes deaths and $L_{x,t}$ denotes person-years of exposure.
+The conversion to $\qx{x}^U$ follows: $\qx{x}^U = 1 - e^{-\mx{x}^U}$.
+\end{definition}
+
+\begin{proposition}[Non-equivalence of Methods 2 and 3]
+\label{prop:non-equivalence}
+The blended mortality table and the aggregate population method produce different
+unisex rates in general. The aggregate method is equivalent to a blended method
+with \emph{age-varying} weights $\alpha(x) = L_x^M / (L_x^M + L_x^F)$.
+Since $\alpha(x)$ typically decreases with age (males die faster), the aggregate
+method naturally gives less weight to male mortality at advanced ages.
+\end{proposition}
+
+\begin{proof}
+By definition of the aggregate central death rate:
+\begin{align}
+  \mx{x}^U &= \frac{d_x^M + d_x^F}{L_x^M + L_x^F}
+  = \frac{L_x^M}{L_x^M + L_x^F} \cdot \frac{d_x^M}{L_x^M}
+   + \frac{L_x^F}{L_x^M + L_x^F} \cdot \frac{d_x^F}{L_x^F} \notag \\
+  &= \alpha(x) \cdot \mx{x}^M + (1 - \alpha(x)) \cdot \mx{x}^F
+\end{align}
+At birth, $\alpha(0) \approx 0.512$ (the biological sex ratio is approximately
+105 males per 100 females). As age increases, differential male mortality reduces
+the male proportion, so $\alpha(x)$ is a decreasing function of $x$. In the
+EMSSA~2009 data, the crossover at age~88 means $\alpha(x)$ may stabilize or
+even increase slightly at very advanced ages, but the overall trend is
+monotonically decreasing.
+\end{proof}
+
+\subsection{Impact on Actuarial Present Values}
+\label{subsec:impact-apv}
+
+We trace the effect of sex through the actuarial value chain \cite{bowers1997}. Recall the
+commutation function framework:
+\begin{align}
+\label{eq:commutation}
+  \Dx{x} &= v^x \cdot \lx{x}, \quad
+  \Nx{x} = \sum_{k=0}^{\omega - x} \Dx{x+k}, \quad
+  \Cx{x} = v^{x+1} \cdot \dx{x}, \quad
+  \Mx{x} = \sum_{k=0}^{\omega - x} \Cx{x+k}
+\end{align}
+
+The key actuarial present values are:
+\begin{align}
+  \Ax{x} &= \frac{\Mx{x}}{\Dx{x}} \quad \text{(whole life insurance)} &
+  \ax{x} &= \frac{\Nx{x}}{\Dx{x}} \quad \text{(whole life annuity-due)}
+\end{align}
+
+And the net premium for whole life insurance with sum assured $\SA$ is:
+\begin{equation}
+\label{eq:whole-life-premium}
+  P_x = \SA \cdot \frac{\Ax{x}}{\ax{x}} = \SA \cdot \frac{\Mx{x}}{\Nx{x}}
+\end{equation}
+
+\begin{proposition}[Ordering of Unisex Premiums]
+\label{prop:direction}
+Let $\{\qx{x}^M\}$, $\{\qx{x}^F\}$, and $\{\qx{x}^U\}$ be mortality schedules
+satisfying $\qx{x}^F \leq \qx{x}^U \leq \qx{x}^M$ for all ages $x = 0, 1,
+\ldots, \omega$, and let $P^M$, $P^F$, $P^U$ denote the corresponding whole
+life net premiums at any issue age $x$. Then:
+\begin{equation}
+  P^F \;<\; P^U \;<\; P^M
+\end{equation}
+For whole life annuities-due:
+\begin{equation}
+  \ax{x}^M \;<\; \ax{x}^U \;<\; \ax{x}^F
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+We establish the result in three steps.
+
+\textbf{Step 1: $\Ax{x}$ is monotonically increasing in mortality.}
+
+Using the fundamental identity $\Ax{x} + d \cdot \ax{x} = 1$
+(where $d = v \cdot i = i/(1+i)$), we have:
+\begin{equation}
+  \Ax{x} = 1 - d \cdot \ax{x}
+\end{equation}
+
+Since $\ax{x}$ is decreasing in mortality (Step~2 below), $\Ax{x}$ is increasing.
+
+\textbf{Step 2: $\ax{x}$ is monotonically decreasing in mortality.}
+
+The whole life annuity-due is:
+\begin{equation}
+  \ax{x} = \sum_{k=0}^{\omega - x} v^k \cdot {}_{k}p_x
+  = 1 + v \cdot p_x + v^2 \cdot {}_{2}p_x + \cdots
+\end{equation}
+
+Each $k$-year survival probability ${}_{k}p_x = \prod_{j=0}^{k-1}(1 - \qx{x+j})$
+is a decreasing function of each $\qx{x+j}$. Therefore, every term
+$v^k \cdot {}_{k}p_x$ for $k \geq 1$ decreases when any $\qx{y}$ increases,
+and $\ax{x}$ is monotonically decreasing in mortality.
+
+\textbf{Step 3: $P_x = \SA \cdot \Ax{x} / \ax{x}$ is monotonically increasing.}
+
+Since $\Ax{x}$ is increasing in mortality (Step~1) and $\ax{x}$ is decreasing
+(Step~2), the ratio $\Ax{x} / \ax{x}$ is the quotient of an increasing
+numerator and a decreasing denominator---both effects push in the same
+direction. Therefore $P_x$ is strictly increasing in mortality.
+
+Since $\qx{x}^F \leq \qx{x}^U \leq \qx{x}^M$ for all $x$, we conclude:
+\begin{equation}
+  \Ax{x}^F \leq \Ax{x}^U \leq \Ax{x}^M, \quad
+  \ax{x}^F \geq \ax{x}^U \geq \ax{x}^M, \quad
+  P^F \leq P^U \leq P^M \qedhere
+\end{equation}
+\end{proof}
+
+\begin{remark}[Numerical verification]
+Using EMSSA~2009 at age 40 with $i = 5\%$:
+\begin{align*}
+  \Ax{40}^M &= 0.1344 > \Ax{40}^U = 0.1117 > \Ax{40}^F = 0.0876 \\
+  \ax{40}^M &= 18.178 < \ax{40}^U = 18.653 < \ax{40}^F = 19.161 \\
+  P_{40}^M &= \$739.19 > P_{40}^U = \$599.09 > P_{40}^F = \$456.96 \quad \checkmark
+\end{align*}
+\end{remark}
+
+\subsection{Impact by Product Type: Computed Examples}
+\label{subsec:impact-product}
+
+We now quantify the unisex pricing impact for each major product type using the
+SIMA engine with EMSSA~2009 data ($i = 5\%$, $\SA = \$100{,}000$, 50/50 blend).
+
+\subsubsection{Term Life Insurance}
+
+The net premium for an $n$-year term policy is:
+\begin{equation}
+  P_{x:\anmark{n}} = \SA \cdot \frac{\Mx{x} - \Mx{x+n}}{\Nx{x} - \Nx{x+n}}
+\end{equation}
+
+Term insurance is \emph{nearly proportional} to mortality, making it the product
+\textbf{most sensitive to sex differentiation}.
+
+\begin{table}[H]
+\centering
+\caption{20-year term premiums by sex and age ($\SA = \$100{,}000$, $i = 5\%$,
+EMSSA~2009).}
+\label{tab:term-premiums}
+\begin{tabular}{rcccccc}
+\toprule
+\textbf{Age} & $\bm{P^M}$ & $\bm{P^F}$ & $\bm{P^U}$ &
+$\bm{P^M/P^F}$ & \textbf{Female} & \textbf{Male} \\
+ & & & & & \textbf{surcharge} & \textbf{discount} \\
+\midrule
+25 & \$160.01 & \$44.40  & \$102.27 & 3.60 & +130.3\% & $-$36.1\% \\
+30 & \$197.20 & \$48.55  & \$122.98 & 4.06 & +153.3\% & $-$37.6\% \\
+35 & \$247.41 & \$55.09  & \$151.42 & 4.49 & +174.9\% & $-$38.8\% \\
+40 & \$315.48 & \$65.68  & \$190.87 & 4.80 & +190.6\% & $-$39.5\% \\
+45 & \$408.67 & \$83.04  & \$246.36 & 4.92 & +196.7\% & $-$39.7\% \\
+50 & \$537.03 & \$113.04 & \$325.89 & 4.75 & +188.3\% & $-$39.3\% \\
+55 & \$715.07 & \$168.13 & \$442.97 & 4.25 & +163.5\% & $-$38.1\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The female surcharge under unisex pricing exceeds \textbf{+190\%} at age 40---a
+female purchasing a 20-year term policy would pay nearly \emph{three times} her
+actuarially fair premium.
+
+\subsubsection{Whole Life Insurance}
+
+The whole life net premium $P_x = \SA \cdot \Mx{x} / \Nx{x}$ aggregates
+mortality over the entire remaining lifetime. The \emph{relative} ratio is
+smaller than for term products because the premium includes mortality exposure at
+advanced ages where $R(x)$ converges and eventually reverses.
+
+\begin{table}[H]
+\centering
+\caption{Whole life premiums by sex and age ($\SA = \$100{,}000$, $i = 5\%$,
+EMSSA~2009).}
+\label{tab:whole-life-premiums}
+\begin{tabular}{rcccccc}
+\toprule
+\textbf{Age} & $\bm{P^M}$ & $\bm{P^F}$ & $\bm{P^U}$ &
+$\bm{P^M/P^F}$ & \textbf{Female} & \textbf{Male} \\
+ & & & & & \textbf{surcharge} & \textbf{discount} \\
+\midrule
+20 & \$338.16  & \$188.99  & \$264.59  & 1.79 & +40.0\% & $-$21.8\% \\
+30 & \$495.37  & \$288.35  & \$393.01  & 1.72 & +36.3\% & $-$20.7\% \\
+40 & \$739.19  & \$456.96  & \$599.09  & 1.62 & +31.1\% & $-$18.9\% \\
+50 & \$1,123.26 & \$750.40  & \$937.26  & 1.50 & +24.9\% & $-$16.6\% \\
+60 & \$1,745.22 & \$1,286.83 & \$1,515.65 & 1.36 & +17.8\% & $-$13.2\% \\
+65 & \$2,200.20 & \$1,723.05 & \$1,961.35 & 1.28 & +13.8\% & $-$10.9\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The convergence of $P^M/P^F$ toward 1 at older ages reflects the mortality
+crossover at age~88 and the generally narrowing sex differential at advanced ages.
+
+\subsubsection{Endowment Insurance}
+
+The endowment premium combines a term insurance component and a pure endowment
+(savings) component:
+\begin{equation}
+  P_{x:\anmark{n}} = \SA \cdot \frac{\Mx{x} - \Mx{x+n} + \Dx{x+n}}{\Nx{x} - \Nx{x+n}}
+\end{equation}
+
+The pure endowment is a survival benefit whose value is \emph{higher for females}.
+This partially \textbf{offsets} the sex differential in the death benefit component,
+making endowment premiums the \textbf{least sensitive} to sex differentiation:
+
+\begin{table}[H]
+\centering
+\caption{20-year endowment premiums at age 40 ($\SA = \$100{,}000$, $i = 5\%$,
+EMSSA~2009).}
+\label{tab:endowment-premiums}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{Male} & \textbf{Unisex} & \textbf{Female} \\
+\midrule
+Premium & \$3,056.10 & \$2,986.72 & \$2,917.61 \\
+$P^M/P^F$ ratio & \multicolumn{3}{c}{1.047} \\
+Female surcharge & --- & +2.37\% & --- \\
+Male discount & $-$2.27\% & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The female surcharge is only \textbf{+2.37\%} for endowments, compared to
++31.1\% for whole life and +190.6\% for term---confirming that the savings
+component dominates and dampens the mortality sensitivity.
+
+\subsubsection{Annuities and Pensions}
+
+For a whole life annuity-due paying \$1 per year, the present value at age 65 is:
+
+\begin{table}[H]
+\centering
+\caption{Whole life annuity-due at age 65, per unit payment ($i = 5\%$,
+EMSSA~2009).}
+\label{tab:annuity}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{Male} & \textbf{Unisex} & \textbf{Female} \\
+\midrule
+$\ax{65}$ & 14.3635 & 14.8738 & 15.4203 \\
+Male surcharge & --- & +3.55\% & --- \\
+Female discount & --- & $-$3.54\% & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The cross-subsidization \textbf{reverses direction} relative to life insurance:
+under unisex annuity pricing, \emph{males} pay more than their fair price
+(they subsidize female longevity), while females pay less.
+
+\subsection{Comprehensive Cross-Subsidization Summary}
+\label{subsec:cross-subsidy-summary}
+
+Table~\ref{tab:cross-subsidy-all} consolidates the cross-subsidization effects
+across all product types.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cross-subsidization under unisex pricing: EMSSA~2009, age 40,
+$i = 5\%$, $\SA = \$100{,}000$ (50/50 blend).}
+\label{tab:cross-subsidy-all}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Product} & $\bm{P^M}$ & $\bm{P^F}$ & $\bm{P^U}$ &
+$\bm{P^M/P^F}$ & \textbf{Female} & \textbf{Male} \\
+ & & & & & \textbf{surcharge} & \textbf{discount} \\
+\midrule
+Whole life & \$739.19 & \$456.96 & \$599.09 & 1.62 & +31.1\% & $-$19.0\% \\
+Term (20y) & \$315.48 & \$65.68 & \$190.87 & 4.80 & +190.6\% & $-$39.5\% \\
+Endowment (20y) & \$3,056.10 & \$2,917.61 & \$2,986.72 & 1.05 & +2.4\% & $-$2.3\% \\
+\midrule
+\multicolumn{7}{l}{\textbf{Annuity-due at age 65 (per unit):}} \\
+Annuity-due & 14.3635 & 15.4203 & 14.8738 & --- & $-$3.5\% & +3.6\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The table reveals a spectrum of sensitivity:
+\begin{enumerate}
+  \item \textbf{Term insurance} is most affected: the premium ratio $P^M/P^F$
+        reaches 4.80 at age 40, reflecting near-proportionality to mortality.
+  \item \textbf{Whole life} is moderately affected: the ratio of 1.62 reflects
+        integration over all future ages, including elderly years where $R(x)$ narrows.
+  \item \textbf{Endowment} is barely affected: the ratio of 1.05 reflects
+        dominance of the savings component.
+  \item \textbf{Annuities} exhibit the \emph{reverse} cross-subsidy: males
+        are surcharged +3.6\% under unisex pricing.
+\end{enumerate}
+
+\subsection{Reserve Trajectory Comparison}
+\label{subsec:reserves}
+
+Reserves quantify the insurer's liability at each policy duration. Under the
+prospective method:
+\begin{equation}
+  {}_tV = \SA \cdot \Ax{x+t} - P \cdot \ax{x+t}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{Whole life reserve trajectory ($\SA = \$100{,}000$, issue age 40,
+$i = 5\%$, EMSSA~2009).}
+\label{tab:reserves-wl}
+\begin{tabular}{rrccc}
+\toprule
+$\bm{t}$ & \textbf{Age} & $\bm{{}_tV^M}$ & $\bm{{}_tV^F}$ & $\bm{{}_tV^U}$ \\
+\midrule
+ 0 & 40 & \$0 & \$0 & \$0 \\
+ 5 & 45 & \$2,995 & \$2,355 & \$2,680 \\
+10 & 50 & \$6,526 & \$5,323 & \$5,934 \\
+15 & 55 & \$10,660 & \$9,054 & \$9,868 \\
+20 & 60 & \$15,460 & \$13,720 & \$14,601 \\
+25 & 65 & \$20,985 & \$19,524 & \$20,262 \\
+30 & 70 & \$27,287 & \$26,675 & \$26,987 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three observations:
+\begin{enumerate}
+  \item ${}_0V = 0$ for all three tables, confirming the equivalence principle.
+  \item The male reserve is consistently higher at every duration, reflecting both
+        the higher premium collected and the higher insurance value at each attained age.
+  \item The gap \emph{narrows} with duration: at $t = 5$, the male reserve
+        exceeds the female by \$640 (27\%); by $t = 30$, the difference is
+        only \$612 (2.3\%). This convergence reflects the mortality crossover
+        and the increasing dominance of the interest component.
+\end{enumerate}
+
+For term insurance, the reserve pattern is qualitatively different: reserves
+rise, peak, and return to zero at policy expiration.
+
+\begin{table}[H]
+\centering
+\caption{20-year term reserve trajectory ($\SA = \$100{,}000$, issue age 40,
+$i = 5\%$, EMSSA~2009).}
+\label{tab:reserves-term}
+\begin{tabular}{rrccc}
+\toprule
+$\bm{t}$ & \textbf{Age} & $\bm{{}_tV^M}$ & $\bm{{}_tV^F}$ & $\bm{{}_tV^U}$ \\
+\midrule
+ 0 & 40 & \$0 & \$0 & \$0 \\
+ 5 & 45 & \$518 & \$81 & \$301 \\
+10 & 50 & \$834 & \$137 & \$486 \\
+15 & 55 & \$762 & \$133 & \$447 \\
+20 & 60 & \$0 & \$0 & \$0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The male term reserve is 6.4 times the female reserve at $t = 10$, reflecting
+the enormous difference in term premiums and mortality exposure.
+
+\subsection{The Cross-Subsidy Formula}
+\label{subsec:cross-subsidy-formula}
+
+For a 50/50 blend ($\alpha = 0.5$), the cross-subsidies are symmetric:
+\begin{equation}
+\label{eq:cross-subsidy}
+  P^M - P^U = P^U - P^F = \frac{1}{2}(P^M - P^F)
+\end{equation}
+
+The relative surcharge on females, as a fraction of their actuarially fair
+premium, is:
+\begin{equation}
+\label{eq:relative-surcharge}
+  \frac{P^U - P^F}{P^F}
+  = \alpha \cdot \left(\frac{P^M}{P^F} - 1\right)
+\end{equation}
+
+For the 50/50 case, this simplifies to $(P^M/P^F - 1)/2$.
+
+\begin{remark}[Blended premium vs.\ blended mortality]
+The weighted premium method (Definition~\ref{def:weighted-premium}) and the
+blended mortality table method (Definition~\ref{def:blended-table}) produce
+different unisex premiums because the map $\qx{x} \mapsto P$ is nonlinear.
+By Jensen's inequality, for a concave premium function:
+\begin{equation}
+  P(\alpha \qx{}^M + (1-\alpha)\qx{}^F) \geq \alpha P(\qx{}^M) + (1-\alpha) P(\qx{}^F)
+\end{equation}
+The blended-mortality premium is generally \emph{higher} than the
+weighted-premium price. In our computations, the blended-mortality whole life
+premium at age 40 is \$599.09, while the weighted-premium approach gives
+$0.5 \times 739.19 + 0.5 \times 456.96 = \$598.08$. The difference is small
+(\$1.01) but conceptually important: blending mortality rates before computing
+premiums captures nonlinear interactions that simple premium averaging misses.
+\end{remark}
+
+
+%=============================================================================
+\section{Economic Consequences}
+\label{sec:economic}
+%=============================================================================
+
+\subsection{Cross-Subsidization Between Sexes}
+\label{subsec:cross-subsidy-econ}
+
+Under unisex pricing, one sex necessarily pays more than its actuarially fair price, while the other pays less. The direction depends on the product type:
+
+\begin{table}[H]
+\centering
+\caption{Cross-subsidization direction by product type under unisex pricing.}
+\label{tab:cross-subsidy}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Product} & \textbf{Who pays more} & \textbf{Who pays less} \\
+\midrule
+Term life insurance & Females & Males \\
+Whole life insurance & Females & Males \\
+Life annuity & Males & Females \\
+Pure endowment & Males & Females \\
+Endowment insurance & Mixed & Mixed \\
+Motor insurance & Females (young ages) & Males (young ages) \\
+Health insurance & Males (some segments) & Females (some segments) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The magnitude of cross-subsidization depends on three factors: (1) the sex-mortality ratio $R(x)$ at the relevant ages; (2) the portfolio mix $\alpha$; and (3) the product type and term. As documented in Section~\ref{sec:actuarial}, the cross-subsidy magnitude varies enormously by product: for endowments ($P^M/P^F = 1.05$), adverse selection pressure is negligible; for term insurance ($P^M/P^F = 4.80$), the pressure is extreme.
+
+\subsection{Adverse Selection: Theory and Evidence}
+\label{subsec:adverse-selection}
+
+\subsubsection{The Theoretical Spiral}
+
+Adverse selection is a classical concern in insurance economics \cite{rothschild1976}: when policyholders have information about their own risk that is not reflected in the price, lower-risk individuals may reduce their purchases.
+
+Under unisex pricing, sex becomes precisely such a piece of private information. The theoretical adverse selection spiral proceeds:
+
+\begin{enumerate}
+  \item The insurer sets a unisex price $P^U = \alpha P^M + (1-\alpha) P^F$.
+  \item The ``overcharged'' sex reduces its demand.
+  \item The portfolio mix shifts toward the higher-risk sex.
+  \item The insurer must adjust $P^U$ upward.
+  \item This further discourages the overcharged sex, continuing the spiral.
+\end{enumerate}
+
+In the extreme case, the ``subsidizing'' sex exits entirely, and the unisex premium converges to $P^{\text{high-risk}}$---the insurance analog of Akerlof's ``market for lemons'' \cite{akerlof1970}.
+
+\subsubsection{Why the Spiral Has Not Materialized}
+
+The \emph{Test-Achats} ruling created a natural experiment. Over a decade of
+post-implementation data now exists, and the empirical evidence is
+unambiguous: \textbf{the predicted adverse selection spiral has not occurred}
+in any major EU insurance market
+\cite{aseervatham2016, schmeiser2014}.
+
+Six structural factors explain this:
+
+\begin{enumerate}
+  \item \textbf{Insurance demand is inelastic to small price changes.} Consumers purchase insurance for reasons beyond expected-value calculation: peace of mind, mortgage requirements, tax benefits, and regulatory mandates.
+
+  \item \textbf{Consumer information asymmetry is imperfect.} Most consumers could not accurately estimate the direction or magnitude of the cross-subsidy \cite{schmeiser2014}.
+
+  \item \textbf{Switching costs and inertia are substantial.} Search costs, medical underwriting, and behavioral inertia dampen price-sensitivity.
+
+  \item \textbf{Other risk factors partially substitute for sex.} Insurers rapidly developed alternative risk classification strategies (Section~\ref{subsec:insurer-responses}).
+
+  \item \textbf{Mandatory insurance markets are immune.} Motor insurance, legally required in all EU jurisdictions, cannot experience demand-side adverse selection.
+
+  \item \textbf{Group and employer-sponsored insurance limits selection.} Individual opt-out is either impossible or penalized.
+\end{enumerate}
+
+\paragraph{Quantitative evidence from specific markets.}
+
+\begin{itemize}
+  \item \textbf{UK motor insurance}: Following December 2012 implementation, young male premiums decreased and young female premiums increased. Males received an aggregate benefit estimated at approximately \pounds600 million in reduced premiums \cite{abi_gender_faq, oxera2010}. Women aged 25 and under saw premium increases of approximately 25\%.
+
+  \item \textbf{UK life insurance}: Female term life premiums rose by approximately 30\%, while male premiums remained relatively stable \cite{schmeiser2014}.
+
+  \item \textbf{European annuity markets}: Male annuity rates decreased at some providers by up to 13\%, while female rates saw modest increases \cite{aseervatham2016}.
+
+  \item \textbf{German private health insurance}: B\"{u}nnings et al.\ (2021) found that the unisex mandate \emph{increased} women's probability of switching to private health insurance by 0.4 percentage points relative to men, with female PHI premiums decreasing by 5.8\% relative to men post-implementation \cite{bunnings2021}.
+\end{itemize}
+
+\subsection{Insurer Strategic Responses: Risk Reclassification}
+\label{subsec:insurer-responses}
+
+The prohibition of sex-based pricing redirected risk differentiation toward other legally permissible variables through three main channels:
+
+\subsubsection{Enhanced Individual Underwriting}
+
+Insurers expanded medical underwriting: detailed health questionnaires, blood tests, and genetic risk assessments partially recover information that sex-based pricing previously captured as a statistical proxy.
+
+\subsubsection{Behavioral and Telematics-Based Pricing}
+
+Motor insurance saw the most dramatic innovation. Telematics devices recording driving behavior (speed, braking patterns, time of day) allow insurers to price based on \emph{actual individual risk} rather than demographic proxies \cite{cather2020}. This development illustrates a broader trend: the Gender Directive accelerated the transition from \emph{group-based} to \emph{individual-based} risk assessment.
+
+\subsubsection{Lifestyle and Occupation Factors}
+
+Life insurers increased use of occupation, smoking status, exercise habits, BMI, and alcohol consumption as rating factors. These are legally permissible because they reflect individual choices rather than immutable protected characteristics.
+
+\begin{remark}[The ``proxy discrimination'' gray area]
+When insurers use algorithms combining multiple non-sex variables, the resulting model may effectively reconstruct sex-based pricing. If occupation, height, weight, and driving patterns are jointly used, the algorithm may achieve sex-prediction accuracy exceeding 90\%. The boundary between legitimate risk classification and prohibited proxy discrimination remains contested \cite{ec_guidelines2012, chen2023}.
+\end{remark}
+
+\subsection{Welfare Economics Perspective}
+\label{subsec:welfare}
+
+\subsubsection{Pareto Efficiency}
+
+Unisex pricing is \textbf{not Pareto-improving}: the ``overcharged'' sex in each product category is strictly worse off. Both sexes pay their actuarially fair price under sex-differentiated pricing; under unisex pricing, one pays more and the other less.
+
+\subsubsection{Kaldor-Hicks Efficiency}
+
+The Kaldor-Hicks assessment is ambiguous:
+\begin{itemize}
+  \item In purely actuarial terms, unisex pricing is a zero-sum redistribution: the ``winners'' gain what the ``losers'' lose.
+  \item Including non-monetary welfare effects (reduced perceived discrimination, social solidarity), the balance may tip positive.
+  \item If adverse selection induces market exit, there is a deadweight loss making the policy Kaldor-Hicks negative in the narrow economic sense.
+\end{itemize}
+
+\subsubsection{Rights-Based Perspective}
+
+The EU's approach is best understood through a \emph{rights-based} framework. The CJEU's ruling did not hinge on aggregate welfare---it held that sex-based pricing is \emph{per se} incompatible with the fundamental right to equal treatment. Under this deontological framework, welfare consequences are secondary: even if sex-based pricing were more efficient, it would remain impermissible. This philosophical distinction is important for actuaries: the debate is not about whether accuracy justifies classification by a protected characteristic. The EU has answered this in the negative.
+
+\subsection{Market Outcomes After a Decade}
+\label{subsec:decade-evidence}
+
+After over a decade of EU-wide unisex pricing (2012--2025):
+
+\begin{enumerate}
+  \item \textbf{No market collapse}: Insurance markets have continued to function normally. No insurer has become insolvent due to unisex pricing.
+  \item \textbf{Premium convergence}: Male and female premiums converged within 2--3 years of the initial shock.
+  \item \textbf{Limited adverse selection}: Effects have been modest to negligible.
+  \item \textbf{Innovation stimulus}: The Directive accelerated adoption of telematics and behavioral risk classification.
+  \item \textbf{Consumer awareness remains low}: Most policyholders are unaware of the cross-subsidization mechanism \cite{schmeiser2014}.
+\end{enumerate}
+
+
+%=============================================================================
+\section{Contrast with Mexican Regulation}
+\label{sec:mexico}
+%=============================================================================
+
+\subsection{The LISF/CUSF Framework}
+\label{subsec:lisf}
+
+Mexico's insurance regulatory framework stands in stark contrast to the EU's post-\emph{Test-Achats} regime. The \emph{Ley de Instituciones de Seguros y Fianzas} (LISF), enacted on April 4, 2013 and effective from April 4, 2015, governs insurance and bonding companies in Mexico \cite{lisf2013}.
+
+\subsubsection{Specific Regulatory Provisions}
+
+The LISF and its implementing regulation, the \emph{Circular \'{U}nica de Seguros y Fianzas} (CUSF), explicitly facilitate sex-differentiated pricing:
+
+\begin{enumerate}
+  \item \textbf{LISF Article 216}: Requires technical reserves calculated using actuarial methods consistent with the risk profile of obligations assumed. Reserve calculations rely on mortality tables that are, by regulatory design, sex-differentiated.
+
+  \item \textbf{LISF Article 218}: Requires that \emph{Bases T\'{e}cnicas} submitted to the CNSF specify the mortality table employed. The CNSF's official tables provide separate $\qx{x}$ columns for males and females, making sex-differentiated pricing the implicit default.
+
+  \item \textbf{CUSF Chapter 7.3} (\emph{Bases T\'{e}cnicas del Seguro de Vida}): Specifies technical requirements for life insurance product registration, including the obligation to demonstrate actuarial sufficiency using sex-specific mortality assumptions.
+
+  \item \textbf{CUSF Chapter 7.16}: Governs reserve table construction and requires consistency between pricing and reserving mortality assumptions.
+\end{enumerate}
+
+\subsubsection{Official Mortality Tables}
+
+The CNSF publishes official mortality tables that structurally encode sex differentiation:
+\begin{itemize}
+  \item \textbf{CNSF 2000-I}: Individual life insurance regulatory table with separate columns for $\qx{x}^{\text{male}}$ and $\qx{x}^{\text{female}}$.
+  \item \textbf{EMSSA 2009}: Mexican social security mortality experience, with genuine sex-differentiated rates.
+  \item \textbf{CNSF 2000-G}: Group life insurance table, similarly sex-differentiated.
+\end{itemize}
+
+\begin{remark}
+The existence of separate columns is not merely permissive---it is a \emph{structural feature} of the Mexican regulatory approach. An insurer wishing to use unisex pricing would need to develop and justify its own combined table, requiring CNSF approval without direct regulatory table support.
+\end{remark}
+
+\subsubsection{Constitutional and Anti-Discrimination Context}
+
+Mexico's Constitution (Article 1, reformed 2011) prohibits discrimination based on sex, and the \emph{Ley Federal para Prevenir y Eliminar la Discriminaci\'{o}n} (LFPED, 2003) further prohibits discriminatory practices. However, neither has been interpreted to prohibit sex-based insurance pricing. The CNSF, Congress, and courts have not drawn the connection between anti-discrimination law and actuarial pricing that the CJEU drew in \emph{Test-Achats}.
+
+\subsection{Regulatory Philosophy Differences}
+\label{subsec:philosophy}
+
+\begin{table}[H]
+\centering
+\caption{Regulatory philosophy comparison: EU vs.\ Mexico.}
+\label{tab:philosophy}
+\renewcommand{\arraystretch}{1.2}%
+\begin{tabularx}{\textwidth}{p{3.2cm}XX}
+\toprule
+\textbf{Dimension} & \textbf{EU (post-\emph{Test-Achats})} & \textbf{Mexico (LISF/CUSF)} \\
+\midrule
+\textbf{Primary principle} &
+  Equal treatment as fundamental right &
+  Actuarial accuracy as regulatory priority \\
+\textbf{Sex in pricing} &
+  Prohibited for consumer-facing prices &
+  Explicitly permitted; regulatory tables provide separate columns \\
+\textbf{Justification} &
+  Statistical correlation does not justify classification by protected characteristic &
+  Different risk $=$ different price; actuarial fairness \\
+\textbf{Reserving} &
+  Sex-differentiated tables for BEL under Solvency~II &
+  Sex-differentiated tables are the standard \\
+\textbf{Legal basis} &
+  Charter of Fundamental Rights, Arts.\ 21, 23 &
+  LISF Arts.\ 216, 218; CUSF Chapters 7.3, 7.16 \\
+\textbf{Analog to race/ethnicity} &
+  Yes---sex treated as protected characteristic &
+  No---sex treated as legitimate actuarial variable \\
+\textbf{Solvency regime interaction} &
+  Pricing unisex, reserving sex-specific (basis risk) &
+  Pricing and reserving both sex-specific (consistency) \\
+\textbf{International reinsurance} &
+  EU reinsurers may apply internal unisex policies globally &
+  Cedant pricing sex-differentiated; reinsurer accepts as-is \\
+\textbf{Professional standards} &
+  Aligning with IAA anti-discrimination guidance &
+  CONAC follows traditional classification norms \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The philosophical tension is a conflict between two conceptions of fairness:
+\begin{itemize}
+  \item \textbf{Actuarial fairness}: each policyholder should pay a premium commensurate with their expected cost. Sex-based pricing is \emph{accurate}, not discriminatory. Mexico embodies this principle.
+  \item \textbf{Social solidarity}: certain characteristics should not be used to differentiate prices, regardless of actuarial relevance, because doing so conflicts with equal dignity. The EU embodies this principle.
+\end{itemize}
+
+Neither is objectively ``correct'' \cite{thiery2006}. However, the actuarial fairness principle, taken to its logical extreme, would also justify pricing based on race, ethnicity, or genetic markers. The social solidarity principle imposes a boundary on which characteristics may be used, accepting some loss of precision as the cost of equal treatment.
+
+\subsection{Hypothetical Impact Analysis: Unisex Pricing in Mexico}
+\label{subsec:hypothetical}
+
+What would happen if Mexico adopted EU-style unisex pricing?
+
+\subsubsection{Life Insurance Market}
+
+The cross-subsidization magnitude would be driven by $R(x)$, which peaks at 5.03 at age 50 in EMSSA~2009---substantially higher than most Western European tables. Female term life premiums at ages 20--50 would increase by an estimated 100--200\%, based on our computed cross-subsidy figures (Table~\ref{tab:cross-subsidy-all}).
+
+\subsubsection{Annuity and Pension Market}
+
+Mexico's pension annuities under the \emph{Sistema de Ahorro para el Retiro} (SAR) would experience reverse cross-subsidization. Given that annuity purchase is heavily influenced by regulatory requirements (AFORE-to-annuity conversion), adverse selection effects would likely be minimal.
+
+\subsubsection{Structural Challenges}
+
+\begin{enumerate}
+  \item \textbf{Regulatory table reconstruction}: The CNSF would need to publish unified mortality tables or establish construction guidelines.
+  \item \textbf{AFORE transition}: Pension annuity pricing would require comprehensive reform.
+  \item \textbf{Reinsurance implications}: Mexican cedants reinsured with EU-based reinsurers would need to reconcile sex-differentiated cession with potential reinsurer unisex policies.
+  \item \textbf{Professional practice}: CONAC would need to develop practice notes for unisex pricing methodology.
+\end{enumerate}
+
+\subsection{The Latin American Context}
+\label{subsec:latam}
+
+As of 2025, no Latin American country has adopted EU-style unisex insurance pricing. The regulatory landscape reflects consistent emphasis on actuarial accuracy:
+
+\begin{itemize}
+  \item \textbf{Brazil}: SUSEP permits sex-differentiated pricing. The 2015 reform focused on solvency, not anti-discrimination.
+  \item \textbf{Chile}: CMF permits sex-differentiated pricing. The 2020 pension reform debate touched on gender equity but adopted no unisex mandate.
+  \item \textbf{Colombia}: The Superintendencia Financiera permits sex-based pricing despite constitutional anti-discrimination provisions (Article 13).
+  \item \textbf{Argentina}: The Superintendencia de Seguros permits sex-differentiated pricing.
+\end{itemize}
+
+Two developments bear monitoring:
+\begin{enumerate}
+  \item The Inter-American Court of Human Rights has expanded its gender equality jurisprudence. Advisory Opinion OC-24/17 on gender identity could provide a foundation for future challenges.
+  \item International actuarial bodies (IAA, ASTIN) increasingly address the use of protected characteristics in pricing.
+\end{enumerate}
+
+\subsection{Implications for Mexican Actuaries}
+\label{subsec:implications-mexico}
+
+Despite Mexico's permissive stance, Mexican actuaries should understand both frameworks:
+
+\begin{enumerate}
+  \item \textbf{International reinsurance}: EU-based reinsurers (Munich Re, Swiss Re, SCOR, Hannover Re) may apply internal unisex policies regardless of local regulation.
+  \item \textbf{Multinational portfolios}: Mexican subsidiaries of European insurers (Mapfre, AXA, Zurich, Allianz) may adopt group-wide unisex pricing.
+  \item \textbf{Regulatory convergence}: The CNSF's ongoing alignment with international solvency standards may eventually extend to pricing regulations.
+  \item \textbf{Professional standards}: CONAC members in international discussions must be conversant with the EU precedent.
+  \item \textbf{Competitive advantage}: Actuaries fluent in both paradigms have an advantage in the global labor market.
+\end{enumerate}
+
+
+%=============================================================================
+\section{Relevance to SIMA}
+\label{sec:sima}
+%=============================================================================
+
+\subsection{Why SIMA Uses the Aggregate Method}
+\label{subsec:sima-aggregate}
+
+SIMA's mortality data pipeline (\texttt{a06\_mortality\_data.py}) supports three
+sex selections: \texttt{sex="Hombres"} (male), \texttt{sex="Mujeres"} (female),
+and \texttt{sex="Total"} (combined). When \texttt{sex="Total"} is selected,
+SIMA employs the aggregate population method (Definition~\ref{def:aggregate-method}).
+
+This design choice was driven by three practical considerations:
+
+\begin{enumerate}
+  \item \textbf{Data availability}: INEGI publishes death counts and CONAPO
+        publishes population estimates with a ``Total'' category that aggregates
+        both sexes. This is the most readily available and reproducible public
+        data source.
+
+  \item \textbf{Single-model simplicity}: The aggregate method requires fitting
+        only \emph{one} Lee-Carter model:
+        \begin{equation}
+          \ln \mx{x,t}^{\text{Total}} = a_x^{\text{Total}} + b_x^{\text{Total}}
+          \cdot k_t^{\text{Total}} + \varepsilon_{x,t}
+        \end{equation}
+        The blended method would require fitting \emph{two} separate Lee-Carter
+        models (male and female), projecting two mortality surfaces, converting
+        to two life tables, blending with a user-specified $\alpha$, and computing
+        commutation functions from the blend---doubling the pipeline and introducing
+        an additional assumption.
+
+  \item \textbf{Portfolio independence}: The aggregate method produces a
+        ``population-average'' unisex table independent of any insurer's
+        portfolio mix, suitable as a regulatory benchmark.
+\end{enumerate}
+
+\begin{remark}[When the blended method would be preferred]
+In a real pricing context, an insurer would use the blended method with $\alpha$
+calibrated to its actual portfolio composition. For example, if a whole life
+portfolio is 65\% male, $\alpha = 0.65$ produces a unisex premium closer to the
+male rate. The aggregate method uses demographic-average weights that may not
+reflect any specific insurer's experience.
+\end{remark}
+
+\subsection{The CNSF 2000-I Discovery}
+\label{subsec:cnsf-discovery}
+
+An unexpected finding during this analysis: the CNSF~2000-I regulatory table
+stored in SIMA's data directory contains \textbf{identical values} in the
+\texttt{qx\_male} and \texttt{qx\_female} columns across all 88 ages (12--99).
+Despite the CSV format suggesting sex differentiation, the table is effectively
+unisex.
+
+By contrast, EMSSA~2009 exhibits genuine sex differentiation with $R(x)$ ranging
+from 0.70 to 5.03. This discovery has two implications:
+\begin{enumerate}
+  \item Any numerical examples using CNSF~2000-I for sex-specific comparisons
+        would produce identical results---uninformative for gender directive analysis.
+  \item It raises the question of whether the CNSF~2000-I was designed as a
+        unisex table from inception or whether the data file contains a
+        transcription artifact.
+\end{enumerate}
+
+\subsection{Code Architecture for Sex-Specific Pricing}
+\label{subsec:code-architecture}
+
+SIMA's engine handles both sex-specific and unisex pricing through a
+table-agnostic architecture:
+
+\begin{enumerate}\footnotesize\sloppy
+  \item \textbf{Data loading} (\texttt{a01\_life\_table.py}):
+        \texttt{LifeTable.from\_regulatory\_table(filepath, sex="male")}
+        reads the appropriate column. Two calls produce independent life tables.
+
+  \item \textbf{Commutation functions} (\texttt{a02\_commutation.py}):
+        \texttt{CommutationFunctions(life\_table, interest\_rate)}
+        takes any life table and computes the full $D_x, N_x, C_x, M_x$ schedule.
+
+  \item \textbf{Premiums and reserves} (\texttt{a04\_premiums.py},
+        \texttt{a05\_reserves.py}): the classes \texttt{PremiumCalculator}
+        and \texttt{ReserveCalculator} accept any commutation table.
+
+  \item \textbf{API layer}
+        (\texttt{backend/api/services/precomputed.py}):
+        the precomputed service runs separate pipelines for male, female,
+        and total data, caching results for rapid API responses.
+\end{enumerate}
+
+The architecture is deliberately \emph{table-agnostic}: premium and reserve
+calculators have no knowledge of whether they operate on a male, female, or
+unisex table. Switching pricing paradigms requires no code changes---only a
+different input table.
+
+\begin{example}[Computing the numbers in this document]
+\label{ex:code}
+The numerical examples in Section~\ref{sec:actuarial} were computed as follows:
+\begin{verbatim}
+from backend.engine.a01_life_table import LifeTable
+from backend.engine.a02_commutation import CommutationFunctions
+from backend.engine.a04_premiums import PremiumCalculator
+
+# Three independent pipelines
+lt_m = LifeTable.from_regulatory_table('emssa_2009.csv', sex='male')
+lt_f = LifeTable.from_regulatory_table('emssa_2009.csv', sex='female')
+
+# Unisex via 50/50 blended qx
+ages = lt_m.ages
+qx_u = [(lt_m.qx[a] + lt_f.qx[a]) / 2 for a in ages]
+lx_u = [100_000.0]  # radix
+for q in qx_u[:-1]:
+    lx_u.append(lx_u[-1] * (1 - q))
+lt_u = LifeTable(ages, lx_u)
+
+# Same chain for each
+pc_m = PremiumCalculator(CommutationFunctions(lt_m, 0.05))
+pc_f = PremiumCalculator(CommutationFunctions(lt_f, 0.05))
+pc_u = PremiumCalculator(CommutationFunctions(lt_u, 0.05))
+\end{verbatim}
+
+The three pipelines share identical code paths; only the input data differs.
+This is a concrete demonstration of SIMA's regulatory-agnostic design.
+\end{example}
+
+\subsection{Interview Discussion Points}
+\label{subsec:interview}
+
+\begin{enumerate}
+  \item \textbf{``Why does SIMA offer a unisex option?''}
+  \begin{itemize}
+    \item To demonstrate awareness of global regulatory trends.
+    \item To show that the engine handles both paradigms without architectural changes.
+    \item Because INEGI ``Total'' data is the most readily available public source.
+  \end{itemize}
+
+  \item \textbf{``What is the difference between aggregate and blended unisex?''}
+  \begin{itemize}
+    \item Aggregate: actual combined population data; weights vary by age
+          (Proposition~\ref{prop:non-equivalence}).
+    \item Blended: fixed proportion $\alpha$ applied uniformly.
+    \item Key insight: aggregate gives less weight to males at advanced ages.
+    \item SIMA uses aggregate because INEGI publishes ``Total'' directly.
+  \end{itemize}
+
+  \item \textbf{``Quantify the cross-subsidy for a specific product.''}
+  \begin{itemize}
+    \item 20-year term at age 40 (EMSSA~2009, $i = 5\%$): male \$315.48,
+          female \$65.68, unisex \$190.87.
+    \item Female surcharge: +190.6\% (pays 2.9 times her fair price).
+    \item Male discount: $-$39.5\%.
+    \item Endowment at same age/term: female surcharge only +2.4\%.
+  \end{itemize}
+
+  \item \textbf{``What risks does unisex pricing create?''}
+  \begin{itemize}
+    \item Cross-subsidization and adverse selection.
+    \item Reserving mismatch (basis risk under Solvency~II).
+    \item But EU evidence: manageable practical impact.
+  \end{itemize}
+
+  \item \textbf{``Why is CNSF 2000-I effectively unisex?''}
+  \begin{itemize}
+    \item Identical male and female columns in the data file.
+    \item May reflect its purpose as a minimum regulatory standard.
+    \item EMSSA~2009 is the correct table for sex-differentiated analysis.
+  \end{itemize}
+\end{enumerate}
+
+
+%=============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%=============================================================================
+
+The EU Gender Directive and the \emph{Test-Achats} ruling represent a landmark
+intersection of actuarial science and fundamental rights law. The biological and
+behavioral reality of sex-differentiated mortality is scientifically well-established
+and quantitatively significant: under EMSSA~2009, males die at rates 1.8--5.0
+times higher than females across ages 0--60, with a remarkable crossover at age~88
+where female mortality surpasses male.
+
+From a purely actuarial perspective, sex-based pricing reflects genuine risk
+differences. The magnitude is striking: at age 40, the male-to-female premium
+ratio reaches 4.80 for 20-year term insurance, translating into a cross-subsidy
+of +190.6\% on females under a 50/50 unisex blend. For endowment insurance,
+where the savings component dominates, the cross-subsidy is a mere +2.4\%.
+For annuities, the cross-subsidy reverses: males are surcharged +3.6\% under
+unisex pricing.
+
+However, the CJEU's ruling establishes that actuarial accuracy is not a sufficient
+justification for differential treatment based on a protected characteristic. The
+principle of equal treatment, enshrined in the Charter of Fundamental Rights, takes
+precedence over statistical precision. From a welfare economics perspective, the
+move to unisex pricing is not Pareto-improving, but the EU's approach is best
+understood through a rights-based framework where the question is not efficiency
+but permissibility.
+
+The empirical record after over a decade of EU-wide implementation provides
+reassurance: the predicted adverse selection spiral has not materialized, insurance
+markets have continued to function normally, and the transition stimulated
+innovation in individual-level risk assessment through telematics and enhanced
+underwriting. The Solvency~II framework accommodates the duality by permitting
+sex-differentiated tables for best-estimate reserving while requiring unisex pricing
+for consumers, though this creates a structural basis risk.
+
+The Mexican regulatory framework, embodied in the LISF and the CNSF's sex-differentiated
+mortality tables, reflects a different value judgment: that actuarial accuracy and
+solvency protection are best served by the most granular risk classification
+available. No Latin American country has adopted unisex pricing requirements,
+though the expanding jurisprudence of the Inter-American Court of Human Rights
+and the influence of international actuarial standards may eventually alter
+this landscape.
+
+For the SIMA project, the duality of regulatory approaches is a feature, not a
+limitation. The system's table-agnostic architecture---where the same commutation
+function, premium, and reserve calculators operate on any mortality table without
+modification---demonstrates the flexibility required of modern actuarial systems
+in a globalized regulatory landscape. The discovery that CNSF~2000-I is effectively
+unisex while EMSSA~2009 provides genuine sex differentiation adds an empirical
+nuance to the regulatory comparison. The mathematical framework developed here---the
+formal proof of premium ordering (Proposition~\ref{prop:direction}), the
+distinction between aggregate and blended methods (Proposition~\ref{prop:non-equivalence}),
+and the quantified cross-subsidization across product types---provides the
+theoretical and computational foundation for navigating both regulatory paradigms.
+
+
+%=============================================================================
+% References
+%=============================================================================
+\begin{thebibliography}{99}\sloppy
+
+\bibitem{directive2004}
+Council of the European Union.
+\emph{Council Directive 2004/113/EC of 13 December 2004 implementing the principle of
+equal treatment between men and women in the access to and supply of goods and services}.
+Official Journal of the European Union, L 373/37, 21.12.2004.
+
+\bibitem{testachats2011}
+Court of Justice of the European Union.
+\emph{Case C-236/09, Association belge des Consommateurs Test-Achats ASBL and Others v.
+Conseil des ministres}, [2011] ECR I-773.
+Judgment of 1 March 2011 (Grand Chamber).
+
+\bibitem{kokott2010}
+Kokott, J.\ (Advocate General).
+\emph{Opinion in Case C-236/09, Association belge des Consommateurs Test-Achats ASBL
+and Others v.\ Conseil des ministres}.
+ECLI:EU:C:2010:564, delivered 30 September 2010.
+
+\bibitem{ec_guidelines2012}
+European Commission.
+\emph{Guidelines on the application of Council Directive 2004/113/EC to insurance, in the
+light of the judgment of the Court of Justice of the European Union in Case C-236/09
+(Test-Achats)}.
+Official Journal of the European Union, 2012/C 11/01, 13.1.2012.
+
+\bibitem{solvencyii2009}
+European Parliament and Council.
+\emph{Directive 2009/138/EC of 25 November 2009 on the taking-up and pursuit of the
+business of Insurance and Reinsurance (Solvency~II)}.
+Official Journal of the European Union, L~335/1, 17.12.2009.
+
+\bibitem{schmeiser2014}
+Schmeiser, H., St\"{o}rmer, T., and Wagner, J.
+``Unisex Insurance Pricing: Consumers' Perception and Market Implications.''
+\emph{The Geneva Papers on Risk and Insurance --- Issues and Practice}, 39(2):322--350, 2014.
+
+\bibitem{aseervatham2016}
+Aseervatham, V., Lex, C., and Spindler, M.
+``How Do Unisex Rating Regulations Affect Gender Differences in Insurance Premiums?''
+\emph{The Geneva Papers on Risk and Insurance --- Issues and Practice}, 41(1):128--160, 2016.
+
+\bibitem{bunnings2021}
+Huang, S.\ and Salm, M.
+``The Effect of a Ban on Gender-Based Pricing on Risk Selection in the German
+Health Insurance Market.''
+\emph{Health Economics}, 29(1):3--17, 2020.
+
+\bibitem{rothschild1976}
+Rothschild, M.\ and Stiglitz, J.E.
+``Equilibrium in Competitive Insurance Markets: An Essay on the Economics of
+Imperfect Information.''
+\emph{The Quarterly Journal of Economics}, 90(4):629--649, 1976.
+
+\bibitem{akerlof1970}
+Akerlof, G.A.
+``The Market for `Lemons': Quality Uncertainty and the Market Mechanism.''
+\emph{The Quarterly Journal of Economics}, 84(3):488--500, 1970.
+
+\bibitem{oxera2010}
+Oxera Consulting.
+\emph{The Use of Gender in Insurance Pricing}.
+ABI Research Paper No.\ 24, Association of British Insurers, 2010.
+
+\bibitem{thiery2006}
+Thiery, Y.\ and Van Schoubroeck, C.
+``Fairness and Equality in Insurance Classification.''
+\emph{The Geneva Papers on Risk and Insurance --- Issues and Practice}, 31(2):190--211, 2006.
+
+\bibitem{lisf2013}
+Congreso de los Estados Unidos Mexicanos.
+\emph{Ley de Instituciones de Seguros y Fianzas}.
+Diario Oficial de la Federaci\'{o}n, 4 de abril de 2013.
+
+\bibitem{bowers1997}
+Bowers, N.L., Gerber, H.U., Hickman, J.C., Jones, D.A., and Nesbitt, C.J.
+\emph{Actuarial Mathematics}, 2nd edition.
+Society of Actuaries, Schaumburg, IL, 1997.
+
+\bibitem{beltran2015}
+Beltr\'{a}n-S\'{a}nchez, H., Finch, C.E., and Crimmins, E.M.
+``Twentieth Century Surge of Excess Adult Male Mortality.''
+\emph{Proceedings of the National Academy of Sciences}, 112(29):8993--8998, 2015.
+
+\bibitem{remund2018}
+Remund, A., Camarda, C.G., and Riffe, T.
+``A Cause-of-Death Decomposition of Young Adult Excess Mortality.''
+\emph{Demography}, 55(3):957--978, 2018.
+
+\bibitem{colchero2016}
+Colchero, F., et al.
+``The Emergence of Longevous Populations.''
+\emph{Proceedings of the National Academy of Sciences}, 113(48):E7681--E7690, 2016.
+
+\bibitem{cather2020}
+Cather, D.A.
+``Reconsidering Insurance Discrimination and Adverse Selection in an Era of Data Analytics.''
+\emph{The Geneva Papers on Risk and Insurance --- Issues and Practice}, 45(3):426--456, 2020.
+
+\bibitem{chen2023}
+Xin, X.\ and Huang, F.
+``Antidiscrimination Insurance Pricing: Regulations, Fairness Criteria, and Models.''
+\emph{North American Actuarial Journal}, 28(2):285--319, 2024.
+
+\bibitem{abi_gender_faq}
+Association of British Insurers (ABI).
+\emph{A Question of Sex: Changes to the Use by Insurers of a Customer's Gender}.
+ABI FAQ Document, 2012.
+
+\end{thebibliography}
+
+\end{document}

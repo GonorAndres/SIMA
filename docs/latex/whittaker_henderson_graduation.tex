@@ -1,21 +1,28 @@
 \documentclass[11pt,a4paper]{article}
 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
 % ── Packages ──────────────────────────────────────────────────────────────────
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{mathtools}
 \usepackage{bm}
 \usepackage{tcolorbox}
+\tcbuselibrary{breakable}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{hyperref}
 \usepackage[margin=2.5cm]{geometry}
 
+% ── Fix \bm in PDF bookmarks ─────────────────────────────────────────────────
+\pdfstringdefDisableCommands{\def\bm#1{#1}}
+
 % ── Box definitions ───────────────────────────────────────────────────────────
-\newtcolorbox{formaldef}[1][]{colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{intuition}[1][]{colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{application}[1][]{colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
-\newtcolorbox{dimcheck}{colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
+\newtcolorbox{formaldef}[1][]{breakable,colback=blue!5!white,colframe=blue!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{intuition}[1][]{breakable,colback=green!5!white,colframe=green!50!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{application}[1][]{breakable,colback=orange!5!white,colframe=orange!60!black,fonttitle=\bfseries,title={#1},sharp corners,boxrule=0.8pt}
+\newtcolorbox{dimcheck}{breakable,colback=gray!8!white,colframe=gray!50!black,fonttitle=\bfseries,title={Dimension Check},sharp corners,boxrule=0.6pt}
 
 % ── Title setup ───────────────────────────────────────────────────────────────
 \title{%
@@ -23,7 +30,7 @@
   \Large From Bending Rods to Smooth Mortality\\[4pt]
   \large A Bridge Document for SIMA --- Mortality Smoothing%
 }
-\author{SIMA Project}
+\author{Andr\'{e}s Gonz\'{a}lez Ortega --- SIMA, febrero 2026}
 \date{\today}
 
 \begin{document}

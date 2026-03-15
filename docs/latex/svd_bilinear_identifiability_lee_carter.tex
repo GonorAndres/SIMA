@@ -6,6 +6,7 @@
 \usepackage{mathtools}
 \usepackage{bm}
 \usepackage{tcolorbox}
+\tcbuselibrary{breakable}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{enumitem}
@@ -22,6 +23,7 @@
 
 % Three-box system
 \newtcolorbox{formaldef}[1][]{
+  breakable,
   colback=blue!5!white,
   colframe=blue!60!black,
   fonttitle=\bfseries,
@@ -31,6 +33,7 @@
 }
 
 \newtcolorbox{intuition}[1][]{
+  breakable,
   colback=green!5!white,
   colframe=green!50!black,
   fonttitle=\bfseries,
@@ -40,6 +43,7 @@
 }
 
 \newtcolorbox{application}[1][]{
+  breakable,
   colback=orange!5!white,
   colframe=orange!60!black,
   fonttitle=\bfseries,
@@ -49,6 +53,7 @@
 }
 
 \newtcolorbox{dimcheck}{
+  breakable,
   colback=gray!8!white,
   colframe=gray!50!black,
   fonttitle=\bfseries,
@@ -59,7 +64,7 @@
 
 \title{\textbf{SVD, Bilinear Decomposition, and Identifiability Constraints} \\[0.5em]
 \large A Bridge Document for SIMA -- Lee-Carter Mortality Modeling}
-\author{SIMA Project}
+\author{Andr\'{e}s Gonz\'{a}lez Ortega --- SIMA, febrero 2026}
 \date{\today}
 
 \begin{document}

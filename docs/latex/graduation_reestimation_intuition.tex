@@ -1,16 +1,19 @@
 \documentclass[11pt, a4paper]{article}
 
 % --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath, amssymb}
 \usepackage{mathtools}
 \usepackage{bm}
 \usepackage{tcolorbox}
+\tcbuselibrary{breakable}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{hyperref}
-\usepackage{graphicx}
 
 \hypersetup{
   colorlinks=true,
@@ -20,6 +23,7 @@
 
 % --- Three-Box System ---
 \newtcolorbox{formaldef}[1][]{
+  breakable,
   colback=blue!5!white,
   colframe=blue!60!black,
   fonttitle=\bfseries,
@@ -29,6 +33,7 @@
 }
 
 \newtcolorbox{intuition}[1][]{
+  breakable,
   colback=green!5!white,
   colframe=green!50!black,
   fonttitle=\bfseries,
@@ -38,6 +43,7 @@
 }
 
 \newtcolorbox{application}[1][]{
+  breakable,
   colback=orange!5!white,
   colframe=orange!60!black,
   fonttitle=\bfseries,
@@ -58,7 +64,7 @@
 \title{\textbf{Why Our Model Couldn't Count Deaths} \\[0.5em]
 \large Graduation, Negative $\bx$, and the Re-estimation Paradox \\[0.3em]
 \normalsize An Intuitive Guide}
-\author{SIMA -- Sistema Integral de Modelaci\'{o}n Actuarial}
+\author{Andr\'{e}s Gonz\'{a}lez Ortega --- SIMA, febrero 2026}
 \date{\today}
 
 \maketitle
