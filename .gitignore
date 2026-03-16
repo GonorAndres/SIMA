@@ -32,7 +32,8 @@ backend/data/hmd/
 # Mexican data (do not redistribute -- download from original sources)
 backend/data/inegi/
 backend/data/conapo/
-backend/data/cnsf/
+# NOTE: CNSF/EMSSA tables are PUBLIC regulatory data (published in CUSF/DOF).
+# They are tracked in git with sex-differentiated qx_male/qx_female columns.
 
 # Frontend build artifacts and dependencies
 frontend/node_modules/
