@@ -70,6 +70,9 @@ REAL_HMD_DIR = DATA_DIR / "hmd"
 MOCK_HMD_DIR = MOCK_DIR / "hmd"
 HMD_COUNTRIES = ["usa", "spain"]
 
+# Projection constants
+PROJECTION_YEAR = 2029
+
 
 def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
     """Resolve data file paths: prefer real data, fall back to mock."""
@@ -89,16 +92,8 @@ def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
     return deaths, population, cnsf, cnsf_2013, emssa, source
 
 
-def _build_pipeline(deaths: str, population: str, inegi_sex: str) -> dict:
-    """Build a full MortalityData -> Graduation -> LeeCarter -> Projection pipeline."""
-    md = MortalityData.from_inegi(
-        deaths_filepath=deaths,
-        population_filepath=population,
-        sex=inegi_sex,
-        year_start=1990,
-        year_end=2019,
-        age_max=100,
-    )
+def _fit_pipeline(md: MortalityData) -> dict:
+    """Graduate, fit Lee-Carter, and project from a MortalityData object."""
     grad = GraduatedRates(
         md,
         lambda_param=1e5,
@@ -118,6 +113,19 @@ def _build_pipeline(deaths: str, population: str, inegi_sex: str) -> dict:
         "lee_carter": lc,
         "projection": proj,
     }
+
+
+def _build_inegi_pipeline(deaths: str, population: str, inegi_sex: str) -> dict:
+    """Build pipeline from INEGI/CONAPO data."""
+    md = MortalityData.from_inegi(
+        deaths_filepath=deaths,
+        population_filepath=population,
+        sex=inegi_sex,
+        year_start=1990,
+        year_end=2019,
+        age_max=100,
+    )
+    return _fit_pipeline(md)
 
 
 def _resolve_hmd_dir(country: str) -> str:
@@ -130,7 +138,7 @@ def _resolve_hmd_dir(country: str) -> str:
 
 
 def _build_hmd_pipeline(data_dir: str, country: str, hmd_sex: str) -> dict:
-    """Build a full LC pipeline from HMD data for a given country and sex."""
+    """Build pipeline from HMD data."""
     md = MortalityData.from_hmd(
         data_dir=data_dir,
         country=country,
@@ -139,25 +147,7 @@ def _build_hmd_pipeline(data_dir: str, country: str, hmd_sex: str) -> dict:
         year_max=2019,
         age_max=100,
     )
-    grad = GraduatedRates(
-        md,
-        lambda_param=1e5,
-        diff_order=2,
-        weight_by_exposure=True,
-    )
-    lc = LeeCarter.fit(grad, reestimate_kt=False)
-    proj = MortalityProjection(
-        lc,
-        horizon=30,
-        n_simulations=500,
-        random_seed=42,
-    )
-    return {
-        "mortality_data": md,
-        "graduated": grad,
-        "lee_carter": lc,
-        "projection": proj,
-    }
+    return _fit_pipeline(md)
 
 
 def load_all() -> None:
@@ -173,7 +163,7 @@ def load_all() -> None:
         # Build one LC pipeline per sex (Mexico via INEGI/CONAPO)
         for sex_key, inegi_sex in SEX_TO_INEGI.items():
             logger.info("Loading Mexico %s (%s) pipeline...", sex_key, inegi_sex)
-            _pipelines[sex_key] = _build_pipeline(deaths, population, inegi_sex)
+            _pipelines[sex_key] = _build_inegi_pipeline(deaths, population, inegi_sex)
 
         # Build HMD pipelines for USA and Spain (3 sexes each)
         for country in HMD_COUNTRIES:
@@ -265,7 +255,7 @@ def get_regulatory_lt(table_type: str = "cnsf", sex: str = "male") -> LifeTable:
     return _check_loaded(lt, f"regulatory_lt({table_type}/{sex})")
 
 
-def get_projected_life_table(year: int, sex: str = "unisex") -> LifeTable:
+def get_projected_life_table(year: int = PROJECTION_YEAR, sex: str = "unisex") -> LifeTable:
     """Get a Mexico life table projected to a specific year."""
     proj = get_projection(sex)
     return proj.to_life_table(year=year, radix=100_000)
@@ -290,7 +280,7 @@ def get_hmd_lee_carter(country: str, sex: str = "unisex") -> LeeCarter:
 
 
 def get_hmd_projected_life_table(
-    country: str, year: int, sex: str = "unisex"
+    country: str, year: int = PROJECTION_YEAR, sex: str = "unisex"
 ) -> LifeTable:
     """Get a HMD country life table projected to a specific year."""
     proj = get_hmd_pipeline(country, sex)["projection"]

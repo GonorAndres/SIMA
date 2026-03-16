@@ -57,19 +57,19 @@ export default function Tarificacion() {
 
   const loading = premium.loading || reserve.loading || sensitivity.loading || crossCountry.loading;
 
-  const countryColors: Record<string, string> = {
+  const countryColors: Record<string, string> = useMemo(() => ({
     'Mexico': '#C41E3A',
     'Estados Unidos': '#1A365D',
     'España': '#D4A843',
-  };
+  }), []);
 
-  const crossCountryColumns = [
+  const crossCountryColumns = useMemo(() => [
     { key: 'country', label: t('tarificacion.crossCountryCountry') },
     { key: 'annual_premium', label: t('tarificacion.crossCountryPremium'), align: 'right' as const, numeric: true, format: (v: unknown) => `$${(v as number).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
     { key: 'premium_rate', label: t('tarificacion.crossCountryRate'), align: 'right' as const, numeric: true, format: (v: unknown) => `${((v as number) * 100).toFixed(4)}%` },
     { key: 'drift', label: t('tarificacion.crossCountryDrift'), align: 'right' as const, numeric: true, format: (v: unknown) => (v as number).toFixed(4) },
     { key: 'explained_var', label: t('tarificacion.crossCountryVar'), align: 'right' as const, numeric: true, format: (v: unknown) => `${((v as number) * 100).toFixed(1)}%` },
-  ];
+  ], [t]);
 
   return (
     <PageLayout
