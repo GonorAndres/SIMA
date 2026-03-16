@@ -74,18 +74,11 @@ jobs:
             --memory 2Gi \
             --cpu 2
 
-      - name: Verify deployment serves real data
+      - name: Validate production (actuarial + data source)
         run: |
           sleep 30
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
             --region ${{ env.REGION }} \
             --format 'value(status.url)')
           echo "Service URL: $SERVICE_URL"
-          HEALTH=$(curl -sf "$SERVICE_URL/api/health")
-          echo "Health response: $HEALTH"
-          DATA_SOURCE=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['data_source'])")
-          if [ "$DATA_SOURCE" != "real" ]; then
-            echo "DEPLOY FAILED: data_source='$DATA_SOURCE', expected 'real'"
-            exit 1
-          fi
-          echo "Deployment verified: serving real data"
+          python3 scripts/validate_production.py "$SERVICE_URL"
