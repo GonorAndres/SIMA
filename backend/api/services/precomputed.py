@@ -89,6 +89,13 @@ def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
     cnsf_2013 = str(REAL_CNSF_2013) if REAL_CNSF_2013.exists() else None
     emssa = str(REAL_EMSSA) if REAL_EMSSA.exists() else str(MOCK_EMSSA)
 
+    logger.info("Data path resolution: source=%s, deaths=%s, population=%s", source, deaths, population)
+    if source == "mock":
+        logger.warning(
+            "REAL DATA NOT FOUND. Expected: %s and %s. Falling back to mock.",
+            REAL_DEATHS, REAL_POPULATION,
+        )
+
     return deaths, population, cnsf, cnsf_2013, emssa, source
 
 
@@ -133,7 +140,13 @@ def _resolve_hmd_dir(country: str) -> str:
     real_dir = REAL_HMD_DIR / country
     mock_dir = MOCK_HMD_DIR / country
     if real_dir.exists() and any(real_dir.glob("*.txt")):
+        logger.info("HMD %s: using real data from %s", country, real_dir)
         return str(real_dir.parent)
+    logger.warning(
+        "HMD %s: real data not found at %s (exists=%s, files=%s). Falling back to mock.",
+        country, real_dir, real_dir.exists(),
+        list(real_dir.glob("*")) if real_dir.exists() else "dir_missing",
+    )
     return str(mock_dir.parent)
 
 
