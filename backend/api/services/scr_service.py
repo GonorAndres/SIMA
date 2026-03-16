@@ -88,23 +88,23 @@ def compute_portfolio_bel(interest_rate: float = 0.05) -> dict:
 def get_lisf_compliance() -> dict:
     """Return LISF/CUSF regulatory compliance mapping for SCR computation."""
     return {
-        "framework": "LISF/CUSF (Ley de Instituciones de Seguros y Fianzas / Circular Unica de Seguros y Fianzas)",
+        "framework": "LISF/CUSF (Ley de Instituciones de Seguros y Fianzas / Circular Única de Seguros y Fianzas)",
         "framework_description_es": (
             "El RCS (Requerimiento de Capital de Solvencia) es el capital que una aseguradora "
-            "debe mantener para absorber perdidas con un nivel de confianza del 99.5% en un "
-            "horizonte de un ano. Mexico adopta el marco de Solvencia II europeo a traves de "
+            "debe mantener para absorber pérdidas con un nivel de confianza del 99.5% en un "
+            "horizonte de un año. México adopta el marco de Solvencia II europeo a través de "
             "la LISF (2013) y la CUSF, supervisado por la CNSF."
         ),
         "framework_description_en": (
             "The SCR (Solvency Capital Requirement, RCS in Spanish) is the capital an insurer "
             "must hold to absorb losses at a 99.5% confidence level over a one-year horizon. "
             "Mexico adopted the European Solvency II framework through LISF (2013) and CUSF, "
-            "supervised by the CNSF (Comision Nacional de Seguros y Fianzas)."
+            "supervised by the CNSF (Comisión Nacional de Seguros y Fianzas)."
         ),
         "risk_modules": [
             {
                 "module": "mortality",
-                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de mortalidad",
+                "lisf_reference": "CUSF Título 5, Capítulo 1, Sección II - Riesgo de mortalidad",
                 "description_es": (
                     "Incremento permanente del 15% en las tasas de mortalidad q_x. "
                     "Afecta solo productos de muerte (temporal, vitalicio, dotal). "
@@ -120,9 +120,9 @@ def get_lisf_compliance() -> dict:
             },
             {
                 "module": "longevity",
-                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de longevidad",
+                "lisf_reference": "CUSF Título 5, Capítulo 1, Sección II - Riesgo de longevidad",
                 "description_es": (
-                    "Disminucion permanente del 20% en las tasas de mortalidad q_x. "
+                    "Disminución permanente del 20% en las tasas de mortalidad q_x. "
                     "Afecta solo rentas vitalicias y pensiones. "
                     "Los productos de muerte se benefician de menor mortalidad."
                 ),
@@ -136,11 +136,11 @@ def get_lisf_compliance() -> dict:
             },
             {
                 "module": "interest_rate",
-                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion I - Riesgo de mercado (tasas de interes)",
+                "lisf_reference": "CUSF Título 5, Capítulo 1, Sección I - Riesgo de mercado (tasas de interés)",
                 "description_es": (
                     "Desplazamiento paralelo de +/- 100 puntos base en la curva de rendimientos. "
                     "Afecta todos los productos porque cada flujo futuro se descuenta. "
-                    "El escenario adverso es tipicamente la baja de tasas: menor descuento "
+                    "El escenario adverso es típicamente la baja de tasas: menor descuento "
                     "significa mayor valor presente de obligaciones."
                 ),
                 "description_en": (
@@ -154,12 +154,12 @@ def get_lisf_compliance() -> dict:
             },
             {
                 "module": "catastrophe",
-                "lisf_reference": "CUSF Titulo 5, Capitulo 1, Seccion II - Riesgo de catastrofe de vida",
+                "lisf_reference": "CUSF Título 5, Capítulo 1, Sección II - Riesgo de catástrofe de vida",
                 "description_es": (
-                    "Pico de mortalidad de un solo ano (+35%), no permanente. "
+                    "Pico de mortalidad de un solo año (+35%), no permanente. "
                     "Calibrado con datos COVID-19 mexicanos (INEGI/CONAPO): "
-                    "el k_t de Lee-Carter revirtio ~6.76 unidades por encima de la tendencia. "
-                    "Solo afecta productos de muerte en el primer ano."
+                    "el k_t de Lee-Carter revirtió ~6.76 unidades por encima de la tendencia. "
+                    "Solo afecta productos de muerte en el primer año."
                 ),
                 "description_en": (
                     "One-year mortality spike (+35%), not permanent. "
@@ -178,10 +178,10 @@ def get_lisf_compliance() -> dict:
             "life_market": 0.25,
         },
         "correlation_basis_es": (
-            "Solvencia II Articulo 136, Reglamento Delegado Anexo IV. "
-            "La correlacion mortalidad-longevidad es negativa (-0.25) porque son opuestos naturales: "
+            "Solvencia II Artículo 136, Reglamento Delegado Anexo IV. "
+            "La correlación mortalidad-longevidad es negativa (-0.25) porque son opuestos naturales: "
             "una pandemia incrementa siniestros por muerte pero reduce obligaciones de rentas. "
-            "Esta cobertura natural genera un beneficio por diversificacion de ~14.4%."
+            "Esta cobertura natural genera un beneficio por diversificación de ~14.4%."
         ),
         "correlation_basis_en": (
             "Solvency II Article 136, Delegated Regulation Annex IV. "
@@ -191,9 +191,9 @@ def get_lisf_compliance() -> dict:
         ),
         "risk_margin_rate": 0.06,
         "risk_margin_basis_es": (
-            "Tasa de Costo de Capital del 6% segun Solvencia II Articulo 37(1). "
+            "Tasa de Costo de Capital del 6% según Solvencia II Artículo 37(1). "
             "MdR = CoC * RCS * factor_anualidad. Representa el precio que otra aseguradora "
-            "cobraria por asumir los requerimientos de capital del portafolio."
+            "cobraría por asumir los requerimientos de capital del portafolio."
         ),
         "risk_margin_basis_en": (
             "Cost-of-Capital rate of 6% per Solvency II Article 37(1). "

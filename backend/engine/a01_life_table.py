@@ -163,9 +163,21 @@ class LifeTable:
 
         with open(path, 'r', newline='') as f:
             reader = csv.DictReader(f)
+            other_col = "qx_female" if sex == "male" else "qx_male"
+            identical_count = 0
             for row in reader:
                 ages.append(int(row['age']))
                 qx_values.append(float(row[col]))
+                if other_col in row and float(row[col]) == float(row[other_col]):
+                    identical_count += 1
+
+        if identical_count == len(ages) and sex != "unisex":
+            import warnings
+            warnings.warn(
+                f"Regulatory table {path.name} has identical qx_male and qx_female columns. "
+                f"Sex-differentiated mortality data is required for accurate pricing.",
+                stacklevel=2,
+            )
 
         # Build l_x from q_x: l_0 = radix, l_{x+1} = l_x * (1 - q_x)
         l_x_values: List[float] = [radix]

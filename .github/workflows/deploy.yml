@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE: sima
+  IMAGE: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/sima/sima
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -20,7 +26,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: projects/451451662791/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@project-ad7a5be2-a1c7-4510-82d.iam.gserviceaccount.com
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -30,15 +37,14 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sima/sima:${{ github.sha }}
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          docker build -t ${{ env.IMAGE }}:${{ github.sha }} .
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy sima \
-            --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sima/sima:${{ github.sha }} \
-            --region us-central1 \
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \

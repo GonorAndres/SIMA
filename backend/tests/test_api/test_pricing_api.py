@@ -121,6 +121,30 @@ def test_premium_sex_parameter(client):
         assert data["annual_premium"] < 1_000_000
 
 
+def test_male_female_premiums_differ(client):
+    """THEORY: Male q_x > female q_x in CNSF tables, so male premiums must be higher."""
+    male = client.post("/api/pricing/premium", json={
+        "product_type": "whole_life",
+        "age": 30,
+        "sum_assured": 1_000_000,
+        "interest_rate": 0.05,
+        "sex": "male",
+    }).json()
+
+    female = client.post("/api/pricing/premium", json={
+        "product_type": "whole_life",
+        "age": 30,
+        "sum_assured": 1_000_000,
+        "interest_rate": 0.05,
+        "sex": "female",
+    }).json()
+
+    assert male["annual_premium"] != female["annual_premium"], \
+        "Male and female premiums are identical -- CNSF tables must have sex-specific rates"
+    assert male["annual_premium"] > female["annual_premium"], \
+        "Male premium must be higher (male q_x > female q_x at all adult ages)"
+
+
 def test_premium_unisex_uses_projected(client):
     """THEORY: Unisex premium uses the projected LC life table (Total population).
     It should differ from male/female regulatory-table premiums since it comes
