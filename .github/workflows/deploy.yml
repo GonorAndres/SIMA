@@ -37,9 +37,11 @@ jobs:
 
       - name: Download real data from GCS
         run: |
-          gsutil -m cp -r gs://sima-mortality-data/inegi/ backend/data/inegi/
-          gsutil -m cp -r gs://sima-mortality-data/conapo/ backend/data/conapo/
-          gsutil -m cp -r gs://sima-mortality-data/hmd/ backend/data/hmd/
+          mkdir -p backend/data/inegi backend/data/conapo backend/data/hmd/usa backend/data/hmd/spain
+          gsutil -m cp gs://sima-mortality-data/inegi/inegi_deaths.csv backend/data/inegi/
+          gsutil -m cp gs://sima-mortality-data/conapo/conapo_population.csv backend/data/conapo/
+          gsutil -m cp gs://sima-mortality-data/hmd/usa/*.txt backend/data/hmd/usa/
+          gsutil -m cp gs://sima-mortality-data/hmd/spain/*.txt backend/data/hmd/spain/
 
       - name: Verify downloaded data files
         run: |
