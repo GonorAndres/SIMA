@@ -35,6 +35,27 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
+      - name: Download real data from GCS
+        run: |
+          gsutil -m cp -r gs://sima-mortality-data/inegi/ backend/data/inegi/
+          gsutil -m cp -r gs://sima-mortality-data/conapo/ backend/data/conapo/
+          gsutil -m cp -r gs://sima-mortality-data/hmd/ backend/data/hmd/
+
+      - name: Verify downloaded data files
+        run: |
+          echo "=== Checking INEGI ==="
+          test -f backend/data/inegi/inegi_deaths.csv || { echo "MISSING: inegi_deaths.csv"; exit 1; }
+          echo "=== Checking CONAPO ==="
+          test -f backend/data/conapo/conapo_population.csv || { echo "MISSING: conapo_population.csv"; exit 1; }
+          echo "=== Checking HMD USA ==="
+          test -f backend/data/hmd/usa/Mx_1x1_usa.txt || { echo "MISSING: HMD USA Mx"; exit 1; }
+          echo "=== Checking HMD Spain ==="
+          test -f backend/data/hmd/spain/Mx_1x1_spain.txt || { echo "MISSING: HMD Spain Mx"; exit 1; }
+          echo "=== Checking CNSF (from git) ==="
+          test -f backend/data/cnsf/cnsf_2000_i.csv || { echo "MISSING: cnsf_2000_i.csv"; exit 1; }
+          test -f backend/data/cnsf/emssa_2009.csv || { echo "MISSING: emssa_2009.csv"; exit 1; }
+          echo "All required data files present."
+
       - name: Build and push Docker image
         run: |
           docker build -t ${{ env.IMAGE }}:${{ github.sha }} .
@@ -48,5 +69,21 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 1Gi \
-            --cpu 1
+            --memory 2Gi \
+            --cpu 2
+
+      - name: Verify deployment serves real data
+        run: |
+          sleep 30
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)')
+          echo "Service URL: $SERVICE_URL"
+          HEALTH=$(curl -sf "$SERVICE_URL/api/health")
+          echo "Health response: $HEALTH"
+          DATA_SOURCE=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['data_source'])")
+          if [ "$DATA_SOURCE" != "real" ]; then
+            echo "DEPLOY FAILED: data_source='$DATA_SOURCE', expected 'real'"
+            exit 1
+          fi
+          echo "Deployment verified: serving real data"

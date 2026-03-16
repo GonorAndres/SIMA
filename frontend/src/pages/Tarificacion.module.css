@@ -36,6 +36,13 @@
   color: var(--color-accent);
 }
 
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
 @media (max-width: 768px) {
   .splitLayout {
     grid-template-columns: 1fr;

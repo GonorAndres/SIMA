@@ -203,6 +203,26 @@ export interface SensitivityResponse {
   results: SensitivityPoint[];
 }
 
+/* ── Cross-Country Pricing ── */
+
+export interface CrossCountryPremiumEntry {
+  country: string;
+  annual_premium: number;
+  premium_rate: number;
+  drift: number;
+  explained_var: number;
+}
+
+export interface CrossCountryPremiumResponse {
+  product_type: string;
+  age: number;
+  sum_assured: number;
+  interest_rate: number;
+  term?: number;
+  sex: string;
+  entries: CrossCountryPremiumEntry[];
+}
+
 /* ── Portfolio ── */
 
 export interface PolicyResponse {
