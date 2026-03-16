@@ -10,6 +10,7 @@ from backend.api.schemas.pricing import (
     CommutationResponse,
     SensitivityRequest,
     SensitivityResponse,
+    CrossCountryPremiumResponse,
 )
 from backend.api.services import pricing_service
 
@@ -78,6 +79,25 @@ def calculate_sensitivity(request: SensitivityRequest):
             age=request.age,
             sum_assured=request.sum_assured,
             rates=request.rates,
+            term=request.term,
+            sex=request.sex,
+        )
+        return result
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/cross-country", response_model=CrossCountryPremiumResponse)
+def cross_country_premium(request: PremiumRequest):
+    """Compare premiums across Mexico, USA, and Spain."""
+    try:
+        result = pricing_service.calculate_cross_country_premium(
+            product_type=request.product_type,
+            age=request.age,
+            sum_assured=request.sum_assured,
+            interest_rate=request.interest_rate,
             term=request.term,
             sex=request.sex,
         )

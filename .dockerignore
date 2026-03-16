@@ -18,9 +18,6 @@ docs/
 subagents_outputs/
 *.pdf
 
-# Large HMD data (not used by API -- API uses INEGI/CONAPO)
-backend/data/hmd/
-
 # CONAPO raw XLSX files (only the processed CSV is needed)
 backend/data/conapo/*.xlsx
 

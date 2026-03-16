@@ -112,3 +112,23 @@ class SensitivityResponse(BaseModel):
     age: int
     sum_assured: float
     results: List[SensitivityPoint]
+
+
+class CrossCountryPremiumEntry(BaseModel):
+    """Premium for a single country."""
+    country: str
+    annual_premium: float
+    premium_rate: float
+    drift: float
+    explained_var: float
+
+
+class CrossCountryPremiumResponse(BaseModel):
+    """Cross-country premium comparison."""
+    product_type: str
+    age: int
+    sum_assured: float
+    interest_rate: float
+    term: Optional[int]
+    sex: str
+    entries: List[CrossCountryPremiumEntry]

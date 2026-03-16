@@ -8,9 +8,10 @@ Data source priority:
     1. Real INEGI/CONAPO/CNSF data (if present in backend/data/{inegi,conapo,cnsf}/)
     2. Mock synthetic data (backend/data/mock/) as fallback
 
-Sex-differentiated pipelines:
-    Three full LC pipelines are loaded at startup (male, female, unisex/Total).
-    INEGI sex values: "Hombres", "Mujeres", "Total".
+Pipelines loaded at startup (9 total):
+    Mexico:  male, female, unisex (INEGI/CONAPO)
+    USA:     male, female, unisex (HMD)
+    Spain:   male, female, unisex (HMD)
 """
 
 import logging
@@ -31,11 +32,13 @@ from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
 from backend.engine.a09_projection import MortalityProjection
 
-# Mapping from API sex values to INEGI column names
+# Mapping from API sex values to data column names
 SEX_TO_INEGI = {"male": "Hombres", "female": "Mujeres", "unisex": "Total"}
+SEX_TO_HMD = {"male": "Male", "female": "Female", "unisex": "Total"}
 
-# Module-level cache: one pipeline per sex
+# Module-level cache: one pipeline per sex (Mexico) + per (country, sex) (HMD)
 _pipelines: dict[str, dict] = {}  # keyed by "male", "female", "unisex"
+_hmd_pipelines: dict[tuple[str, str], dict] = {}  # keyed by ("usa", "male"), etc.
 _cnsf_lt: LifeTable | None = None
 _cnsf_2013_lt: LifeTable | None = None
 _emssa_lt: LifeTable | None = None
@@ -61,6 +64,11 @@ MOCK_DEATHS = MOCK_DIR / "mock_inegi_deaths.csv"
 MOCK_POPULATION = MOCK_DIR / "mock_conapo_population.csv"
 MOCK_CNSF = MOCK_DIR / "mock_cnsf_2000_i.csv"
 MOCK_EMSSA = MOCK_DIR / "mock_emssa_2009.csv"
+
+# HMD data paths
+REAL_HMD_DIR = DATA_DIR / "hmd"
+MOCK_HMD_DIR = MOCK_DIR / "hmd"
+HMD_COUNTRIES = ["usa", "spain"]
 
 
 def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
@@ -112,9 +120,49 @@ def _build_pipeline(deaths: str, population: str, inegi_sex: str) -> dict:
     }
 
 
+def _resolve_hmd_dir(country: str) -> str:
+    """Resolve HMD data directory: prefer real, fall back to mock."""
+    real_dir = REAL_HMD_DIR / country
+    mock_dir = MOCK_HMD_DIR / country
+    if real_dir.exists() and any(real_dir.glob("*.txt")):
+        return str(real_dir.parent)
+    return str(mock_dir.parent)
+
+
+def _build_hmd_pipeline(data_dir: str, country: str, hmd_sex: str) -> dict:
+    """Build a full LC pipeline from HMD data for a given country and sex."""
+    md = MortalityData.from_hmd(
+        data_dir=data_dir,
+        country=country,
+        sex=hmd_sex,
+        year_min=1990,
+        year_max=2019,
+        age_max=100,
+    )
+    grad = GraduatedRates(
+        md,
+        lambda_param=1e5,
+        diff_order=2,
+        weight_by_exposure=True,
+    )
+    lc = LeeCarter.fit(grad, reestimate_kt=False)
+    proj = MortalityProjection(
+        lc,
+        horizon=30,
+        n_simulations=500,
+        random_seed=42,
+    )
+    return {
+        "mortality_data": md,
+        "graduated": grad,
+        "lee_carter": lc,
+        "projection": proj,
+    }
+
+
 def load_all() -> None:
     """Load all precomputed data. Called once at startup."""
-    global _pipelines
+    global _pipelines, _hmd_pipelines
     global _cnsf_lt, _cnsf_2013_lt, _emssa_lt
     global _cnsf_lt_female, _cnsf_2013_lt_female, _emssa_lt_female
     global _data_source, _load_error
@@ -122,10 +170,19 @@ def load_all() -> None:
     try:
         deaths, population, cnsf, cnsf_2013, emssa, _data_source = _resolve_paths()
 
-        # Build one LC pipeline per sex
+        # Build one LC pipeline per sex (Mexico via INEGI/CONAPO)
         for sex_key, inegi_sex in SEX_TO_INEGI.items():
-            logger.info("Loading %s (%s) pipeline...", sex_key, inegi_sex)
+            logger.info("Loading Mexico %s (%s) pipeline...", sex_key, inegi_sex)
             _pipelines[sex_key] = _build_pipeline(deaths, population, inegi_sex)
+
+        # Build HMD pipelines for USA and Spain (3 sexes each)
+        for country in HMD_COUNTRIES:
+            hmd_dir = _resolve_hmd_dir(country)
+            for sex_key, hmd_sex in SEX_TO_HMD.items():
+                logger.info("Loading %s %s (%s) pipeline...", country, sex_key, hmd_sex)
+                _hmd_pipelines[(country, sex_key)] = _build_hmd_pipeline(
+                    hmd_dir, country, hmd_sex
+                )
 
         # Load regulatory tables (both sexes)
         _cnsf_lt = LifeTable.from_regulatory_table(cnsf, sex="male")
@@ -141,9 +198,11 @@ def load_all() -> None:
 
         _load_error = None
         logger.info(
-            "Precomputed data loaded successfully (source: %s, pipelines: %s)",
+            "Precomputed data loaded successfully (source: %s, "
+            "Mexico pipelines: %s, HMD pipelines: %s)",
             _data_source,
             list(_pipelines.keys()),
+            list(_hmd_pipelines.keys()),
         )
     except Exception as exc:
         _load_error = str(exc)
@@ -207,6 +266,32 @@ def get_regulatory_lt(table_type: str = "cnsf", sex: str = "male") -> LifeTable:
 
 
 def get_projected_life_table(year: int, sex: str = "unisex") -> LifeTable:
-    """Get a life table projected to a specific year."""
+    """Get a Mexico life table projected to a specific year."""
     proj = get_projection(sex)
+    return proj.to_life_table(year=year, radix=100_000)
+
+
+def get_hmd_pipeline(country: str, sex: str = "unisex") -> dict:
+    """Get a HMD country pipeline by country and sex."""
+    if _load_error is not None:
+        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+    key = (country, sex)
+    if key not in _hmd_pipelines:
+        raise ValueError(
+            f"Unknown country/sex: {country}/{sex}. "
+            f"Valid: {list(_hmd_pipelines.keys())}"
+        )
+    return _hmd_pipelines[key]
+
+
+def get_hmd_lee_carter(country: str, sex: str = "unisex") -> LeeCarter:
+    """Get Lee-Carter model for a HMD country."""
+    return get_hmd_pipeline(country, sex)["lee_carter"]
+
+
+def get_hmd_projected_life_table(
+    country: str, year: int, sex: str = "unisex"
+) -> LifeTable:
+    """Get a HMD country life table projected to a specific year."""
+    proj = get_hmd_pipeline(country, sex)["projection"]
     return proj.to_life_table(year=year, radix=100_000)

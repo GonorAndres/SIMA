@@ -35,6 +35,12 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
+      - name: Download real data from GCS
+        run: |
+          gsutil -m cp -r gs://sima-mortality-data/inegi/ backend/data/inegi/
+          gsutil -m cp -r gs://sima-mortality-data/conapo/ backend/data/conapo/
+          gsutil -m cp -r gs://sima-mortality-data/hmd/ backend/data/hmd/
+
       - name: Build and push Docker image
         run: |
           docker build -t ${{ env.IMAGE }}:${{ github.sha }} .
@@ -48,5 +54,5 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 1Gi \
-            --cpu 1
+            --memory 2Gi \
+            --cpu 2
