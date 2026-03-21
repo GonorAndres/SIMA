@@ -67,3 +67,11 @@ supplementary-docs/
 .claude/stats-cache.json
 .claude/.credentials.json
 .claude/*.backup.*
+.claude/settings.local.json
+
+# Personal / infra-specific
+to-do.md
+cloud-control.sh
+
+# Ad-hoc screenshots
+screenshot_*.png
