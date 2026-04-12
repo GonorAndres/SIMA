@@ -365,3 +365,53 @@ gcloud compute ssh andtega349@claude-dev-spot --zone=us-central1-c -- -L 5173:lo
 Then open `http://localhost:5173` in your browser.
 
 Note: Raw `ssh` won't work -- GCP uses metadata-based SSH keys managed by `gcloud`.
+
+---
+
+## Known Issues & Future Roadmap (Audit: 2026-04-12)
+
+Full audit report: `subagents_outputs/repo_audit_2026-04-12.md`
+
+### Things to Fix
+
+#### High Priority
+| ID | Issue | File | Fix |
+|----|-------|------|-----|
+| H1 | CNSF 2013 tab returns silent 500 in CI — no mock `cnsf_2013.csv` exists | `backend/api/services/precomputed.py:197` | Add mock CNSF 2013 file mirroring CNSF 2000-I structure |
+| H2 | SCR engine hardcoded to `sex="male"` — female portfolio produces wrong BEL/SCR | `backend/api/services/scr_service.py:72,234` | Add `sex` field to `SCRRequest`, thread through `run_scr()` and `compute_portfolio_bel()` |
+| H3 | Portfolio state is a module-level global — concurrent users corrupt each other's SCR | `backend/api/services/scr_service.py:18-21` | Switch to per-request default portfolio or request-scoped dependency |
+
+#### Medium Priority
+| ID | Issue | File | Fix |
+|----|-------|------|-----|
+| M1 | All `except Exception` handlers swallow errors with no logging | all `backend/api/routers/*.py` | Add `logger.error(exc, exc_info=True)` before re-raising |
+| M2 | Cross-country and COVID sensitivity data is hardcoded static values, diverges from live model | `backend/api/services/sensitivity_service.py:98-165` | Replace with live calls to `get_hmd_lee_carter()` and `get_projection()` |
+| M3 | Metodologia page has hardcoded actuarial numbers (77.7% var, −1.076 drift, $568,700 SCR) that drift if model changes | `frontend/src/pages/Metodologia.tsx:110-238` | Fetch dynamically from `/mortality/lee-carter`, `/scr/defaults`, `/sensitivity/cross-country` |
+| M4 | `validate_zero_reserve` crashes on `pure_endowment` product type | `backend/engine/a05_reserves.py:297-307` | Add `pure_endowment` branch |
+| M5 | `CORS_ORIGINS` env var never set in Cloud Run deploy — blocks external API callers | `.github/workflows/deploy.yml:68-75` | Add `--set-env-vars CORS_ORIGINS=*` to `gcloud run deploy` |
+| M6 | Age slider capped at 70 but API supports ages up to 100 | `frontend/src/components/forms/PremiumForm.tsx` | Raise slider max to 90 |
+| M7 | `projection_year` default hardcoded to 2040 — breaks if data refresh changes last observed year | `backend/api/routers/mortality.py:39` | Derive default from `proj.projected_years[-1]` at runtime |
+
+#### Low Priority
+| ID | Issue | File |
+|----|-------|------|
+| L1 | `build_shocked_life_table` rebuilds from scratch on every call — bottleneck at scale | `backend/engine/a12_scr.py:82-114` |
+| L2 | `drift_is_negative` validation flag misleads for longevity stress scenarios | `backend/engine/a09_projection.py:377` |
+| L3 | Three identical `useGet` hooks for same `/mortality/validation` endpoint | `frontend/src/pages/Mortalidad.tsx:43-48` |
+| L4 | Hardcoded Mexico k_t profile inconsistent between cross-country and COVID functions | `backend/api/services/sensitivity_service.py:106` |
+| L5 | `pure_endowment` missing from PremiumForm product dropdown | `frontend/src/components/forms/PremiumForm.tsx:47-53` |
+| L6 | Deploy `sleep 30` can race a slow Cloud Run cold start | `.github/workflows/deploy.yml:79` |
+| L7 | Dockerfile `CMD` in shell form — SIGTERM not forwarded to uvicorn | `Dockerfile:38` |
+
+### Future Features
+
+| ID | Feature | Phase | Complexity |
+|----|---------|-------|------------|
+| F1 | Live metric injection in Metodologia page (fetch from API, no more hardcoded numbers) | Phase 5 | Medium |
+| F2 | Sex-differentiated SCR — add `sex` field to `SCRRequest` | Phase 5 | Low |
+| F3 | Replace hardcoded cross-country/COVID sensitivity with live engine calls | Phase 5 | Low |
+| F4 | Term-structure interest rate shock per CUSF Annex 5.1.1 (not flat parallel shift) | Phase 6 | High |
+| F5 | Lapse risk sub-module (persistency assumptions, surrender values) | Phase 6 | High |
+| F6 | Stochastic projection fan chart — wire `to_life_table_with_ci()` into Mortalidad page | Phase 5 | Medium |
+| F7 | Per-policy mortality loading (underwriting adjustment, anti-selection demo) | Phase 6 | Medium |
+| F8 | Pure endowment UI option + reserve trajectory formula in Tarificacion | Phase 5 | Low |
