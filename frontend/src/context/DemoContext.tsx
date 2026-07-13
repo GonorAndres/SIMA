@@ -1,29 +1,7 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import demoSteps from './demoSteps';
-
-interface DemoContextValue {
-  active: boolean;
-  step: number;
-  totalSteps: number;
-  narrativeKey: string;
-  next: () => void;
-  prev: () => void;
-  start: () => void;
-  stop: () => void;
-}
-
-const DemoContext = createContext<DemoContextValue | null>(null);
-
-export function useDemoContext() {
-  const ctx = useContext(DemoContext);
-  if (!ctx) throw new Error('useDemoContext must be used inside DemoProvider');
-  return ctx;
-}
-
-export function useDemo() {
-  return useContext(DemoContext);
-}
+import { DemoContext } from './useDemo';
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);

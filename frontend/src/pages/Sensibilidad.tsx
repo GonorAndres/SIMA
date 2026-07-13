@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDemo } from '../context/DemoContext';
+import { useDemo } from '../context/useDemo';
 import PageLayout from '../components/layout/PageLayout';
 import SliderInput from '../components/forms/SliderInput';
 import MetricBlock from '../components/data/MetricBlock';

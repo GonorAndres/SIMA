@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../common/LanguageToggle';
-import { useDemo } from '../../context/DemoContext';
+import { useDemo } from '../../context/useDemo';
 import styles from './TopNav.module.css';
 
 const navItems = [

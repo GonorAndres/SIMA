@@ -96,6 +96,24 @@ HMD data are licensed under **Creative Commons Attribution 4.0 International Lic
 
 **Data stored locally at:** `backend/data/hmd/{COUNTRY_CODE}/`
 
+### ⚠️ HMD Data is SYNTHETIC MOCK — Replace with Real Data
+
+**Every session, be aware:** the HMD files currently under `backend/data/hmd/usa/` and
+`backend/data/hmd/spain/` are **synthetic mock data**, NOT genuine HMD figures. Both known
+sources produce mock data:
+
+- `backend/scripts/generate_mock_hmd.py` (Gompertz-Makeham synthetic generator)
+- `gs://sima-mortality-data/hmd/` (also synthetic — file line 2 says "synthetic mock data
+  for CI testing"; years start 1990, whereas real HMD starts 1933 USA / 1908 Spain)
+
+These pass all 216 tests because the code validates file *format*, not authenticity. They
+are fine for dev/CI, but **NOT valid for any published actuarial result**.
+
+**TODO — replace with real HMD data:** download the USA & Spain `Mx/Deaths/Exposures 1x1`
+files from https://www.mortality.org (free registered account required; data is not
+redistributable, so it cannot live in the repo or the GCS bucket). Drop them into
+`backend/data/hmd/{usa,spain}/` overwriting the mock files, then re-run `pytest backend/tests`.
+
 ---
 
 ## Development Standards

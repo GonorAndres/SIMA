@@ -15,10 +15,14 @@ export default function Inicio() {
   const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const scr = usePost<object, SCRResponse>('/scr/compute');
 
+  // `execute` is stable (memoized on the endpoint) so depending on the refs is safe.
+  const { execute: runLc } = lc;
+  const { execute: runScr } = scr;
+
   useEffect(() => {
-    lc.execute();
-    scr.execute({ available_capital: 1_000_000 });
-  }, []);
+    runLc();
+    runScr({ available_capital: 1_000_000 });
+  }, [runLc, runScr]);
 
   return (
     <PageLayout>
