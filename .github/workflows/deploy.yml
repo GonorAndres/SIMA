@@ -32,6 +32,15 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Ensure Artifact Registry repository exists
+        run: |
+          gcloud artifacts repositories describe sima \
+            --location "${{ env.REGION }}" >/dev/null 2>&1 || \
+          gcloud artifacts repositories create sima \
+            --repository-format docker \
+            --location "${{ env.REGION }}" \
+            --description "SIMA Cloud Run images"
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
