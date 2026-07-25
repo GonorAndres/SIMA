@@ -21,6 +21,7 @@ def compute_scr(request: SCRRequest):
             coc_rate=request.coc_rate,
             portfolio_duration=request.portfolio_duration,
             available_capital=request.available_capital,
+            sex=request.sex,
         )
         return result
     except (ValueError, KeyError) as e:

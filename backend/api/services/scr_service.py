@@ -66,10 +66,10 @@ def add_policy(
     return policy
 
 
-def compute_portfolio_bel(interest_rate: float = 0.05) -> dict:
+def compute_portfolio_bel(interest_rate: float = 0.05, sex: str = "male") -> dict:
     """Compute BEL for the entire portfolio."""
     portfolio = _ensure_portfolio()
-    lt = get_regulatory_lt("cnsf", "male")
+    lt = get_regulatory_lt("cnsf", sex)
 
     bel_by_type = portfolio.compute_bel_by_type(lt, interest_rate)
     breakdown = portfolio.compute_bel_breakdown(lt, interest_rate)
@@ -228,10 +228,11 @@ def run_scr(
     coc_rate: float = 0.06,
     portfolio_duration: float = 15.0,
     available_capital: Optional[float] = None,
+    sex: str = "male",
 ) -> dict:
     """Run the full SCR pipeline."""
     portfolio = _ensure_portfolio()
-    lt = get_regulatory_lt("cnsf", "male")
+    lt = get_regulatory_lt("cnsf", sex)
 
     result = run_full_scr(
         portfolio=portfolio,

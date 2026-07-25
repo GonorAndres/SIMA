@@ -48,7 +48,7 @@ def get_portfolio_summary():
 def compute_bel(request: PortfolioBELRequest):
     """Compute Best Estimate Liability (BEL) for the portfolio."""
     try:
-        result = scr_service.compute_portfolio_bel(request.interest_rate)
+        result = scr_service.compute_portfolio_bel(request.interest_rate, sex=request.sex)
         return result
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))

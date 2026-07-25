@@ -1,12 +1,16 @@
 """Pydantic schemas for SCR-related endpoints."""
 
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Literal
 
 
 class SCRRequest(BaseModel):
     """Request to run the full SCR pipeline."""
     interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
+    sex: Literal["male", "female"] = Field(
+        default="male",
+        description="Sex for the regulatory mortality table (CNSF male/female)"
+    )
     mortality_shock: float = Field(default=0.15, ge=0.0, le=1.0)
     longevity_shock: float = Field(default=0.20, ge=0.0, le=1.0)
     ir_shock_bps: int = Field(default=100, ge=1, le=500)

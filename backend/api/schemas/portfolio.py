@@ -46,6 +46,10 @@ class BELBreakdownItem(BaseModel):
 class PortfolioBELRequest(BaseModel):
     """Request to compute portfolio BEL."""
     interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
+    sex: Literal["male", "female"] = Field(
+        default="male",
+        description="Sex for the regulatory mortality table (CNSF male/female)"
+    )
 
 
 class PortfolioBELResponse(BaseModel):

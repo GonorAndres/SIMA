@@ -77,3 +77,25 @@ def test_scr_custom_shocks(client):
 
     assert large["mortality"]["scr"] >= small["mortality"]["scr"]
     assert large["longevity"]["scr"] >= small["longevity"]["scr"]
+
+
+def test_scr_sex_differentiates_bel(client):
+    """THEORY (H2 fix): male and female use different regulatory tables, so the
+    base BEL must differ. A regression guard against the sex parameter being
+    ignored (previously hardcoded to 'male')."""
+    client.post("/api/portfolio/reset")
+    male = client.post("/api/scr/compute", json={"sex": "male"})
+    female = client.post("/api/scr/compute", json={"sex": "female"})
+    assert male.status_code == 200 and female.status_code == 200
+    male_bel = male.json()["bel_base"]
+    female_bel = female.json()["bel_base"]
+    # Different mortality assumptions -> materially different liabilities.
+    assert male_bel != pytest.approx(female_bel)
+
+
+def test_scr_sex_defaults_to_male(client):
+    """THEORY: omitting sex reproduces the historical male-based result."""
+    client.post("/api/portfolio/reset")
+    default = client.post("/api/scr/compute", json={}).json()
+    male = client.post("/api/scr/compute", json={"sex": "male"}).json()
+    assert default["bel_base"] == pytest.approx(male["bel_base"])
