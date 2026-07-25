@@ -76,7 +76,7 @@ INEGI/CONAPO Data
 | API | FastAPI, Pydantic v2, Uvicorn -- 23 REST endpoints across 5 routers |
 | Frontend | React 19, TypeScript, Vite, Plotly.js (custom bundle), i18n (ES/EN) |
 | Deployment | Docker (multi-stage), Google Cloud Run |
-| Testing | pytest -- 205 unit tests + 33 API tests = 238 total |
+| Testing | pytest -- 196 unit tests + 46 API tests = 242 total |
 
 ---
 
@@ -187,7 +187,7 @@ backend/
   engine/          # 12 actuarial modules (a01-a12)
   api/             # FastAPI application (routers, schemas, services)
   analysis/        # Standalone analysis scripts (Mexico, sensitivity, capital)
-  tests/           # 238 tests (unit + API)
+  tests/           # 242 tests (unit + API)
   data/            # Mortality data (HMD, INEGI/CONAPO, mock)
 frontend/
   src/pages/       # 6 pages (Inicio, Mortalidad, Tarificacion, SCR, Sensibilidad, Metodologia)

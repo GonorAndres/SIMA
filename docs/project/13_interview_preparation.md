@@ -16,7 +16,7 @@
 | Mexico vs Spain premium gap | ~30% higher | Structural, all ages |
 | COVID premium impact | +3-10% | Depends on age |
 | Graduation roughness reduction | ~70% | Lambda = 10^5 |
-| Tests | 238 | 205 unit + 33 API |
+| Tests | 242 | 196 unit + 46 API |
 | Engine modules | 12 | a01 (LifeTable) through a12 (SCR) |
 | API endpoints | 23 | Including compliance endpoint |
 

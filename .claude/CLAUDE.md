@@ -240,7 +240,7 @@ docs/
 | Phase 4b | Mortalidad page enrichment (graduation, 3D surface, SVD, EMSSA) | `frontend/src/pages/Mortalidad.tsx` |
 | Phase 4b | Sensibilidad page enrichment (dynamic shock, API cross-country, COVID tab) | `frontend/src/pages/Sensibilidad.tsx` |
 | Phase 4b | Inicio COVID teaser + Metodologia resources section | `frontend/src/pages/Inicio.tsx`, `Metodologia.tsx` |
-| All | Tests (238 passing: 205 unit + 33 API) | `backend/tests/` |
+| All | Tests (242 passing: 196 unit + 46 API) | `backend/tests/` |
 | Phase 5 | Sex-differentiated mortality pipelines (male/female/unisex) | `backend/api/services/precomputed.py` |
 | Phase 5 | LISF/CUSF compliance API endpoint | `backend/api/routers/scr.py` (`GET /compliance`) |
 | Phase 5 | InsightCard narrative component (4 variants) | `frontend/src/components/data/InsightCard.tsx` |
@@ -347,7 +347,7 @@ backend/
 │   ├── conapo/                 # Real CONAPO data (gitignored, see DOWNLOAD_GUIDE.md)
 │   └── cnsf/                   # Real CNSF/EMSSA tables (gitignored, see DOWNLOAD_GUIDE.md)
 └── tests/
-    └── test_*.py               # 169 tests
+    └── test_*.py               # 242 tests
 ```
 
 ---
@@ -396,7 +396,7 @@ Full audit report: `subagents_outputs/repo_audit_2026-04-12.md`
 | ID | Issue | File | Fix |
 |----|-------|------|-----|
 | H1 | CNSF 2013 tab returns silent 500 in CI — no mock `cnsf_2013.csv` exists | `backend/api/services/precomputed.py:197` | Add mock CNSF 2013 file mirroring CNSF 2000-I structure |
-| H2 | SCR engine hardcoded to `sex="male"` — female portfolio produces wrong BEL/SCR | `backend/api/services/scr_service.py:72,234` | Add `sex` field to `SCRRequest`, thread through `run_scr()` and `compute_portfolio_bel()` |
+| ~~H2~~ ✅ FIXED (2026-07-13) | SCR engine hardcoded to `sex="male"` — female portfolio produced wrong BEL/SCR | `backend/api/services/scr_service.py` | Added `sex` (`Literal["male","female"]`) to `SCRRequest`/`PortfolioBELRequest`, threaded through `run_scr()` and `compute_portfolio_bel()`. Regression test: `test_scr_api.py::test_scr_sex_differentiates_bel` |
 | H3 | Portfolio state is a module-level global — concurrent users corrupt each other's SCR | `backend/api/services/scr_service.py:18-21` | Switch to per-request default portfolio or request-scoped dependency |
 
 #### Medium Priority
@@ -404,7 +404,7 @@ Full audit report: `subagents_outputs/repo_audit_2026-04-12.md`
 |----|-------|------|-----|
 | M1 | All `except Exception` handlers swallow errors with no logging | all `backend/api/routers/*.py` | Add `logger.error(exc, exc_info=True)` before re-raising |
 | M2 | Cross-country and COVID sensitivity data is hardcoded static values, diverges from live model | `backend/api/services/sensitivity_service.py:98-165` | Replace with live calls to `get_hmd_lee_carter()` and `get_projection()` |
-| M3 | Metodologia page has hardcoded actuarial numbers (77.7% var, −1.076 drift, $568,700 SCR) that drift if model changes | `frontend/src/pages/Metodologia.tsx:110-238` | Fetch dynamically from `/mortality/lee-carter`, `/scr/defaults`, `/sensitivity/cross-country` |
+| ~~M3~~ ✅ FIXED (2026-07-13) | Metodologia page had hardcoded actuarial numbers (77.7% var, −1.076 drift, $568,700 SCR) that drift if model changes | `frontend/src/pages/Metodologia.tsx` | Now fetches live from `/sensitivity/cross-country` (per-country var/drift), `/sensitivity/covid-comparison` (COVID drift + premium impact), and `/scr/defaults` (total SCR, technical provisions, diversification, IR dominance). NOTE: cross-country/COVID endpoints are still static server-side (see M2) |
 | M4 | `validate_zero_reserve` crashes on `pure_endowment` product type | `backend/engine/a05_reserves.py:297-307` | Add `pure_endowment` branch |
 | M5 | `CORS_ORIGINS` env var never set in Cloud Run deploy — blocks external API callers | `.github/workflows/deploy.yml:68-75` | Add `--set-env-vars CORS_ORIGINS=*` to `gcloud run deploy` |
 | M6 | Age slider capped at 70 but API supports ages up to 100 | `frontend/src/components/forms/PremiumForm.tsx` | Raise slider max to 90 |
