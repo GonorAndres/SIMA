@@ -71,7 +71,7 @@ python_version = "3.12"
 strict = true
 # Only the hardened, fully-typed core is type-checked under strict mode today.
 # Each downstream phase expands this list as it types its own modules:
-#   phase 2 -> a11_portfolio, a12_scr
+#   phase 2 -> a11_portfolio, a12_scr  (DONE)
 #   phase 3 -> a06_mortality_data, a07_graduation, a08_lee_carter,
 #              a09_projection, a10_validation
 #   phase 4 -> backend.api.*
@@ -83,6 +83,8 @@ files = [
     "backend/engine/a03_actuarial_values.py",
     "backend/engine/a04_premiums.py",
     "backend/engine/a05_reserves.py",
+    "backend/engine/a11_portfolio.py",
+    "backend/engine/a12_scr.py",
 ]
 warn_unused_ignores = true
 warn_redundant_casts = true
@@ -99,7 +101,7 @@ ignore_missing_imports = true
 # Modules not yet typed: imported (e.g. via backend.engine.__init__) but not
 # type-checked until their phase types them. Remove each module from here as
 # it is added to `files` above and brought up to strict.
-#   phase 2 -> a11_portfolio, a12_scr
+#   phase 2 -> a11_portfolio, a12_scr  (DONE)
 #   phase 3 -> a06-a10
 #   phase 4 -> backend.api.*
 [[tool.mypy.overrides]]
@@ -109,8 +111,6 @@ module = [
     "backend.engine.a08_lee_carter",
     "backend.engine.a09_projection",
     "backend.engine.a10_validation",
-    "backend.engine.a11_portfolio",
-    "backend.engine.a12_scr",
     "backend.api",
     "backend.api.*",
 ]

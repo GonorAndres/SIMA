@@ -45,16 +45,37 @@ Capital de Solvencia) = SCR, and technical provisions (Reservas Tecnicas)
 must include both BEL (Mejor Estimacion) and risk margin (Margen de Riesgo).
 """
 
+from __future__ import annotations
+
+import logging
 import math
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 from .a01_life_table import LifeTable
-from .a11_portfolio import Portfolio, compute_policy_bel
+from .a11_portfolio import (
+    Portfolio,
+    _t_p_x,
+    compute_policy_bel,
+    portfolio_remaining_duration,
+)
+from .exceptions import ActuarialComputationError, ActuarialValidationError
+
+if TYPE_CHECKING:
+    from .a08_lee_carter import LeeCarter
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Solvency II Constants (Standard Formula)
 # =============================================================================
+# The shock magnitudes below (+15% mortality, -20% longevity, +/-100 bps
+# interest rate, +35% one-year catastrophe) are the ILLUSTRATIVE Solvency II
+# standard-formula values and are used as defaults. They are NOT calibrated
+# from any particular mortality volatility; use
+# :func:`calibrate_shocks_from_lee_carter` to derive portfolio-specific
+# shocks from a fitted Lee-Carter model when supported by the data.
 
 # Life underwriting correlation matrix (Solvency II Article 136)
 #             Mort   Long    Cat
@@ -71,6 +92,56 @@ RHO_LIFE_MARKET = 0.25
 
 # Default Cost-of-Capital rate for risk margin
 DEFAULT_COC_RATE = 0.06
+
+# Default floor applied to a DOWN interest-rate shock (the standard-formula
+# convention prevents negative nominal rates in the down scenario).
+DEFAULT_IR_FLOOR = 0.005
+
+# Tolerance for positive-semi-definiteness checks on correlation matrices.
+PSD_TOL = 1e-10
+
+
+def _validate_psd(corr_matrix: np.ndarray, *, name: str = "correlation matrix") -> None:
+    """
+    Validate that ``corr_matrix`` is a square, symmetric, positive
+    semi-definite matrix with unit diagonal.
+
+    A non-PSD correlation matrix would make the quadratic form
+    ``vec' * CORR * vec`` numerically negative (sqrt of a negative number),
+    which is physically meaningless for a variance aggregation.
+    """
+    arr = np.asarray(corr_matrix, dtype=float)
+    if arr.ndim != 2 or arr.shape[0] != arr.shape[1]:
+        raise ActuarialValidationError(
+            f"{name} must be square (got shape {arr.shape})",
+            field="corr_matrix",
+            constraint="corr_matrix.shape == (n, n)",
+        )
+    diag = np.diag(arr)
+    if not np.allclose(diag, 1.0, atol=PSD_TOL):
+        raise ActuarialValidationError(
+            f"{name} must have a unit diagonal (got {diag})",
+            field="corr_matrix",
+            constraint="diag(corr_matrix) == 1",
+        )
+    if not np.allclose(arr, arr.T, atol=PSD_TOL):
+        raise ActuarialValidationError(
+            f"{name} must be symmetric",
+            field="corr_matrix",
+            constraint="corr_matrix == corr_matrix.T",
+        )
+    eig = np.linalg.eigvalsh(arr)
+    if eig.min() < -PSD_TOL:
+        raise ActuarialValidationError(
+            f"{name} is not positive semi-definite: min eigenvalue {float(eig.min()):.3e} < 0",
+            field="corr_matrix",
+            constraint="min eigval(corr_matrix) >= -tol",
+        )
+
+
+# Validate the bundled default LIFE_CORR at import time so a typo in the
+# constant is caught immediately rather than producing a negative SCR.
+_validate_psd(LIFE_CORR, name="LIFE_CORR")
 
 
 # =============================================================================
@@ -123,7 +194,7 @@ def compute_scr_mortality(
     base_lt: LifeTable,
     interest_rate: float,
     shock: float = 0.15,
-) -> dict:
+) -> dict[str, float]:
     """
     Compute SCR for mortality risk.
 
@@ -173,7 +244,7 @@ def compute_scr_longevity(
     base_lt: LifeTable,
     interest_rate: float,
     shock: float = 0.20,
-) -> dict:
+) -> dict[str, float]:
     """
     Compute SCR for longevity risk.
 
@@ -226,7 +297,8 @@ def compute_scr_interest_rate(
     base_lt: LifeTable,
     base_rate: float,
     shock_bps: int = 100,
-) -> dict:
+    rate_floor: float = DEFAULT_IR_FLOOR,
+) -> dict[str, object]:
     """
     Compute SCR for interest rate risk.
 
@@ -238,19 +310,35 @@ def compute_scr_interest_rate(
 
     SCR_ir = max(BEL_up - BEL_base, BEL_down - BEL_base, 0)
 
+    The down scenario is floored at ``rate_floor`` (default 0.5%). The Solvency
+    II standard formula convention prevents the down shock from producing a
+    negative nominal rate; the floor is made configurable so a regulator or
+    a yield-curve-specific calibration can override it. A warning is logged
+    whenever the floor binds, for auditability.
+
     Args:
         portfolio: Insurance portfolio
         base_lt: Best-estimate life table
         base_rate: Base risk-free interest rate
         shock_bps: Shock in basis points (default 100 = 1%)
+        rate_floor: Floor for the down shock (default 0.5%, configurable)
 
     Returns:
-        Dict with bel_base, bel_up, bel_down, scr, rate_up, rate_down
+        Dict with bel_base, bel_up, bel_down, scr, rate_up, rate_down,
+        floor_applied
     """
     shock_decimal = shock_bps / 10_000.0
 
     rate_up = base_rate + shock_decimal
-    rate_down = max(base_rate - shock_decimal, 0.005)  # Floor at 0.5%
+    raw_down = base_rate - shock_decimal
+    floor_applied = raw_down < rate_floor
+    if floor_applied:
+        logger.warning(
+            "IR down-shock %.4f below floor %.4f; floor applied",
+            raw_down,
+            rate_floor,
+        )
+    rate_down = max(raw_down, rate_floor)
 
     bel_base = portfolio.compute_bel(base_lt, base_rate)
     bel_up = portfolio.compute_bel(base_lt, rate_up)
@@ -265,6 +353,7 @@ def compute_scr_interest_rate(
         "scr": scr,
         "rate_up": rate_up,
         "rate_down": rate_down,
+        "floor_applied": floor_applied,
     }
 
 
@@ -278,7 +367,7 @@ def compute_scr_catastrophe(
     base_lt: LifeTable,
     interest_rate: float,
     cat_shock_factor: float = 1.35,
-) -> dict:
+) -> dict[str, object]:
     """
     Compute SCR for catastrophe risk.
 
@@ -292,9 +381,22 @@ def compute_scr_catastrophe(
     ONE-YEAR spike. Only the first-year excess deaths matter.
     Only DEATH products are affected.
 
-    For each death policy:
-        delta_q = q_shocked(attained_age) - q_base(attained_age)
-        extra_claim = SA * delta_q * v  (discounted one year)
+    Convention (one-year shock):
+        The catastrophe is a ONE-YEAR mortality spike applied at the start
+        of the projection year. The policy must be IN-FORCE at the start of
+        that year for any excess claim to be possible, so:
+
+            expected_extra_claim = t_p_x(issue_age, duration) * SA * delta_q * v
+
+        where ``t_p_x`` is the survival probability from issue age to
+        attained age. The previous implementation implicitly assumed the
+        policy was in-force with certainty, which materially over-stated
+        catastrophe SCR for long-duration in-force portfolios.
+
+        For term/endowment policies past their term (``duration >= n``), the
+        policy has expired and contributes ZERO to catastrophe SCR (zero
+        in-force exposure). Whole-life policies whose attained age exceeds
+        omega also contribute zero (no mortality beyond the table).
 
     Args:
         portfolio: Insurance portfolio
@@ -316,20 +418,30 @@ def compute_scr_catastrophe(
     total_extra = 0.0
     details = []
     for p in death_policies:
+        # Expired finite-horizon policy: no in-force exposure.
+        if p.is_expired:
+            continue
         age = p.attained_age
         if age > base_lt.max_age or age > shocked_lt.max_age:
+            continue
+        if age < base_lt.min_age:
             continue
 
         q_base = base_lt.get_q(age)
         q_shocked = shocked_lt.get_q(age)
         delta_q = q_shocked - q_base
 
-        extra_claim = p.SA * delta_q * v
+        # Probability of survival (i.e. being in-force) to the start of the
+        # shock year at attained_age.
+        t_p_x = _t_p_x(base_lt, p.issue_age, p.duration)
+
+        extra_claim = p.SA * delta_q * v * t_p_x
         total_extra += extra_claim
         details.append(
             {
                 "policy_id": p.policy_id,
                 "attained_age": age,
+                "t_p_x": t_p_x,
                 "q_base": q_base,
                 "q_shocked": q_shocked,
                 "delta_q": delta_q,
@@ -354,7 +466,7 @@ def aggregate_scr_life(
     scr_long: float,
     scr_cat: float,
     corr_matrix: np.ndarray | None = None,
-) -> dict:
+) -> dict[str, float]:
     """
     Aggregate life underwriting SCR components using correlation matrix.
 
@@ -377,6 +489,8 @@ def aggregate_scr_life(
     """
     if corr_matrix is None:
         corr_matrix = LIFE_CORR
+    else:
+        _validate_psd(corr_matrix, name="custom correlation matrix")
 
     vec = np.array([scr_mort, scr_long, scr_cat])
     sum_individual = np.sum(vec)
@@ -407,7 +521,7 @@ def aggregate_scr_total(
     scr_life: float,
     scr_ir: float,
     rho: float = RHO_LIFE_MARKET,
-) -> dict:
+) -> dict[str, float]:
     """
     Aggregate SCR across life underwriting and market risk.
 
@@ -448,7 +562,7 @@ def compute_risk_margin(
     duration: float,
     coc_rate: float = DEFAULT_COC_RATE,
     discount_rate: float = 0.05,
-) -> dict:
+) -> dict[str, float]:
     """
     Compute the risk margin (Margen de Riesgo / MdR).
 
@@ -499,7 +613,7 @@ def compute_risk_margin(
 # =============================================================================
 
 
-def compute_solvency_ratio(available_capital: float, scr_total: float) -> dict:
+def compute_solvency_ratio(available_capital: float, scr_total: float) -> dict[str, object]:
     """
     Compute the solvency ratio.
 
@@ -533,6 +647,144 @@ def compute_solvency_ratio(available_capital: float, scr_total: float) -> dict:
 
 
 # =============================================================================
+# Shock calibration from Lee-Carter volatility
+# =============================================================================
+
+
+def calibrate_shocks_from_lee_carter(
+    lee_carter: LeeCarter,
+    *,
+    confidence: float = 0.995,
+    representative_b: float | None = None,
+) -> dict[str, float]:
+    """
+    Derive SCR shock magnitudes from a fitted Lee-Carter model's volatility.
+
+    Under Lee-Carter, the time index follows ``k_{t+1} = k_t + drift + sigma*Z``
+    with ``Z ~ N(0,1)``. A 1-year VaR at ``confidence`` (default 0.995, i.e.
+    the 1-in-200 Solvency II horizon) maps to a k_t shock of magnitude
+    ``sigma * z``, where ``z = Phi^{-1}(confidence)``.
+
+    Because q_x = 1 - exp(-m_x) and ``ln m_x = a_x + b_x * k_t``, a k_t shock
+    of ``delta_k`` maps roughly to a multiplicative mortality shock of
+    ``exp(|b_x| * delta_k) - 1``. We summarise this with a single
+    representative ``b`` (the mean of positive ``b_x`` over the working-age
+    range by default), yielding:
+
+        mortality_shock  = exp(b_rep * sigma * z) - 1   (adverse: worse mortality)
+        longevity_shock  = exp(b_rep * sigma * z) - 1   (adverse: better mortality)
+        cat_shock_factor = 1 + (exp(b_rep * sigma * z) - 1) = exp(b_rep * sigma * z)
+
+    The defaults remain the Solvency II ``+15% / -20% / +35%`` values -- this
+    helper only provides an OPTIONAL, data-driven override when a fitted
+    Lee-Carter model is available.
+
+    Args:
+        lee_carter: A fitted Lee-Carter model with ``kt`` and ``bx``.
+        confidence: VaR confidence (default 0.995 = 1-in-200).
+        representative_b: Override for the representative b_x (otherwise the
+            mean of positive working-age b_x is used).
+
+    Returns:
+        Dict with mortality_shock, longevity_shock, cat_shock_factor, sigma_k,
+        z_value, representative_b.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ActuarialValidationError(
+            f"confidence must be in (0,1) (got {confidence})",
+            field="confidence",
+            constraint="0 < confidence < 1",
+        )
+    kt = np.asarray(lee_carter.kt, dtype=float)
+    if len(kt) < 3:
+        raise ActuarialComputationError(
+            f"Lee-Carter k_t has too few points to estimate volatility (need >=3, got {len(kt)})",
+            field="lee_carter.kt",
+            constraint="len(kt) >= 3",
+        )
+    innovations = np.diff(kt)
+    sigma_k = float(np.std(innovations, ddof=1)) if len(innovations) >= 2 else 0.0
+
+    z = _inv_norm_cdf(confidence)
+
+    if representative_b is None:
+        bx = np.asarray(lee_carter.bx, dtype=float)
+        positive = bx[bx > 0]
+        b_rep = float(positive.mean()) if positive.size else 1.0
+    else:
+        b_rep = float(representative_b)
+
+    delta_lnq = b_rep * sigma_k * z
+    multiplicative = math.expm1(delta_lnq)  # exp(delta) - 1
+
+    return {
+        "mortality_shock": multiplicative,
+        "longevity_shock": multiplicative,
+        "cat_shock_factor": 1.0 + multiplicative,
+        "sigma_k": sigma_k,
+        "z_value": z,
+        "representative_b": b_rep,
+    }
+
+
+def _inv_norm_cdf(p: float) -> float:
+    """Inverse standard-normal CDF via the inverse error function (Beasley-Springer-Moro fallback)."""
+    # Acklam's algorithm: decent accuracy without scipy.stats.
+    # https://www.wilmottwiki.com/quantnotes/AcklamAlgorithm.htm
+    a = [
+        -3.969683028665376e01,
+        2.209460983245205e02,
+        -2.775758516594995e02,
+        1.383577551577929e02,
+        -3.066479806487985e01,
+        2.506628277458239e00,
+    ]
+    b = [
+        -5.447609979032057e01,
+        1.615858368580409e02,
+        -1.556989798752604e02,
+        6.680131188771972e01,
+        -1.328068914711492e01,
+    ]
+    c = [
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e00,
+        -2.549726583709849e00,
+        4.374664141464968e00,
+        2.938163982698783e00,
+    ]
+    d = [
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e00,
+        3.754408661907416e00,
+    ]
+    plow = 0.02425
+    phigh = 1.0 - plow
+
+    if p < plow:
+        q = math.sqrt(-2.0 * math.log(p))
+        x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        )
+    elif p <= phigh:
+        q = p - 0.5
+        r = q * q
+        x = (
+            (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5])
+            * q
+            / ((((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + b[5]) * r + 1.0)
+        )
+    else:
+        q = math.sqrt(-2.0 * math.log(1.0 - p))
+        x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        )
+    return x
+
+
+# =============================================================================
 # Full SCR Pipeline
 # =============================================================================
 
@@ -546,9 +798,11 @@ def run_full_scr(
     ir_shock_bps: int = 100,
     cat_shock_factor: float = 1.35,
     coc_rate: float = DEFAULT_COC_RATE,
-    portfolio_duration: float = 15.0,
+    portfolio_duration: float | None = None,
     available_capital: float | None = None,
-) -> dict:
+    ir_rate_floor: float = DEFAULT_IR_FLOOR,
+    shocks_from: LeeCarter | None = None,
+) -> dict[str, object]:
     """
     Run the complete SCR computation pipeline.
 
@@ -570,12 +824,36 @@ def run_full_scr(
         ir_shock_bps: Interest rate shock in basis points
         cat_shock_factor: Catastrophe one-year mortality multiplier
         coc_rate: Cost-of-Capital rate for risk margin
-        portfolio_duration: Average remaining duration (years)
+        portfolio_duration: Average remaining duration (years). If ``None``,
+            it is computed from the portfolio via
+            :func:`portfolio_remaining_duration` (replaces the previous
+            hardcoded 15.0).
         available_capital: Available capital (optional)
+        ir_rate_floor: Floor for the IR down shock (default ``DEFAULT_IR_FLOOR``)
+        shocks_from: Optional fitted Lee-Carter model. When provided, the
+            mortality / longevity / catastrophe shocks are recalibrated from
+            the model's k_t volatility (see
+            :func:`calibrate_shocks_from_lee_carter`) and override the
+            ``mortality_shock`` / ``longevity_shock`` / ``cat_shock_factor``
+            arguments above.
 
     Returns:
-        Comprehensive dict with all SCR results
+        Comprehensive dict with all SCR results, plus ``portfolio_duration``
+        and ``shock_calibration`` keys when those paths are exercised.
     """
+    # Optional Lee-Carter shock calibration overrides the standard-formula
+    # defaults.
+    shock_calibration: dict[str, float] | None = None
+    if shocks_from is not None:
+        shock_calibration = calibrate_shocks_from_lee_carter(shocks_from)
+        mortality_shock = shock_calibration["mortality_shock"]
+        longevity_shock = shock_calibration["longevity_shock"]
+        cat_shock_factor = shock_calibration["cat_shock_factor"]
+
+    # Portfolio-specific risk-margin duration (replaces hardcoded 15.0).
+    if portfolio_duration is None:
+        portfolio_duration = portfolio_remaining_duration(portfolio, base_lt, interest_rate)
+
     # Base BEL
     bel_base = portfolio.compute_bel(base_lt, interest_rate)
     bel_breakdown = portfolio.compute_bel_by_type(base_lt, interest_rate)
@@ -583,16 +861,20 @@ def run_full_scr(
     # Individual SCR components
     mort_result = compute_scr_mortality(portfolio, base_lt, interest_rate, shock=mortality_shock)
     long_result = compute_scr_longevity(portfolio, base_lt, interest_rate, shock=longevity_shock)
-    ir_result = compute_scr_interest_rate(portfolio, base_lt, interest_rate, shock_bps=ir_shock_bps)
+    ir_result = compute_scr_interest_rate(
+        portfolio, base_lt, interest_rate, shock_bps=ir_shock_bps, rate_floor=ir_rate_floor
+    )
     cat_result = compute_scr_catastrophe(
         portfolio, base_lt, interest_rate, cat_shock_factor=cat_shock_factor
     )
 
     # Life underwriting aggregation
-    life_agg = aggregate_scr_life(mort_result["scr"], long_result["scr"], cat_result["scr"])
+    life_agg = aggregate_scr_life(
+        mort_result["scr"], long_result["scr"], cast(float, cat_result["scr"])
+    )
 
     # Total aggregation
-    total_agg = aggregate_scr_total(life_agg["scr_life"], ir_result["scr"])
+    total_agg = aggregate_scr_total(life_agg["scr_life"], cast(float, ir_result["scr"]))
 
     # Risk margin
     rm_result = compute_risk_margin(
@@ -619,4 +901,6 @@ def run_full_scr(
         "risk_margin": rm_result,
         "technical_provisions": technical_provisions,
         "solvency": solvency,
+        "portfolio_duration": portfolio_duration,
+        "shock_calibration": shock_calibration,
     }

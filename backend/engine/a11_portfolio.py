@@ -27,6 +27,16 @@ Key Properties:
 2. BEL for in-force death products > 0 (reserve has accumulated).
 3. BEL for annuities > 0 ALWAYS (insurer owes from day one).
 
+Optional Gross-Premium Hooks (Net-Premium by Default):
+------------------------------------------------------
+Each policy can carry optional ``expense_loading``, ``lapse_rate`` and
+``commission`` fields. They default to no-op values (0.0 expense, 0.0
+lapse, 0.0 commission) so the engine remains a NET-premium BEL engine;
+they exist purely as a stable API surface so future gross-premium work
+can attach assumptions without changing the constructor signature or
+breaking downstream callers. They are NOT used by the current BEL/SCR
+pipeline.
+
 LISF Compliance:
 ---------------
 Mexican regulation (LISF Art. 217, CUSF) requires insurers to compute
@@ -34,12 +44,36 @@ BEL as the present value of future obligations less future premium income,
 using best-estimate mortality assumptions and risk-free discount rates.
 """
 
+from __future__ import annotations
+
+import warnings
 from typing import ClassVar
 
 from .a01_life_table import LifeTable
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
 from .a05_reserves import ReserveCalculator
+from .exceptions import ActuarialValidationError
+from .validators import (
+    validate_non_negative_amount,
+    validate_term_bounds,
+)
+
+
+def _validate_int(value: object, name: str, *, minimum: int | None = None) -> None:
+    """Validate that ``value`` is a plain integer (not a bool) in range."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ActuarialValidationError(
+            f"{name} must be an integer (got {type(value).__name__})",
+            field=name,
+            constraint=f"{name}: int",
+        )
+    if minimum is not None and value < minimum:
+        raise ActuarialValidationError(
+            f"{name} cannot be below {minimum} (got {value})",
+            field=name,
+            constraint=f"{name} >= {minimum}",
+        )
 
 
 class Policy:
@@ -54,6 +88,9 @@ class Policy:
         annual_pension: Annual payment for annuity products
         n: Term in years (term/endowment only)
         duration: Years since issue (0 = newly issued)
+        expense_loading: Optional fractional expense loading (no-op default).
+        lapse_rate: Optional annual lapse rate (no-op default).
+        commission: Optional fractional commission (no-op default).
     """
 
     DEATH_PRODUCTS: ClassVar[frozenset[str]] = frozenset({"whole_life", "term", "endowment"})
@@ -69,6 +106,10 @@ class Policy:
         annual_pension: float = 0.0,
         n: int | None = None,
         duration: int = 0,
+        *,
+        expense_loading: float = 0.0,
+        lapse_rate: float = 0.0,
+        commission: float = 0.0,
     ):
         if product_type not in self.VALID_PRODUCTS:
             raise ValueError(
@@ -79,13 +120,53 @@ class Policy:
         if product_type in ("term", "endowment") and n is None:
             raise ValueError(f"{product_type} requires n (term length)")
 
+        # Structural integer validation -- raises ActuarialValidationError.
+        _validate_int(issue_age, "issue_age", minimum=0)
+        _validate_int(duration, "duration", minimum=0)
+        if n is not None:
+            _validate_int(n, "n", minimum=0)
+
+        # Non-negative monetary amounts (engines assert these downstream too,
+        # but validating at the boundary catches construction-time bugs).
+        validate_non_negative_amount(float(SA), "SA")
+        validate_non_negative_amount(float(annual_pension), "annual_pension")
+
+        # Optional gross-premium / lapse hooks. Currently informational only;
+        # validated for shape so a downstream consumer can rely on them.
+        validate_non_negative_amount(float(expense_loading), "expense_loading")
+        validate_non_negative_amount(float(lapse_rate), "lapse_rate")
+        validate_non_negative_amount(float(commission), "commission")
+        if lapse_rate > 1.0:
+            raise ActuarialValidationError(
+                f"lapse_rate must be a probability in [0,1] (got {lapse_rate})",
+                field="lapse_rate",
+                constraint="0 <= lapse_rate <= 1",
+            )
+
+        # Cross-field rule: duration <= n for finite-horizon products. We keep
+        # this as a construction-time warning (an "expired" policy is still a
+        # legal object -- the SCR engine explicitly models expired policies
+        # -- but constructing one with duration>n for endowment/term is almost
+        # always a data mistake).
+        if product_type in ("term", "endowment") and n is not None and duration > n:
+            warnings.warn(
+                f"Policy {policy_id!r} ({product_type}, term {n}) constructed with "
+                f"duration={duration} > n -- it is expired/matured.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         self.policy_id = policy_id
         self.product_type = product_type
         self.issue_age = issue_age
-        self.SA = SA
-        self.annual_pension = annual_pension
+        self.SA = float(SA)
+        self.annual_pension = float(annual_pension)
         self.n = n
         self.duration = duration
+        # No-op hook fields (see class docstring).
+        self.expense_loading = float(expense_loading)
+        self.lapse_rate = float(lapse_rate)
+        self.commission = float(commission)
 
     @property
     def is_death_product(self) -> bool:
@@ -101,6 +182,18 @@ class Policy:
     def attained_age(self) -> int:
         """Current age = issue_age + duration."""
         return self.issue_age + self.duration
+
+    @property
+    def remaining_term(self) -> int | None:
+        """Remaining cover years for finite-horizon products, else None."""
+        if self.product_type in ("term", "endowment") and self.n is not None:
+            return max(self.n - self.duration, 0)
+        return None
+
+    @property
+    def is_expired(self) -> bool:
+        """True for term/endowment whose duration has reached/exceeded n."""
+        return self.remaining_term is not None and self.remaining_term == 0
 
     def __repr__(self) -> str:
         if self.is_death_product:
@@ -128,10 +221,14 @@ def compute_policy_bel(
     For death products: BEL = prospective reserve at current duration.
     For annuities: BEL = annual_pension * a_due(attained_age).
 
+    Expired/matured finite-horizon policies have BEL = 0 by definition
+    (no future benefits owed, no future premiums due).
+
     Args:
         policy: The Policy instance
         life_table: Mortality table to use (best-estimate)
         interest_rate: Risk-free discount rate
+        comm: Optional shared CommutationFunctions instance (performance)
 
     Returns:
         BEL amount (float)
@@ -139,13 +236,19 @@ def compute_policy_bel(
     if comm is None:
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
 
+    # Expired term/endowment: no future obligation.
+    if policy.is_expired:
+        return 0.0
+
     if policy.is_death_product:
         rc = ReserveCalculator(comm)
         if policy.product_type == "whole_life":
             return rc.reserve_whole_life(SA=policy.SA, x=policy.issue_age, t=policy.duration)
         elif policy.product_type == "term":
+            assert policy.n is not None  # validated at construction (term requires n)
             return rc.reserve_term(SA=policy.SA, x=policy.issue_age, n=policy.n, t=policy.duration)
         elif policy.product_type == "endowment":
+            assert policy.n is not None  # validated at construction
             return rc.reserve_endowment(
                 SA=policy.SA, x=policy.issue_age, n=policy.n, t=policy.duration
             )
@@ -153,6 +256,99 @@ def compute_policy_bel(
         # Annuity: BEL = pension * a_due(attained_age)
         av = ActuarialValues(comm)
         return policy.annual_pension * av.a_due(policy.attained_age)
+
+    # Should be unreachable due to construction-time product_type validation.
+    raise ActuarialValidationError(
+        f"Unsupported product_type {policy.product_type!r} reached BEL computation",
+        field="product_type",
+        constraint="product_type in DEATH_PRODUCTS | ANNUITY_PRODUCTS",
+    )
+
+
+def _t_p_x(life_table: LifeTable, x: int, t: int) -> float:
+    """
+    Survival probability ``t_p_x = l_{x+t} / l_x`` directly from the life
+    table's survivor counts. Returns 0.0 if ``x`` or ``x+t`` fall outside the
+    table range (the policy is treated as certainly-not-in-force).
+    """
+    if t < 0:
+        return 0.0
+    if t == 0:
+        return 1.0
+    min_age, max_age = life_table.min_age, life_table.max_age
+    if x < min_age or x > max_age or x + t > max_age:
+        return 0.0
+    l_x = life_table.get_l(x)
+    l_xt = life_table.get_l(x + t)
+    if l_x <= 0:
+        return 0.0
+    return l_xt / l_x
+
+
+def policy_remaining_horizon(
+    policy: Policy,
+    life_table: LifeTable,
+    interest_rate: float,
+) -> float:
+    """
+    Estimate the remaining actuarial horizon (years) for a single policy.
+
+    For term / endowment: the contractual remaining term ``n - duration``
+    (clamped at 0).
+
+    For whole life / annuity: the curtate life expectancy at the attained
+    age, computed as ``a_due(attained_age) * (1+i)`` (the annuity-due factor
+    is the expected number of annual payments; rescaling by ``1+i`` removes
+    the discounting so the result is in years). Clamped to the table span
+    remaining ``max_age - attained_age`` as a sanity ceiling.
+    """
+    if policy.is_expired:
+        return 0.0
+
+    if policy.product_type in ("term", "endowment") and policy.n is not None:
+        return float(max(policy.n - policy.duration, 0))
+
+    # Whole life / annuity: use life expectancy from the annuity factor.
+    comm = CommutationFunctions(life_table, interest_rate=interest_rate)
+    av = ActuarialValues(comm)
+    attained = policy.attained_age
+    if attained > life_table.max_age:
+        return 0.0
+    a_due = av.a_due(attained)
+    horizon = a_due * (1.0 + interest_rate)
+    ceiling = float(max(life_table.max_age - attained, 0))
+    return float(min(horizon, ceiling))
+
+
+def portfolio_remaining_duration(
+    portfolio: Portfolio,
+    life_table: LifeTable,
+    interest_rate: float,
+) -> float:
+    """
+    BEL-weighted average remaining horizon of the portfolio in years.
+
+    Used by the SCR risk-margin computation to replace the previous
+    hardcoded ``portfolio_duration = 15`` constant with a portfolio-specific
+    figure. Degenerate portfolios (zero BEL, all expired) return 0.0.
+    """
+    total_bel = 0.0
+    weighted = 0.0
+    for p in portfolio.policies:
+        bel = compute_policy_bel(p, life_table, interest_rate)
+        horizon = policy_remaining_horizon(p, life_table, interest_rate)
+        total_bel += bel
+        weighted += bel * horizon
+    if total_bel <= 0.0:
+        # No liability -> the duration is undefined; fall back to the simple
+        # average of in-force remaining horizons (or 0 if none in force).
+        horizons = [
+            policy_remaining_horizon(p, life_table, interest_rate)
+            for p in portfolio.policies
+            if not p.is_expired
+        ]
+        return float(sum(horizons) / len(horizons)) if horizons else 0.0
+    return weighted / total_bel
 
 
 class Portfolio:
@@ -165,6 +361,18 @@ class Portfolio:
 
     def __init__(self, policies: list[Policy]):
         self.policies = list(policies)
+        self._validate_unique_ids()
+
+    def _validate_unique_ids(self) -> None:
+        seen: set[str] = set()
+        for p in self.policies:
+            if p.policy_id in seen:
+                raise ActuarialValidationError(
+                    f"Duplicate policy_id {p.policy_id!r} in portfolio",
+                    field="policy_id",
+                    constraint="policy_id unique within a Portfolio",
+                )
+            seen.add(p.policy_id)
 
     @property
     def death_products(self) -> list[Policy]:
@@ -175,6 +383,31 @@ class Portfolio:
     def annuity_products(self) -> list[Policy]:
         """All annuity policies."""
         return [p for p in self.policies if p.is_annuity]
+
+    def validate_against_life_table(self, life_table: LifeTable) -> None:
+        """
+        Cross-validate every in-force policy against a life table.
+
+        Ensures the attained age fits inside ``[min_age, max_age]`` and
+        that finite-horizon durations are within ``n``. Expired policies
+        (``duration >= n``) are accepted and skipped silently.
+        """
+        min_age, max_age = life_table.min_age, life_table.max_age
+        for p in self.policies:
+            if p.is_expired:
+                continue
+            if p.attained_age < min_age or p.attained_age > max_age:
+                raise ActuarialValidationError(
+                    f"Policy {p.policy_id!r} attained age {p.attained_age} is outside "
+                    f"the life table range [{min_age}, {max_age}]",
+                    field="attained_age",
+                    constraint=f"min_age <= attained_age <= max_age ({max_age})",
+                )
+            validate_term_bounds(
+                p.n if p.product_type in ("term", "endowment") else None,
+                t=p.duration,
+                product_type=p.product_type if p.product_type != "annuity" else "whole_life",
+            )
 
     def compute_bel(self, life_table: LifeTable, interest_rate: float) -> float:
         """
@@ -187,23 +420,27 @@ class Portfolio:
         Returns:
             Aggregate BEL (sum of individual policy BELs)
         """
+        self.validate_against_life_table(life_table)
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         return sum(
             compute_policy_bel(p, life_table, interest_rate, comm=comm) for p in self.policies
         )
 
-    def compute_bel_breakdown(self, life_table: LifeTable, interest_rate: float) -> list[dict]:
+    def compute_bel_breakdown(
+        self, life_table: LifeTable, interest_rate: float
+    ) -> list[dict[str, object]]:
         """
         Per-policy BEL breakdown.
 
         Returns:
             List of dicts with policy details and individual BEL.
         """
+        self.validate_against_life_table(life_table)
         breakdown = []
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         for p in self.policies:
             bel = compute_policy_bel(p, life_table, interest_rate, comm=comm)
-            entry = {
+            entry: dict[str, object] = {
                 "policy_id": p.policy_id,
                 "product_type": p.product_type,
                 "issue_age": p.issue_age,
@@ -225,6 +462,7 @@ class Portfolio:
         Returns:
             Dict with "death_bel", "annuity_bel", "total_bel".
         """
+        self.validate_against_life_table(life_table)
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         death_bel = sum(
             compute_policy_bel(p, life_table, interest_rate, comm=comm) for p in self.death_products
