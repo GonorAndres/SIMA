@@ -20,9 +20,21 @@ Key Validations:
 2. Terminal age has 100% mortality: q_omega = 1.0
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Dict, List
 import csv
+import warnings
+
+from .exceptions import ActuarialValidationError
+from .validators import (
+    MONO_REL_TOL,
+    validate_age_in_table,
+    validate_consecutive_ages,
+    validate_lx_monotonic,
+    validate_probabilities,
+)
 
 
 class LifeTable:
@@ -45,22 +57,33 @@ class LifeTable:
         Args:
             ages: List of ages (must be consecutive)
             l_x_values: List of survivors at each age
+
+        Raises:
+            ActuarialValidationError: If ages are not consecutive, l_x is
+                negative or non-monotone, or lengths mismatch.
         """
         if len(ages) != len(l_x_values):
-            raise ValueError("Ages and l_x values must have same length")
+            raise ActuarialValidationError(
+                f"Ages and l_x values must have the same length "
+                f"(got {len(ages)} vs {len(l_x_values)})",
+                field="ages/l_x",
+                constraint="len(ages) == len(l_x_values)",
+            )
 
-        if len(ages) < 2:
-            raise ValueError("Life table must have at least 2 ages")
+        # Validate structure before storing anything.
+        ages_list = list(ages)
+        validate_consecutive_ages(ages_list)
+        validate_lx_monotonic(list(l_x_values), ages=ages_list)
 
         # Store basic info
-        self.min_age = min(ages)
-        self.max_age = max(ages)
+        self.min_age = ages_list[0]
+        self.max_age = ages_list[-1]
         self._omega = self.max_age  # Ultimate age
 
         # Build l_x dictionary
         self.l_x: Dict[int, float] = {}
-        for age, lx in zip(ages, l_x_values):
-            self.l_x[age] = lx
+        for age, lx in zip(ages_list, l_x_values):
+            self.l_x[age] = float(lx)
 
         # Derive d_x, q_x, p_x
         self._compute_derivatives()
@@ -75,17 +98,28 @@ class LifeTable:
             l_current = self.l_x[age]
             l_next = self.l_x[age + 1]
 
-            # Deaths: d_x = l_x - l_{x+1}
-            self.d_x[age] = l_current - l_next
+            # Deaths: d_x = l_x - l_{x+1}. Clamp tiny negatives (float
+            # recurrence noise) to zero rather than emitting negative deaths.
+            d = l_current - l_next
+            if d < 0 and abs(d) <= MONO_REL_TOL * max(abs(l_current), 1.0):
+                d = 0.0
+            self.d_x[age] = d
 
             # Mortality rate: q_x = d_x / l_x
             if l_current > 0:
                 self.q_x[age] = self.d_x[age] / l_current
             else:
-                self.q_x[age] = 1.0  # Edge case: no survivors
+                # No survivors: mortality is undefined; we follow the
+                # convention q_x = 1 (everyone remaining is dead) so the
+                # subsequent p_x = 0 terminates survival correctly.
+                self.q_x[age] = 1.0
 
             # Survival rate: p_x = 1 - q_x
             self.p_x[age] = 1.0 - self.q_x[age]
+
+        # Validate computed probabilities are in [0,1] (guards against bad
+        # l_x values that produced q_x > 1 through rounding).
+        validate_probabilities(self.q_x.values())
 
         # Terminal age: everyone dies
         # d_omega = l_omega (all remaining die)
@@ -161,18 +195,25 @@ class LifeTable:
         ages: List[int] = []
         qx_values: List[float] = []
 
-        with open(path, 'r', newline='') as f:
+        with open(path, "r", newline="") as f:
             reader = csv.DictReader(f)
             other_col = "qx_female" if sex == "male" else "qx_male"
             identical_count = 0
             for row in reader:
-                ages.append(int(row['age']))
-                qx_values.append(float(row[col]))
-                if other_col in row and float(row[col]) == float(row[other_col]):
+                ages.append(int(row["age"]))
+                q_this = float(row[col])
+                qx_values.append(q_this)
+                # Compare the *raw strings* of the two qx columns rather than
+                # exact float equality: a trailing-zero formatting difference
+                # (0.005 vs 0.0050) compares equal as floats but the previous
+                # `==` check silently masked genuinely shared data. We detect
+                # "truly identical published series" by string match, which is
+                # what actually indicates the source did not differentiate by
+                # sex.
+                if other_col in row and str(row[col]).strip() == str(row[other_col]).strip():
                     identical_count += 1
 
         if identical_count == len(ages) and sex != "unisex":
-            import warnings
             warnings.warn(
                 f"Regulatory table {path.name} has identical qx_male and qx_female columns. "
                 f"Sex-differentiated mortality data is required for accurate pricing.",
@@ -197,10 +238,12 @@ class LifeTable:
         Returns:
             New LifeTable for the specified range
         """
-        if start_age < self.min_age or end_age > self.max_age:
-            raise ValueError(
+        if start_age < self.min_age or end_age > self.max_age or start_age > end_age:
+            raise ActuarialValidationError(
                 f"Subset range [{start_age}, {end_age}] out of bounds "
-                f"[{self.min_age}, {self.max_age}]"
+                f"[{self.min_age}, {self.max_age}]",
+                field="start_age/end_age",
+                constraint=f"{self.min_age} <= start_age <= end_age <= {self.max_age}",
             )
 
         ages = list(range(start_age, end_age + 1))
@@ -211,25 +254,47 @@ class LifeTable:
     def get_l(self, age: int) -> float:
         """Get l_x (survivors) at specified age."""
         if age not in self.l_x:
-            raise KeyError(f"Age {age} not in life table")
+            validate_age_in_table(age, self.min_age, self.max_age)
+            # Defensive: validate_age_in_table raises, so the next line is
+            # only reached if the age is in-range but somehow missing.
+            raise ActuarialValidationError(
+                f"Survivor l_x not available for age {age}",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.l_x[age]
 
     def get_d(self, age: int) -> float:
         """Get d_x (deaths) at specified age."""
         if age not in self.d_x:
-            raise KeyError(f"Age {age} not in life table for d_x")
+            validate_age_in_table(age, self.min_age, self.max_age)
+            raise ActuarialValidationError(
+                f"Deaths d_x not available for age {age}",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.d_x[age]
 
     def get_q(self, age: int) -> float:
         """Get q_x (mortality rate) at specified age."""
         if age not in self.q_x:
-            raise KeyError(f"Age {age} not in life table for q_x")
+            validate_age_in_table(age, self.min_age, self.max_age)
+            raise ActuarialValidationError(
+                f"Mortality q_x not available for age {age}",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.q_x[age]
 
     def get_p(self, age: int) -> float:
         """Get p_x (survival rate) at specified age."""
         if age not in self.p_x:
-            raise KeyError(f"Age {age} not in life table for p_x")
+            validate_age_in_table(age, self.min_age, self.max_age)
+            raise ActuarialValidationError(
+                f"Survival p_x not available for age {age}",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.p_x[age]
 
     def validate(self) -> Dict[str, bool]:
@@ -244,18 +309,21 @@ class LifeTable:
         """
         results = {}
 
-        # Validation 1: Sum of deaths equals initial population
-        # sum(d_x) from min_age to max_age should equal l_{min_age}
+        # Validation 1: Sum of deaths equals initial population.
+        # sum(d_x) from min_age to max_age should equal l_{min_age}. Use a
+        # relative tolerance so large radices (e.g. 100,000) do not fail on
+        # pure float-summation noise.
         total_deaths = sum(self.d_x.values())
         l_0 = self.l_x[self.min_age]
-        results['sum_deaths_equals_l0'] = abs(total_deaths - l_0) < 1e-6
+        tol = 1e-9 * max(abs(l_0), 1.0)
+        results["sum_deaths_equals_l0"] = abs(total_deaths - l_0) <= tol
 
         # Validation 2: Terminal age has 100% mortality
-        results['terminal_mortality_is_one'] = abs(self.q_x[self.max_age] - 1.0) < 1e-6
+        results["terminal_mortality_is_one"] = abs(self.q_x[self.max_age] - 1.0) <= 1e-9
 
         # Validation 3: All mortality rates are valid probabilities
-        results['all_rates_valid'] = all(
-            0 <= q <= 1 for q in self.q_x.values()
+        results["all_rates_valid"] = all(
+            -1e-9 <= q <= 1.0 + 1e-9 for q in self.q_x.values()
         )
 
         return results

@@ -29,10 +29,20 @@ Mexican regulations (LISF Art. 217) require reserves calculated
 using the net premium method, which is exactly what we implement.
 """
 
-from typing import List, Dict, Tuple
+from __future__ import annotations
+
+import warnings
+from typing import Dict, List, Optional, Tuple
+
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
 from .a04_premiums import PremiumCalculator
+from .exceptions import ActuarialValidationError
+from .validators import (
+    validate_age_in_table,
+    validate_non_negative_amount,
+    validate_term_bounds,
+)
 
 
 class ReserveCalculator:
@@ -53,6 +63,46 @@ class ReserveCalculator:
         self.comm = commutation
         self.av = ActuarialValues(commutation)
         self.pc = PremiumCalculator(commutation)
+
+    # ---- internal helpers ---------------------------------------------------
+    def _check_inputs(
+        self, SA: float, x: int, n: Optional[int] = None, t: int = 0, *, product: str = "whole_life"
+    ) -> None:
+        """Validate SA, issue age, and (for finite products) non-negative term.
+
+        Note: ``t > n`` is intentionally *not* rejected here. For term /
+        endowment / pure-endowment policies the convention is to return the
+        expired/matured value (0 / SA) with a warning, which is handled in the
+        individual reserve methods. This mirrors LISF practice of reporting an
+        explicit nil/liability rather than an error for expired policies.
+        """
+        validate_non_negative_amount(SA, "sum_assured")
+        validate_age_in_table(x, self.comm.min_age, self.comm.max_age)
+        if not isinstance(t, int) or isinstance(t, bool) or t < 0:
+            if not isinstance(t, int) or isinstance(t, bool):
+                raise ActuarialValidationError(
+                    f"Duration t must be a non-negative integer (got {t!r})",
+                    field="t",
+                    constraint="t: int and t >= 0",
+                )
+            raise ActuarialValidationError(
+                f"Duration t cannot be negative (got {t})",
+                field="t",
+                constraint="t >= 0",
+            )
+        if n is not None:
+            if isinstance(n, bool) or not isinstance(n, int):
+                raise ActuarialValidationError(
+                    f"Term n must be an integer if provided (got {n!r})",
+                    field="n",
+                    constraint="n: int | None",
+                )
+            if n < 0:
+                raise ActuarialValidationError(
+                    f"Term n cannot be negative (got {n})",
+                    field="n",
+                    constraint="n >= 0",
+                )
 
     def reserve_whole_life(self, SA: float, x: int, t: int) -> float:
         """
@@ -77,6 +127,7 @@ class ReserveCalculator:
         Returns:
             Reserve amount at duration t
         """
+        self._check_inputs(SA, x, t=t, product="whole_life")
         # Current attained age
         attained_age = x + t
 
@@ -119,8 +170,14 @@ class ReserveCalculator:
         Returns:
             Reserve amount at duration t
         """
+        self._check_inputs(SA, x, n, t, product="term")
         # Policy expired?
         if t >= n:
+            warnings.warn(
+                f"Term policy (issue age {x}, term {n}) is expired at "
+                f"duration t={t}; reserve is 0.",
+                stacklevel=2,
+            )
             return 0.0
 
         attained_age = x + t
@@ -160,7 +217,8 @@ class ReserveCalculator:
         Returns:
             Reserve amount at duration t
         """
-        # At maturity, reserve equals SA
+        self._check_inputs(SA, x, n, t, product="endowment")
+        # At maturity, reserve equals SA (the endowment is now due).
         if t >= n:
             return SA
 
@@ -201,6 +259,7 @@ class ReserveCalculator:
         Returns:
             Reserve amount at duration t
         """
+        self._check_inputs(SA, x, n, t, product="pure_endowment")
         if t >= n:
             return SA
 
@@ -222,9 +281,9 @@ class ReserveCalculator:
 
         return reserve
 
-    def reserve_trajectory(self, SA: float, x: int,
-                          product: str = "whole_life",
-                          n: int = None) -> List[Tuple[int, float]]:
+    def reserve_trajectory(
+        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
+    ) -> List[Tuple[int, float]]:
         """
         Calculate reserve at each duration from 0 to end of policy.
 
@@ -234,13 +293,13 @@ class ReserveCalculator:
         Args:
             SA: Sum Assured
             x: Issue age
-            product: "whole_life", "term", or "endowment"
-            n: Term/endowment period (required for term/endowment)
+            product: "whole_life", "term", "endowment", or "pure_endowment"
+            n: Term/endowment period (required for term/endowment/pure_endowment)
 
         Returns:
             List of (t, tV) tuples
         """
-        trajectory = []
+        trajectory: List[Tuple[int, float]] = []
 
         if product == "whole_life":
             max_t = self.comm.max_age - x
@@ -249,34 +308,35 @@ class ReserveCalculator:
                 trajectory.append((t, reserve))
 
         elif product == "term":
-            if n is None:
-                raise ValueError("Term product requires n")
+            validate_term_bounds(n, 0, "term")  # raises if n is None/negative
             for t in range(n + 1):
                 reserve = self.reserve_term(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         elif product == "endowment":
-            if n is None:
-                raise ValueError("Endowment product requires n")
+            validate_term_bounds(n, 0, "endowment")
             for t in range(n + 1):
                 reserve = self.reserve_endowment(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         elif product == "pure_endowment":
-            if n is None:
-                raise ValueError("Pure endowment product requires n")
+            validate_term_bounds(n, 0, "pure_endowment")
             for t in range(n + 1):
                 reserve = self.reserve_pure_endowment(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         else:
-            raise ValueError(f"Unknown product: {product}")
+            raise ActuarialValidationError(
+                f"Unknown product: {product!r}",
+                field="product",
+                constraint="product in {whole_life, term, endowment, pure_endowment}",
+            )
 
         return trajectory
 
-    def validate_zero_reserve(self, SA: float, x: int,
-                             product: str = "whole_life",
-                             n: int = None) -> Dict:
+    def validate_zero_reserve(
+        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
+    ) -> Dict:
         """
         Validate that reserve at issue (t=0) equals zero.
 
@@ -285,10 +345,13 @@ class ReserveCalculator:
             APV(Premiums) = APV(Benefits)
             => 0V = 0
 
+        The "is zero" check is relative to the sum assured so that it is
+        meaningful for both very small and very large face values.
+
         Args:
             SA: Sum Assured
             x: Issue age
-            product: Product type
+            product: "whole_life", "term", "endowment", or "pure_endowment"
             n: Term (if applicable)
 
         Returns:
@@ -298,21 +361,33 @@ class ReserveCalculator:
             reserve_0 = self.reserve_whole_life(SA, x, 0)
             P = self.pc.whole_life(SA, x)
         elif product == "term":
+            validate_term_bounds(n, 0, "term")
             reserve_0 = self.reserve_term(SA, x, n, 0)
             P = self.pc.term(SA, x, n)
         elif product == "endowment":
+            validate_term_bounds(n, 0, "endowment")
             reserve_0 = self.reserve_endowment(SA, x, n, 0)
             P = self.pc.endowment(SA, x, n)
+        elif product == "pure_endowment":
+            validate_term_bounds(n, 0, "pure_endowment")
+            reserve_0 = self.reserve_pure_endowment(SA, x, n, 0)
+            P = self.pc.pure_endowment(SA, x, n)
         else:
-            raise ValueError(f"Unknown product: {product}")
+            raise ActuarialValidationError(
+                f"Unknown product: {product!r}",
+                field="product",
+                constraint="product in {whole_life, term, endowment, pure_endowment}",
+            )
 
+        tol = 1e-9 * max(abs(SA), 1.0)
         return {
             'product': product,
             'issue_age': x,
             'sum_assured': SA,
             'premium': P,
             'reserve_at_0': reserve_0,
-            'is_zero': abs(reserve_0) < 0.01,
+            'tolerance': tol,
+            'is_zero': abs(reserve_0) <= tol,
             'explanation': (
                 "0V = 0 confirms equivalence principle: "
                 "at issue, APV(premiums) = APV(benefits)"

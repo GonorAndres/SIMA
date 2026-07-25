@@ -34,9 +34,18 @@ Mexican regulations (LISF Art. 217) require net premium method for reserves.
 These net premiums form the basis of reserve calculations.
 """
 
+from __future__ import annotations
+
 from typing import Optional
+
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
+from .exceptions import ActuarialComputationError
+from .validators import (
+    validate_age_in_table,
+    validate_non_negative_amount,
+    validate_term_bounds,
+)
 
 
 class PremiumCalculator:
@@ -58,6 +67,14 @@ class PremiumCalculator:
         self.comm = commutation
         self.av = ActuarialValues(commutation)
 
+    # ---- internal helpers ---------------------------------------------------
+    def _check_common(self, SA: float, x: int, n: Optional[int] = None) -> None:
+        """Validate SA and issue age (and term when provided)."""
+        validate_non_negative_amount(SA, "sum_assured")
+        validate_age_in_table(x, self.comm.min_age, self.comm.max_age)
+        if n is not None:
+            validate_non_negative_amount(float(n), "n")
+
     def whole_life(self, SA: float, x: int) -> float:
         """
         Net annual premium for whole life insurance.
@@ -78,8 +95,17 @@ class PremiumCalculator:
             SA = $100,000, age 60
             P = 100,000 * M_60 / N_60 = 100,000 * 0.2489 = $24,890/year
         """
+        self._check_common(SA, x)
         M_x = self.comm.get_M(x)
         N_x = self.comm.get_N(x)
+
+        if N_x == 0:
+            raise ActuarialComputationError(
+                f"N_x = 0 at age {x}; whole-life premium is undefined "
+                f"(annuity-due has no value at the terminal age)",
+                field="x",
+                constraint="N_x > 0",
+            )
 
         return SA * (M_x / N_x)
 
@@ -103,6 +129,7 @@ class PremiumCalculator:
         Note:
             If n extends beyond omega, returns whole life premium.
         """
+        self._check_common(SA, x, n)
         x_plus_n = x + n
 
         if x_plus_n > self.comm.max_age:
@@ -118,8 +145,11 @@ class PremiumCalculator:
         denominator = N_x - N_x_n
 
         if abs(denominator) < 1e-12:
-            raise ValueError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            raise ActuarialComputationError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"age {x}, term {n}; the temporary annuity has no value",
+                field="n",
+                constraint="N_x - N_{x+n} != 0",
             )
 
         return SA * (numerator / denominator)
@@ -145,6 +175,7 @@ class PremiumCalculator:
             Endowment premiums are higher than term premiums because
             the insurer WILL pay the SA either way (death or survival).
         """
+        self._check_common(SA, x, n)
         x_plus_n = x + n
 
         if x_plus_n > self.comm.max_age:
@@ -164,8 +195,11 @@ class PremiumCalculator:
         denominator = N_x - N_x_n
 
         if abs(denominator) < 1e-12:
-            raise ValueError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            raise ActuarialComputationError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"age {x}, term {n}; the endowment annuity has no value",
+                field="n",
+                constraint="N_x - N_{x+n} != 0",
             )
 
         return SA * (numerator / denominator)
@@ -186,6 +220,7 @@ class PremiumCalculator:
         Returns:
             Net annual premium
         """
+        self._check_common(SA, x, n)
         x_plus_n = x + n
 
         if x_plus_n > self.comm.max_age:
@@ -200,8 +235,11 @@ class PremiumCalculator:
         denominator = N_x - N_x_n
 
         if abs(denominator) < 1e-12:
-            raise ValueError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at age {x}, term {n}"
+            raise ActuarialComputationError(
+                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"age {x}, term {n}; the pure-endowment annuity has no value",
+                field="n",
+                constraint="N_x - N_{x+n} != 0",
             )
 
         return SA * (numerator / denominator)
@@ -225,10 +263,27 @@ class PremiumCalculator:
         Note:
             Since fewer premiums are collected, each premium is larger.
         """
+        self._check_common(SA, x)
+        validate_non_negative_amount(float(m), "m")
+        if m == 0:
+            # Zero pay period: the single premium is just the whole-life APV.
+            return SA * self.av.A_x(x)
         x_plus_m = x + m
 
         if x_plus_m > self.comm.max_age:
-            # Payment period extends beyond omega, just regular whole life
+            # Pay period extends beyond omega. The premium payment stream
+            # cannot outlast the lifetime, so this collapses to ordinary
+            # whole life (premiums paid every year while alive). We warn
+            # because the caller asked for a bounded pay period that the
+            # table cannot represent.
+            import warnings
+
+            warnings.warn(
+                f"limited_pay_whole_life pay period m={m} extends beyond "
+                f"omega={self.comm.max_age}; falling back to whole-life "
+                f"premiums paid for life.",
+                stacklevel=2,
+            )
             return self.whole_life(SA, x)
 
         M_x = self.comm.get_M(x)
@@ -239,30 +294,58 @@ class PremiumCalculator:
         denominator = N_x - N_x_m
 
         if abs(denominator) < 1e-12:
-            raise ValueError(
-                f"Annuity-due denominator (N_{x} - N_{x+m}) is zero at age {x}, pay period {m}"
+            raise ActuarialComputationError(
+                f"Annuity-due denominator (N_{x} - N_{x+m}) is zero at "
+                f"age {x}, pay period {m}",
+                field="m",
+                constraint="N_x - N_{x+m} != 0",
             )
 
         return SA * (numerator / denominator)
 
-    def single_premium(self, SA: float, x: int, product: str = "whole_life") -> float:
+    def single_premium(
+        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
+    ) -> float:
         """
         Single premium (one-time payment at issue).
 
-        pi = SA * A_x  (for whole life)
+        The single premium equals the APV of the benefit, with no annuity
+        denominator (premiums are paid once, up front):
+
+            whole_life:     pi = SA * A_x
+            term (n):       pi = SA * A^1_{x:n|}
+            endowment (n):  pi = SA * A_{x:n|}
+            pure_endowment: pi = SA * nE_x
 
         Args:
             SA: Sum Assured
             x: Issue age
-            product: "whole_life" or other product type
+            product: "whole_life", "term", "endowment", or "pure_endowment"
+            n: Term/endowment period (required for term/endowment/pure_endowment)
 
         Returns:
             Single premium amount
         """
+        self._check_common(SA, x, n if product != "whole_life" else None)
         if product == "whole_life":
             return SA * self.av.A_x(x)
-        else:
-            raise ValueError(f"Unknown product type: {product}")
+        if n is None:
+            raise ActuarialComputationError(
+                f"Product {product!r} requires n (term length)",
+                field="n",
+                constraint="n is not None for term/endowment/pure_endowment",
+            )
+        if product == "term":
+            return SA * self.av.A_term(x, n)
+        if product == "endowment":
+            return SA * self.av.A_endowment(x, n)
+        if product == "pure_endowment":
+            return SA * self.av.nE_x(x, n)
+        raise ActuarialComputationError(
+            f"Unknown product type: {product!r}",
+            field="product_type",
+            constraint="product_type in {whole_life, term, endowment, pure_endowment}",
+        )
 
     def premium_per_unit(self, x: int, product: str = "whole_life",
                          n: Optional[int] = None) -> float:
@@ -283,18 +366,34 @@ class PremiumCalculator:
             return self.whole_life(1.0, x)
         elif product == "term":
             if n is None:
-                raise ValueError("Term product requires n (term length)")
+                raise ActuarialComputationError(
+                    "Term product requires n (term length)",
+                    field="n",
+                    constraint="n is not None for term",
+                )
             return self.term(1.0, x, n)
         elif product == "endowment":
             if n is None:
-                raise ValueError("Endowment product requires n (term length)")
+                raise ActuarialComputationError(
+                    "Endowment product requires n (term length)",
+                    field="n",
+                    constraint="n is not None for endowment",
+                )
             return self.endowment(1.0, x, n)
         elif product == "pure_endowment":
             if n is None:
-                raise ValueError("Pure endowment requires n (term length)")
+                raise ActuarialComputationError(
+                    "Pure endowment requires n (term length)",
+                    field="n",
+                    constraint="n is not None for pure_endowment",
+                )
             return self.pure_endowment(1.0, x, n)
         else:
-            raise ValueError(f"Unknown product type: {product}")
+            raise ActuarialComputationError(
+                f"Unknown product type: {product!r}",
+                field="product_type",
+                constraint="product_type in {whole_life, term, endowment, pure_endowment}",
+            )
 
     def summary(self, SA: float, x: int, n: int = 10) -> str:
         """
@@ -347,10 +446,17 @@ class PremiumCalculator:
         apv_premiums = P * a_due
         apv_benefits = SA * A
 
+        # Relative tolerance: the equivalence principle should hold to
+        # float precision relative to the sum assured, not a fixed $0.01
+        # which fails for very small or very large SA.
+        diff = abs(apv_premiums - apv_benefits)
+        tol = 1e-9 * max(abs(SA), 1.0)
+
         return {
             'premium': P,
             'apv_premiums': apv_premiums,
             'apv_benefits': apv_benefits,
-            'difference': abs(apv_premiums - apv_benefits),
-            'balanced': abs(apv_premiums - apv_benefits) < 0.01
+            'difference': diff,
+            'tolerance': tol,
+            'balanced': diff <= tol,
         }
