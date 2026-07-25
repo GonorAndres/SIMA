@@ -2,11 +2,60 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 25julio]
   pull_request:
     branches: [main]
 
+# Cancel in-progress runs for the same ref when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Backend: lint + type-check + tests + coverage
+  # ---------------------------------------------------------------------------
+  backend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff check
+        run: ruff check backend/
+
+      - name: Ruff format check
+        run: ruff format --check backend/
+
+  backend-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # mypy strict mode is configured in pyproject.toml to cover the
+      # hardened core (a01-a05, a11, a12, exceptions, validators).
+      - name: Mypy strict (hardened core)
+        run: mypy
+
   backend-tests:
     runs-on: ubuntu-latest
     steps:
@@ -16,6 +65,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
@@ -26,13 +77,32 @@ jobs:
           cp backend/data/mock/hmd/usa/* backend/data/hmd/usa/
           cp backend/data/mock/hmd/spain/* backend/data/hmd/spain/
 
-      - name: Run unit tests
-        run: pytest backend/tests/ -v --tb=short
+      # Single test run with coverage. The previous workflow ran
+      # `pytest backend/tests/test_api/` separately, which duplicated the
+      # API tests (test_api/ is a subdir of backend/tests/). Coverage is
+      # enforced on the hardened engine core; the rest is reported but not
+      # gated, so progressive phases can raise the threshold.
+      - name: Run unit + API tests with coverage
+        run: |
+          pytest backend/tests/ \
+            --cov=backend/engine \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=80 \
+            -v --tb=short
 
-      - name: Run API tests
-        run: pytest backend/tests/test_api/ -v --tb=short
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
 
-  frontend-build:
+  # ---------------------------------------------------------------------------
+  # Frontend: lint + type-check + build
+  # ---------------------------------------------------------------------------
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +111,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
 
       - name: TypeScript check
         working-directory: frontend

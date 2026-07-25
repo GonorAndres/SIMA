@@ -10,7 +10,8 @@
 - **Phase 1 — Engine validation layer (a01–a05, exceptions, validators):** ✅ done (`4ee7b02`).
 - **Phase 5.1 — pyproject.toml + ruff + strict mypy on core 7 files; ActuarialValidationError→422:** ✅ done (`954c68b`).
 - **Phase 2 — Portfolio & SCR correctness (a11, a12):** ✅ done — Policy/Portfolio boundary validation, no-op expense/lapse/commission hooks, expired-term skip + `t_p_x` survival in catastrophe SCR, portfolio-specific risk-margin duration (replaces hardcoded 15), configurable IR floor with warning, `LIFE_CORR` PSD validation (import + custom), Lee-Carter shock calibration (`calibrate_shocks_from_lee_carter`), 20 new Phase-2 tests. a11/a12 added to strict mypy `files`.
-- **Next:** Phase 5.2 — CI fixes (remove duplicate pytest line, add lint/type/coverage jobs, frontend lint).
+- **Phase 5.2 — CI fixes:** ✅ done — rewrote `.github/workflows/ci.yml` into 4 jobs (backend-lint, backend-typecheck, backend-tests with coverage ≥80%, frontend lint+tsc+build); removed duplicate `pytest backend/tests/test_api/` line; added pip/npm caching and concurrency cancellation; added `ruff`, `mypy`, `pytest-cov` to `requirements-dev.txt`; updated `.dockerignore` to exclude `backend/analysis/` and `backend/tests_proposed/`.
+- **Next:** Phase 4 — API hardening (Pydantic schema improvements, exception handling, observability, global portfolio lock).
 
 ---
 
