@@ -174,14 +174,14 @@ def test_age_slice_returns_all_years(usa_data):
 
 
 def test_invalid_sex_raises_error():
-    """Requesting an invalid sex should raise ValueError."""
-    with pytest.raises(ValueError, match="sex must be"):
+    """Requesting an invalid sex should raise a domain DataQualityError."""
+    from backend.engine.exceptions import DataQualityError
+
+    with pytest.raises(DataQualityError, match="sex must be"):
         MortalityData.from_hmd(
             data_dir=DATA_DIR,
             country="usa",
-            sex="InvalidSex",
-            year_min=2000,
-            year_max=2010,
+            sex="Unknown",
         )
 
 

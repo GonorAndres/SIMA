@@ -36,6 +36,7 @@ import numpy as np
 
 from .a01_life_table import LifeTable
 from .a08_lee_carter import LeeCarter
+from .exceptions import ActuarialValidationError
 
 
 class MortalityProjection:
@@ -78,6 +79,33 @@ class MortalityProjection:
         random_seed : int
             For reproducibility of stochastic simulations.
         """
+        if len(lee_carter.years) < 2:
+            raise ActuarialValidationError(
+                f"Lee-Carter model must have at least 2 years to estimate drift, "
+                f"got {len(lee_carter.years)}",
+                field="lee_carter.years",
+                constraint="len(years) >= 2",
+            )
+        if horizon <= 0:
+            raise ActuarialValidationError(
+                f"horizon must be positive (got {horizon})",
+                field="horizon",
+                constraint="horizon > 0",
+            )
+        if n_simulations <= 0:
+            raise ActuarialValidationError(
+                f"n_simulations must be positive (got {n_simulations})",
+                field="n_simulations",
+                constraint="n_simulations > 0",
+            )
+        if n_simulations > 1_000_000:
+            raise ActuarialValidationError(
+                f"n_simulations {n_simulations} exceeds the supported limit "
+                "(1,000,000)",
+                field="n_simulations",
+                constraint="n_simulations <= 1_000_000",
+            )
+
         self.lee_carter = lee_carter
         self.horizon = horizon
         self.n_simulations = n_simulations
@@ -161,10 +189,12 @@ class MortalityProjection:
         Raises ValueError if the year is not in self.projected_years.
         """
         idx = np.searchsorted(self.projected_years, year)
-        if idx >= len(self.projected_years) or self.projected_years[idx] != year:
-            raise ValueError(
+        if idx < 0 or idx >= len(self.projected_years) or self.projected_years[idx] != year:
+            raise ActuarialValidationError(
                 f"Year {year} not in projection range "
-                f"({int(self.projected_years[0])}-{int(self.projected_years[-1])})"
+                f"({int(self.projected_years[0])}-{int(self.projected_years[-1])})",
+                field="year",
+                constraint="year in projected_years",
             )
         return int(idx)
 
@@ -177,6 +207,13 @@ class MortalityProjection:
         year_idx = self._validate_projection_year(year)
         kt = self.kt_central[year_idx]
         age_idx = np.searchsorted(self.lee_carter.ages, age)
+        if age_idx < 0 or age_idx >= len(self.lee_carter.ages) or self.lee_carter.ages[age_idx] != age:
+            raise ActuarialValidationError(
+                f"Age {age} not in Lee-Carter model "
+                f"(range {self.lee_carter.ages[0]}-{self.lee_carter.ages[-1]})",
+                field="age",
+                constraint="age in lee_carter.ages",
+            )
         ax = self.lee_carter.ax[age_idx]
         bx = self.lee_carter.bx[age_idx]
         return float(np.exp(ax + bx * kt))
@@ -224,6 +261,13 @@ class MortalityProjection:
         """
         year_idx = self._validate_projection_year(year)
         age_idx = np.searchsorted(self.lee_carter.ages, age)
+        if age_idx < 0 or age_idx >= len(self.lee_carter.ages) or self.lee_carter.ages[age_idx] != age:
+            raise ActuarialValidationError(
+                f"Age {age} not in Lee-Carter model "
+                f"(range {self.lee_carter.ages[0]}-{self.lee_carter.ages[-1]})",
+                field="age",
+                constraint="age in lee_carter.ages",
+            )
 
         ax = self.lee_carter.ax[age_idx]
         bx = self.lee_carter.bx[age_idx]
@@ -301,9 +345,21 @@ class MortalityProjection:
         if age_min is not None or age_max is not None:
             a_min = age_min if age_min is not None else int(ages[0])
             a_max = age_max if age_max is not None else int(ages[-1])
+            if a_min > a_max:
+                raise ActuarialValidationError(
+                    f"age_min ({a_min}) cannot exceed age_max ({a_max})",
+                    field="age_range",
+                    constraint="age_min <= age_max",
+                )
             mask = (ages >= a_min) & (ages <= a_max)
             ages = ages[mask]
             lx = lx[mask]
+            if len(ages) == 0:
+                raise ActuarialValidationError(
+                    f"No ages in requested range [{a_min}, {a_max}]",
+                    field="age_range",
+                    constraint="age range non-empty after filtering",
+                )
 
         return LifeTable(
             ages=list(ages.astype(int)),

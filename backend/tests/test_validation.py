@@ -275,12 +275,13 @@ def test_summary_keys(base_table, identical_table):
     comp = MortalityComparison(base_table, identical_table, name="test")
     s = comp.summary()
 
-    expected_keys = {"name", "rmse", "max_ratio", "min_ratio", "mean_ratio", "n_ages"}
+    expected_keys = {"name", "rmse", "bias", "max_ratio", "min_ratio", "mean_ratio", "n_ages"}
     assert set(s.keys()) == expected_keys
 
     assert s["name"] == "test"
     assert s["n_ages"] > 0
     assert isinstance(s["rmse"], float)
+    assert isinstance(s["bias"], float)
     assert isinstance(s["max_ratio"], float)
     assert isinstance(s["min_ratio"], float)
     assert isinstance(s["mean_ratio"], float)

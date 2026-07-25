@@ -248,7 +248,9 @@ def test_from_inegi_validates_bad_data():
                     pop = 0 if (age == 2 and year == 2001) else 10000
                     f.write(f"{year},{age},Total,{pop}\n")
 
-        with pytest.raises(ValueError):
+        from backend.engine.exceptions import DataQualityError
+
+        with pytest.raises(DataQualityError, match="population"):
             MortalityData.from_inegi(
                 deaths_filepath=deaths_path,
                 population_filepath=pop_path,

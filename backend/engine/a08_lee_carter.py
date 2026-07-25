@@ -360,7 +360,9 @@ class LeeCarter:
             "mean_abs_error": float(np.mean(np.abs(errors))),
         }
 
-    def validate(self) -> dict[str, bool]:
+    def validate(
+        self, explained_variance_threshold: float = 0.5
+    ) -> dict[str, bool]:
         """
         Validate Lee-Carter parameter constraints.
 
@@ -368,7 +370,12 @@ class LeeCarter:
             bx_sums_to_one: sum(b_x) ≈ 1
             kt_sums_to_zero: sum(k_t) ≈ 0
             no_nan: no NaN in any parameter
-            explained_var_reasonable: explained variance > 50%
+            explained_var_reasonable: explained variance > threshold
+
+        Args:
+            explained_variance_threshold: minimum fraction of variance in
+                log(mx) that the first component must explain. The default 0.5
+                (50%) is a common rule-of-thumb for a one-component model.
         """
         return {
             "bx_sums_to_one": bool(abs(np.sum(self.bx) - 1.0) < 1e-6),
@@ -378,7 +385,9 @@ class LeeCarter:
                 and not np.any(np.isnan(self.bx))
                 and not np.any(np.isnan(self.kt))
             ),
-            "explained_var_reasonable": bool(self.explained_variance > 0.5),
+            "explained_var_reasonable": bool(
+                self.explained_variance > explained_variance_threshold
+            ),
         }
 
     def summary(self) -> dict:
