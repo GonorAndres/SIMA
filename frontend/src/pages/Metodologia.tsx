@@ -4,7 +4,26 @@ import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
+import { useGet, usePost } from '../hooks/useApi';
+import type {
+  CrossCountryResponse,
+  CrossCountryEntry,
+  SCRResponse,
+  CovidComparisonResponse,
+} from '../types';
 import styles from './Metodologia.module.css';
+
+// --- Live-value formatting helpers (M3: no hardcoded actuarial numbers) ---
+const DASH = '—';
+const pct = (frac?: number, digits = 1) =>
+  frac == null ? DASH : `${(frac * 100).toFixed(digits)}%`;
+const pctRaw = (value?: number, digits = 1) =>
+  value == null ? DASH : `${value.toFixed(digits)}%`;
+const signed = (v?: number, digits = 3) => (v == null ? DASH : v.toFixed(digits));
+const money = (v?: number) =>
+  v == null ? DASH : `$${Math.round(v).toLocaleString('en-US')}`;
+const moneyM = (v?: number) =>
+  v == null ? DASH : `$${(v / 1_000_000).toFixed(2)}M`;
 
 interface SectionProps {
   number: string;
@@ -25,10 +44,45 @@ function Section({ number, title, children }: SectionProps) {
 export default function Metodologia() {
   const { t } = useTranslation();
 
+  // Live model values -- replace previously hardcoded actuarial numbers (M3).
+  const cross = useGet<CrossCountryResponse>('/sensitivity/cross-country');
+  const scr = usePost<object, SCRResponse>('/scr/defaults');
+  const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
+
+  const { execute: runCross } = cross;
+  const { execute: runScr } = scr;
+  const { execute: runCovid } = covid;
+
+  useEffect(() => {
+    runCross();
+    runScr({});
+    runCovid();
+  }, [runCross, runScr, runCovid]);
+
   useEffect(() => {
     document.title = `${t('metodologia.title')} -- SIMA`;
     return () => { document.title = 'SIMA -- Sistema Integral de Modelacion Actuarial'; };
   }, [t]);
+
+  // --- Derived values fed into prose and metric blocks ---
+  const country = (name: string): CrossCountryEntry | undefined =>
+    cross.data?.countries.find((c) => c.country === name);
+  const mx = country('México');
+  const spain = country('España');
+  const usa = country('Estados Unidos');
+
+  const scrData = scr.data;
+  const totalScr = scrData?.total_aggregation.scr_aggregated;
+  const techProv = scrData?.technical_provisions;
+  const divPct = scrData?.total_aggregation.diversification_pct;
+  const irDominancePct = scrData
+    ? (scrData.interest_rate.scr / scrData.total_aggregation.scr_aggregated) * 100
+    : undefined;
+
+  const covidDrift = covid.data?.full_period.drift;
+  const premiumPcts = covid.data?.premium_impact.map((p) => p.pct_change);
+  const premiumMin = premiumPcts?.length ? Math.min(...premiumPcts) : undefined;
+  const premiumMax = premiumPcts?.length ? Math.max(...premiumPcts) : undefined;
 
   return (
     <main className={styles.page} data-demo-section="top">
@@ -107,8 +161,8 @@ export default function Metodologia() {
           (que captura la mejora general). Resolví el sistema por SVD (descomposición en valores
           singulares) con las restricciones de identificabilidad: la suma de b_x igual a 1 y la
           suma de k_t igual a 0. Para México, el primer componente singular explica el{' '}
-          <span className={styles.highlight}>77.7%</span> de la variabilidad -- menor que para
-          España (94.8%) o Estados Unidos (86.7%), reflejando mayor heterogeneidad en la experiencia
+          <span className={styles.highlight}>{pct(mx?.explained_var)}</span> de la variabilidad -- menor que para
+          España ({pct(spain?.explained_var)}) o Estados Unidos ({pct(usa?.explained_var)}), reflejando mayor heterogeneidad en la experiencia
           mexicana.
         </p>
         <FormulaBlock
@@ -118,7 +172,7 @@ export default function Metodologia() {
           description="a_x = average log-mortality by age, b_x = age sensitivity, k_t = temporal index, epsilon = residual"
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.explainedVar')} value="77.7%" />
+          <MetricBlock label={t('metodologia.metrics.explainedVar')} value={pct(mx?.explained_var)} />
           <MetricBlock label={t('metodologia.metrics.method')} value="SVD" />
           <MetricBlock label={t('metodologia.metrics.constraints')} value={t('metodologia.metrics.identifiability')} />
         </div>
@@ -133,10 +187,10 @@ export default function Metodologia() {
           Una vez estimado el modelo, el siguiente paso fue proyectar la mortalidad hacia el futuro.
           El índice temporal k_t sigue una caminata aleatoria con deriva (Random Walk with Drift),
           donde la deriva representa la velocidad promedio de mejora de la mortalidad. Para México
-          pre-COVID, la deriva fue de <span className={styles.highlight}>-1.076 por año</span>,
-          indicando una mejora sostenida pero más lenta que en España (-2.895) o Estados Unidos (-1.192).
+          pre-COVID, la deriva fue de <span className={styles.highlight}>{signed(mx?.drift)} por año</span>,
+          indicando una mejora sostenida pero más lenta que en España ({signed(spain?.drift)}) o Estados Unidos ({signed(usa?.drift)}).
           Lo que descubrí al incluir los datos 2020-2024 fue revelador: el COVID-19 redujo la
-          deriva a -0.855, lo que se traduce en primas entre 3% y 10% más altas dependiendo del
+          deriva a {signed(covidDrift)}, lo que se traduce en primas entre {pctRaw(premiumMin)} y {pctRaw(premiumMax)} más altas dependiendo del
           producto y la edad. La proyección central con banda de confianza al 95% permite construir
           tablas de mortalidad proyectadas que alimentan al motor de tarificación.
         </p>
@@ -147,9 +201,9 @@ export default function Metodologia() {
           description="d = drift (annual improvement rate), sigma = volatility, Z = standard normal innovation"
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.driftMexico')} value="-1.076" unit={t('metodologia.metrics.perYear')} />
-          <MetricBlock label={t('metodologia.metrics.driftSpain')} value="-2.895" unit={t('metodologia.metrics.perYear')} />
-          <MetricBlock label={t('metodologia.metrics.driftUSA')} value="-1.192" unit={t('metodologia.metrics.perYear')} />
+          <MetricBlock label={t('metodologia.metrics.driftMexico')} value={signed(mx?.drift)} unit={t('metodologia.metrics.perYear')} />
+          <MetricBlock label={t('metodologia.metrics.driftSpain')} value={signed(spain?.drift)} unit={t('metodologia.metrics.perYear')} />
+          <MetricBlock label={t('metodologia.metrics.driftUSA')} value={signed(usa?.drift)} unit={t('metodologia.metrics.perYear')} />
         </div>
       </Section>
 
@@ -221,9 +275,9 @@ export default function Metodologia() {
           (+/- 1% paralelo), y catástrofe (+35% puntual, calibrado con la experiencia COVID-19
           mexicana). La agregación usa una matriz de correlación que captura las coberturas naturales
           del portafolio -- la correlación negativa de -0.25 entre mortalidad y longevidad genera un{' '}
-          <span className={styles.highlight}>beneficio por diversificación del 14.4%</span>. El
-          resultado: un RCS total de $568,700 sobre provisiones técnicas de $5.51M. El riesgo de
-          tasa de interés domina con el 79.7% del capital requerido, porque afecta a todas las
+          <span className={styles.highlight}>beneficio por diversificación del {pctRaw(divPct)}</span>. El
+          resultado: un RCS total de {money(totalScr)} sobre provisiones técnicas de {moneyM(techProv)}. El riesgo de
+          tasa de interés domina con el {pctRaw(irDominancePct)} del capital requerido, porque afecta a todas las
           pólizas del portafolio.
         </p>
         <FormulaBlock
@@ -233,9 +287,9 @@ export default function Metodologia() {
           description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.totalSCR')} value="$568,700" />
-          <MetricBlock label={t('metodologia.metrics.techProvisions')} value="$5.51M" />
-          <MetricBlock label={t('metodologia.metrics.diversification')} value="14.4%" />
+          <MetricBlock label={t('metodologia.metrics.totalSCR')} value={money(totalScr)} />
+          <MetricBlock label={t('metodologia.metrics.techProvisions')} value={moneyM(techProv)} />
+          <MetricBlock label={t('metodologia.metrics.diversification')} value={pctRaw(divPct)} />
           <MetricBlock label={t('metodologia.metrics.dominantRisk')} value={t('metodologia.metrics.interestRateRisk')} />
         </div>
         <div className={styles.linkRow}>
