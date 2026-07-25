@@ -1,7 +1,8 @@
 """Mortality data, Lee-Carter, and projection endpoints."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from backend.api.exception_handlers import safe_route
 from backend.api.schemas.mortality import (
     GraduationResponse,
     LCDiagnosticsResponse,
@@ -13,7 +14,6 @@ from backend.api.schemas.mortality import (
     ValidationResponse,
 )
 from backend.api.services import mortality_service
-from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/mortality", tags=["mortality"])
 
@@ -35,61 +35,43 @@ def get_lee_carter(
 
 
 @router.get("/projection", response_model=ProjectionResponse)
+@safe_route
 def get_projection(
     horizon: int = Query(default=30, ge=1, le=100),
     projection_year: int = Query(default=2040),
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
-):
+) -> ProjectionResponse:
     """Get mortality projection with optional life table at a specific year."""
-    try:
-        return mortality_service.get_projection_data(
-            horizon=horizon,
-            projection_year=projection_year,
-            sex=sex,
-        )
-    except ActuarialValidationError as e:
-        raise HTTPException(status_code=422, detail=e.to_dict()) from e
-    except (IndexError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error") from None
+    return mortality_service.get_projection_data(
+        horizon=horizon,
+        projection_year=projection_year,
+        sex=sex,
+    )
 
 
 @router.get("/life-table", response_model=LifeTableResponse)
+@safe_route
 def get_life_table(
     table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa)$"),
     sex: str = Query(default="male", pattern="^(male|female)$"),
-):
+) -> LifeTableResponse:
     """Get a regulatory life table (CNSF 2000-I, CNSF 2013, or EMSSA 2009)."""
-    try:
-        return mortality_service.get_life_table_data(table_type, sex)
-    except ActuarialValidationError as e:
-        raise HTTPException(status_code=422, detail=e.to_dict()) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error") from None
+    return mortality_service.get_life_table_data(table_type, sex)
 
 
 @router.get("/validation", response_model=ValidationResponse)
+@safe_route
 def get_validation(
     projection_year: int = Query(default=2040),
     table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa)$"),
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
-):
+) -> ValidationResponse:
     """Compare projected mortality against regulatory benchmark."""
-    try:
-        return mortality_service.get_validation(
-            projection_year,
-            table_type,
-            sex=sex,
-        )
-    except ActuarialValidationError as e:
-        raise HTTPException(status_code=422, detail=e.to_dict()) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error") from None
+    return mortality_service.get_validation(
+        projection_year,
+        table_type,
+        sex=sex,
+    )
 
 
 @router.get("/graduation", response_model=GraduationResponse)

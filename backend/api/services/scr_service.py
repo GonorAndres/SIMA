@@ -2,41 +2,54 @@
 SCR service: bridges API requests to engine modules a11-a12.
 """
 
+import logging
 import sys
+import threading
 from pathlib import Path
 
 _project_dir = str(Path(__file__).parent.parent.parent.parent)
 if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
-from backend.api.services.precomputed import get_regulatory_lt
+from backend.api.services.precomputed import get_lee_carter, get_regulatory_lt
 from backend.engine.a11_portfolio import Policy, Portfolio, create_sample_portfolio
 from backend.engine.a12_scr import run_full_scr
+
+logger = logging.getLogger(__name__)
 
 # Module-level portfolio (can be modified via API).
 # NOTE: This is global mutable state shared across all requests -- intentional
 # for this demo/portfolio project. In production, use per-session or per-user
 # state (e.g., database-backed or session-scoped dependency injection).
+#
+# A reentrant lock guards every read-modify-write against the portfolio so
+# concurrent POST /portfolio/policy and POST /scr/compute callers cannot
+# interleave and corrupt the policies list (e.g. duplicate appends on a
+# torn add). BEL/SCR reads also acquire the lock to observe a consistent
+# snapshot.
 _portfolio: Portfolio | None = None
+_portfolio_lock = threading.RLock()
 
 
 def _ensure_portfolio() -> Portfolio:
-    """Get or create the portfolio."""
+    """Get or create the portfolio (thread-safe)."""
     global _portfolio
-    if _portfolio is None:
-        _portfolio = create_sample_portfolio()
-    return _portfolio
+    with _portfolio_lock:
+        if _portfolio is None:
+            _portfolio = create_sample_portfolio()
+        return _portfolio
 
 
 def reset_portfolio() -> Portfolio:
-    """Reset to the sample portfolio."""
+    """Reset to the sample portfolio (thread-safe)."""
     global _portfolio
-    _portfolio = create_sample_portfolio()
-    return _portfolio
+    with _portfolio_lock:
+        _portfolio = create_sample_portfolio()
+        return _portfolio
 
 
 def get_portfolio() -> Portfolio:
-    """Get the current portfolio."""
+    """Get the current portfolio (thread-safe snapshot of the reference)."""
     return _ensure_portfolio()
 
 
@@ -49,28 +62,50 @@ def add_policy(
     term: int | None = None,
     duration: int = 0,
 ) -> Policy:
-    """Add a policy to the portfolio."""
-    portfolio = _ensure_portfolio()
-    policy = Policy(
-        policy_id=policy_id,
-        product_type=product_type,
-        issue_age=issue_age,
-        SA=sum_assured,
-        annual_pension=annual_pension,
-        n=term,
-        duration=duration,
-    )
-    portfolio.policies.append(policy)
-    return policy
+    """Add a policy to the portfolio (thread-safe)."""
+    with _portfolio_lock:
+        portfolio = _ensure_portfolio()
+        policy = Policy(
+            policy_id=policy_id,
+            product_type=product_type,
+            issue_age=issue_age,
+            SA=sum_assured,
+            annual_pension=annual_pension,
+            n=term,
+            duration=duration,
+        )
+        # Portfolio construction enforces unique policy_id; appending a
+        # duplicate would only surface the conflict on the next BEL read,
+        # so re-check here for an immediate, actionable 422.
+        if any(p.policy_id == policy_id for p in portfolio.policies):
+            from backend.engine.exceptions import ActuarialValidationError
+
+            raise ActuarialValidationError(
+                f"policy_id {policy_id!r} already exists in the portfolio",
+                field="policy_id",
+                constraint="policy_id unique within a Portfolio",
+            )
+        portfolio.policies.append(policy)
+        return policy
 
 
 def compute_portfolio_bel(interest_rate: float = 0.05, sex: str = "male") -> dict:
-    """Compute BEL for the entire portfolio."""
-    portfolio = _ensure_portfolio()
-    lt = get_regulatory_lt("cnsf", sex)
+    """Compute BEL for the entire portfolio (thread-safe read)."""
+    with _portfolio_lock:
+        portfolio = _ensure_portfolio()
+        lt = get_regulatory_lt("cnsf", sex)
 
-    bel_by_type = portfolio.compute_bel_by_type(lt, interest_rate)
-    breakdown = portfolio.compute_bel_breakdown(lt, interest_rate)
+        bel_by_type = portfolio.compute_bel_by_type(lt, interest_rate)
+        breakdown = portfolio.compute_bel_breakdown(lt, interest_rate)
+
+    # Audit-grade log: BEL computation inputs are recoverable from logs.
+    logger.info(
+        "BEL/compute port_size=%d rate=%.4f sex=%s -> total=%.2f",
+        len(portfolio),
+        interest_rate,
+        sex,
+        bel_by_type["total_bel"],
+    )
 
     return {
         "total_bel": bel_by_type["total_bel"],
@@ -224,26 +259,39 @@ def run_scr(
     ir_shock_bps: int = 100,
     cat_shock_factor: float = 1.35,
     coc_rate: float = 0.06,
-    portfolio_duration: float = 15.0,
+    portfolio_duration: float | None = None,
     available_capital: float | None = None,
     sex: str = "male",
+    shocks_from_lee_carter: bool = False,
 ) -> dict:
-    """Run the full SCR pipeline."""
-    portfolio = _ensure_portfolio()
-    lt = get_regulatory_lt("cnsf", sex)
+    """Run the full SCR pipeline (thread-safe read)."""
+    # Lee-Carter calibration (optional). Resolves the fitted model from the
+    # precomputed cache; on a sex without a fit (e.g. "male"), fall back to
+    # the unisex model so the calibration is always available.
+    lc_for_shocks = None
+    if shocks_from_lee_carter:
+        try:
+            lc_for_shocks = get_lee_carter(sex)
+        except Exception:
+            lc_for_shocks = get_lee_carter("unisex")
 
-    result = run_full_scr(
-        portfolio=portfolio,
-        base_lt=lt,
-        interest_rate=interest_rate,
-        mortality_shock=mortality_shock,
-        longevity_shock=longevity_shock,
-        ir_shock_bps=ir_shock_bps,
-        cat_shock_factor=cat_shock_factor,
-        coc_rate=coc_rate,
-        portfolio_duration=portfolio_duration,
-        available_capital=available_capital,
-    )
+    with _portfolio_lock:
+        portfolio = _ensure_portfolio()
+        lt = get_regulatory_lt("cnsf", sex)
+
+        result = run_full_scr(
+            portfolio=portfolio,
+            base_lt=lt,
+            interest_rate=interest_rate,
+            mortality_shock=mortality_shock,
+            longevity_shock=longevity_shock,
+            ir_shock_bps=ir_shock_bps,
+            cat_shock_factor=cat_shock_factor,
+            coc_rate=coc_rate,
+            portfolio_duration=portfolio_duration,
+            available_capital=available_capital,
+            shocks_from=lc_for_shocks,
+        )
 
     # Reshape into API response format
     response = {

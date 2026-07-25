@@ -31,6 +31,7 @@ from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
 from backend.engine.a09_projection import MortalityProjection
+from backend.engine.exceptions import DataNotAvailableError
 
 # Mapping from API sex values to data column names
 SEX_TO_INEGI = {"male": "Hombres", "female": "Mujeres", "unisex": "Total"}
@@ -218,16 +219,28 @@ def load_all() -> None:
 def _check_loaded(obj, name: str):
     """Check that precomputed data loaded successfully."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=name,
+            constraint="data files present and loadable at startup",
+        )
     if obj is None:
-        raise RuntimeError(f"{name} not loaded. Call load_all() first.")
+        raise DataNotAvailableError(
+            f"{name} not loaded. Call load_all() first.",
+            field=name,
+            constraint="load_all() invoked during application lifespan",
+        )
     return obj
 
 
 def _get_pipeline(sex: str = "unisex") -> dict:
     """Get a sex-specific pipeline, defaulting to unisex (Total)."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=sex,
+            constraint="data files present and loadable at startup",
+        )
     if sex not in _pipelines:
         raise ValueError(f"Unknown sex: {sex}. Valid: {list(_pipelines.keys())}")
     return _pipelines[sex]
@@ -280,7 +293,11 @@ def get_projected_life_table(year: int = PROJECTION_YEAR, sex: str = "unisex") -
 def get_hmd_pipeline(country: str, sex: str = "unisex") -> dict:
     """Get a HMD country pipeline by country and sex."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=f"{country}/{sex}",
+            constraint="data files present and loadable at startup",
+        )
     key = (country, sex)
     if key not in _hmd_pipelines:
         raise ValueError(

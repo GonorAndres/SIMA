@@ -1,25 +1,37 @@
 """Pydantic schemas for pricing-related endpoints."""
 
+from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class PremiumRequest(BaseModel):
-    """Request to calculate a net premium."""
+    """Request to calculate a net premium.
+
+    Cross-field validation: ``term`` is required for ``term`` / ``endowment``
+    / ``pure_endowment`` products (the engine rejects ``None`` for those).
+    """
 
     product_type: Literal["whole_life", "term", "endowment", "pure_endowment"] = Field(
         description="'whole_life', 'term', 'endowment', or 'pure_endowment'"
     )
     age: int = Field(ge=0, le=100, description="Issue age")
     sum_assured: float = Field(gt=0, le=1e12, description="Sum assured (face amount)")
-    interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
+    interest_rate: float = Field(default=0.05, ge=0.0, le=1.0)
     term: int | None = Field(
-        default=None, ge=1, description="Term in years (required for term/endowment)"
+        default=None, ge=1, le=110, description="Term in years (required for term/endowment)"
     )
     sex: Literal["male", "female", "unisex"] = Field(
         default="male", description="Sex for mortality table selection"
     )
+
+    @model_validator(mode="after")
+    def _validate_term_required(self) -> PremiumRequest:
+        if self.product_type in ("term", "endowment", "pure_endowment") and self.term is None:
+            raise ValueError(f"{self.product_type} requires a term length")
+        return self
 
 
 class PremiumResponse(BaseModel):
@@ -36,23 +48,36 @@ class PremiumResponse(BaseModel):
 
 
 class ReserveRequest(BaseModel):
-    """Request to calculate a reserve trajectory."""
+    """Request to calculate a reserve trajectory.
+
+    Cross-field validation: ``term`` is required for finite-horizon products,
+    and ``duration`` (when provided) must not exceed ``term``.
+    """
 
     product_type: Literal["whole_life", "term", "endowment", "pure_endowment"] = Field(
         description="'whole_life', 'term', or 'endowment'"
     )
     age: int = Field(ge=0, le=100, description="Issue age")
     sum_assured: float = Field(gt=0, le=1e12)
-    interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
-    term: int | None = Field(default=None, ge=1)
+    interest_rate: float = Field(default=0.05, ge=0.0, le=1.0)
+    term: int | None = Field(default=None, ge=1, le=110)
     duration: int | None = Field(
         default=None,
         ge=0,
+        le=110,
         description="Specific duration to evaluate (if None, returns trajectory)",
     )
     sex: Literal["male", "female", "unisex"] = Field(
         default="male", description="Sex for mortality table selection"
     )
+
+    @model_validator(mode="after")
+    def _validate_term_and_duration(self) -> ReserveRequest:
+        if self.product_type in ("term", "endowment", "pure_endowment") and self.term is None:
+            raise ValueError(f"{self.product_type} requires a term length")
+        if self.term is not None and self.duration is not None and self.duration > self.term:
+            raise ValueError(f"duration ({self.duration}) cannot exceed term ({self.term})")
+        return self
 
 
 class ReservePoint(BaseModel):

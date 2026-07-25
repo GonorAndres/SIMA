@@ -1,14 +1,30 @@
 """Pydantic schemas for SCR-related endpoints."""
 
+from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SCRRequest(BaseModel):
-    """Request to run the full SCR pipeline."""
+    """Request to run the full SCR pipeline.
 
-    interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
+    Cross-field validation enforces two consistency rules beyond the
+    individual field bounds:
+      - The interest-rate down shock must not push the rate below zero
+        (i.e. ``ir_shock_bps / 10_000 <= interest_rate``). The engine
+        floors the down shock at a configurable positive value, but a
+        request that is degenerate by construction should be rejected
+        at the API boundary rather than silently floored.
+      - ``portfolio_duration`` may be omitted (``None``); when omitted,
+        the engine derives it from the portfolio. To make this
+        expressible in a `float | None` Pydantic field without losing
+        the OpenAPI schema, we accept ``ge=1.0`` only when a value is
+        provided.
+    """
+
+    interest_rate: float = Field(default=0.05, ge=0.0, le=1.0)
     sex: Literal["male", "female"] = Field(
         default="male", description="Sex for the regulatory mortality table (CNSF male/female)"
     )
@@ -17,8 +33,35 @@ class SCRRequest(BaseModel):
     ir_shock_bps: int = Field(default=100, ge=1, le=500)
     cat_shock_factor: float = Field(default=1.35, ge=1.0, le=3.0)
     coc_rate: float = Field(default=0.06, ge=0.0, le=0.20)
-    portfolio_duration: float = Field(default=15.0, ge=1.0, le=50.0)
+    portfolio_duration: float | None = Field(
+        default=None,
+        ge=1.0,
+        le=50.0,
+        description="Average remaining duration (years). If None, the engine "
+        "computes it from the portfolio (replaces the previous hardcoded 15.0).",
+    )
     available_capital: float | None = Field(default=None, ge=0)
+    # When True the mortality / longevity / catastrophe shocks are
+    # calibrated from the fitted Lee-Carter k_t volatility rather than
+    # the standard-formula defaults above.
+    shocks_from_lee_carter: bool = Field(
+        default=False,
+        description="Calibrate mortality/longevity/cat shocks from the fitted "
+        "Lee-Carter k_t volatility at 1-in-200 confidence, overriding "
+        "the standard-formula defaults.",
+    )
+
+    @model_validator(mode="after")
+    def _validate_shock_consistency(self) -> SCRRequest:
+        # IR down shock feasibility: rate - shock_bps/10000 must remain
+        # positive (the engine floors at 0.5%, but a request that needs
+        # the floor is degenerate by construction).
+        if self.interest_rate - self.ir_shock_bps / 10_000.0 < 0.0:
+            raise ValueError(
+                f"ir_shock_bps ({self.ir_shock_bps}) would push the down-shock "
+                f"rate below zero at interest_rate={self.interest_rate}"
+            )
+        return self
 
 
 class SCRComponentResult(BaseModel):

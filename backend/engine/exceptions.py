@@ -76,3 +76,17 @@ class DataQualityError(ActuarialError):
     """A loaded data file failed a schema or quality check."""
 
     pass
+
+
+class DataNotAvailableError(ActuarialError):
+    """
+    A required data file or precomputed object is not available to serve a
+    request (e.g. the regulatory CSV was not found at startup, or
+    ``load_all()`` has not been called yet).
+
+    This is a 503-condition at the API boundary: the service is up but
+    cannot fulfil this request because the data it depends on is missing
+    or misconfigured.
+    """
+
+    pass

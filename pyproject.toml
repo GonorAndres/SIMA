@@ -103,7 +103,8 @@ ignore_missing_imports = true
 # it is added to `files` above and brought up to strict.
 #   phase 2 -> a11_portfolio, a12_scr  (DONE)
 #   phase 3 -> a06-a10
-#   phase 4 -> backend.api.*
+#   phase 4 -> backend.api.*  (typed enough to keep the backstop handler
+#             strict; downstream routers/services relaxed per file)
 [[tool.mypy.overrides]]
 module = [
     "backend.engine.a06_mortality_data",
@@ -112,6 +113,18 @@ module = [
     "backend.engine.a09_projection",
     "backend.engine.a10_validation",
     "backend.api",
-    "backend.api.*",
+    "backend.api.routers",
+    "backend.api.routers.*",
+    "backend.api.schemas",
+    "backend.api.schemas.*",
+    "backend.api.services",
+    "backend.api.services.*",
 ]
 ignore_errors = true
+
+# Exception-handling backstop is fully typed and surfaces in main.py, so
+# it stays under strict checking even though the rest of backend.api is
+# deferred to a later phase.
+[[tool.mypy.overrides]]
+module = ["backend.api.exception_handlers"]
+ignore_errors = false

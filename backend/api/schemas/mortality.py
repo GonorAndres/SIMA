@@ -8,7 +8,7 @@ class LifeTableRequest(BaseModel):
 
     table_type: str = Field(default="cnsf", description="Regulatory table type: 'cnsf' or 'emssa'")
     sex: str = Field(default="male", description="'male' or 'female'")
-    interest_rate: float = Field(default=0.05, ge=0.001, le=1.0)
+    interest_rate: float = Field(default=0.05, ge=0.0, le=1.0)
 
 
 class LifeTableResponse(BaseModel):
@@ -20,18 +20,6 @@ class LifeTableResponse(BaseModel):
     d_x: list[float]
     min_age: int
     max_age: int
-
-
-class LeeCarterFitRequest(BaseModel):
-    """Request to fit a Lee-Carter model on preloaded mock data."""
-
-    graduate: bool = Field(
-        default=True, description="Apply Whittaker-Henderson graduation before fitting"
-    )
-    lambda_param: float = Field(default=1e5, description="Smoothing parameter for graduation")
-    reestimate_kt: bool = Field(
-        default=False, description="Re-estimate k_t to match observed deaths"
-    )
 
 
 class LeeCarterFitResponse(BaseModel):
@@ -47,15 +35,6 @@ class LeeCarterFitResponse(BaseModel):
     sigma: float
     sex: str
     validations: dict[str, bool]
-
-
-class ProjectionRequest(BaseModel):
-    """Request to project mortality forward."""
-
-    horizon: int = Field(default=30, ge=1, le=100)
-    projection_year: int = Field(
-        default=2040, description="Specific year for life table extraction"
-    )
 
 
 class ProjectionResponse(BaseModel):

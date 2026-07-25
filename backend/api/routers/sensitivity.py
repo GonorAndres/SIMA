@@ -1,7 +1,8 @@
 """Sensitivity analysis endpoints: mortality shocks, cross-country, COVID comparison."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from backend.api.exception_handlers import safe_route
 from backend.api.schemas.sensitivity import (
     CovidComparisonResponse,
     CrossCountryResponse,
@@ -9,29 +10,22 @@ from backend.api.schemas.sensitivity import (
     MortalityShockResponse,
 )
 from backend.api.services import sensitivity_service
-from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/sensitivity", tags=["sensitivity"])
 
 
 @router.post("/mortality-shock", response_model=MortalityShockResponse)
-def mortality_shock(request: MortalityShockRequest):
+@safe_route
+def mortality_shock(request: MortalityShockRequest) -> MortalityShockResponse:
     """Run a mortality shock sweep: apply factors to q_x and recompute premiums."""
-    try:
-        return sensitivity_service.mortality_shock_sweep(
-            age=request.age,
-            sum_assured=request.sum_assured,
-            product_type=request.product_type,
-            factors=request.factors,
-            term=request.term,
-            sex=request.sex,
-        )
-    except ActuarialValidationError as e:
-        raise HTTPException(status_code=422, detail=e.to_dict()) from e
-    except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error") from None
+    return sensitivity_service.mortality_shock_sweep(
+        age=request.age,
+        sum_assured=request.sum_assured,
+        product_type=request.product_type,
+        factors=request.factors,
+        term=request.term,
+        sex=request.sex,
+    )
 
 
 @router.get("/cross-country", response_model=CrossCountryResponse)
