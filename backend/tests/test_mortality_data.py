@@ -9,15 +9,15 @@ These tests hit REAL HMD files, confirming the full pipeline from
 raw text -> validated numpy matrices.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a06_mortality_data import MortalityData
-
 
 # =============================================================================
 # Test Fixtures
@@ -56,6 +56,7 @@ def spain_data():
 # Test: Matrix Shape and Dimensions
 # =============================================================================
 
+
 def test_matrix_shape_matches_expected(usa_data):
     """
     THEORY: With age_max=100, we expect ages 0..100 = 101 rows.
@@ -77,6 +78,7 @@ def test_shape_property_consistent(usa_data):
 # Test: Age and Year Labels
 # =============================================================================
 
+
 def test_ages_array_range(usa_data):
     """Ages should run 0 to age_max (100), consecutively."""
     expected_ages = np.arange(0, 101)
@@ -92,6 +94,7 @@ def test_years_array_range(usa_data):
 # =============================================================================
 # Test: Data Quality
 # =============================================================================
+
 
 def test_no_nan_in_matrices(usa_data):
     """
@@ -129,6 +132,7 @@ def test_mx_approximately_equals_dx_over_ex(usa_data):
 # Test: Age Capping
 # =============================================================================
 
+
 def test_age_capping_aggregates_correctly(usa_data):
     """
     THEORY: Ages above age_max are collapsed into age_max group.
@@ -141,6 +145,7 @@ def test_age_capping_aggregates_correctly(usa_data):
 # =============================================================================
 # Test: Accessor Methods
 # =============================================================================
+
 
 def test_get_mx_returns_scalar(usa_data):
     """get_mx should return a single float for a given (age, year)."""
@@ -167,6 +172,7 @@ def test_age_slice_returns_all_years(usa_data):
 # Test: Error Handling
 # =============================================================================
 
+
 def test_invalid_sex_raises_error():
     """Requesting an invalid sex should raise ValueError."""
     with pytest.raises(ValueError, match="sex must be"):
@@ -182,6 +188,7 @@ def test_invalid_sex_raises_error():
 # =============================================================================
 # Test: Spain Data Loads Correctly
 # =============================================================================
+
 
 def test_spain_loads_successfully(spain_data):
     """Spain data should load with same structure as USA."""

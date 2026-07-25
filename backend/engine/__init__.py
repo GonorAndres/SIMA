@@ -12,24 +12,30 @@ from .a08_lee_carter import LeeCarter
 from .a09_projection import MortalityProjection
 from .a10_validation import MortalityComparison
 from .a11_portfolio import Policy, Portfolio
-from .a12_scr import compute_scr_mortality, compute_scr_longevity, compute_scr_interest_rate, compute_scr_catastrophe, run_full_scr
+from .a12_scr import (
+    compute_scr_catastrophe,
+    compute_scr_interest_rate,
+    compute_scr_longevity,
+    compute_scr_mortality,
+    run_full_scr,
+)
 
 __all__ = [
-    'LifeTable',
-    'CommutationFunctions',
-    'ActuarialValues',
-    'PremiumCalculator',
-    'ReserveCalculator',
-    'MortalityData',
-    'GraduatedRates',
-    'LeeCarter',
-    'MortalityProjection',
-    'MortalityComparison',
-    'Policy',
-    'Portfolio',
-    'compute_scr_mortality',
-    'compute_scr_longevity',
-    'compute_scr_interest_rate',
-    'compute_scr_catastrophe',
-    'run_full_scr',
+    "ActuarialValues",
+    "CommutationFunctions",
+    "GraduatedRates",
+    "LeeCarter",
+    "LifeTable",
+    "MortalityComparison",
+    "MortalityData",
+    "MortalityProjection",
+    "Policy",
+    "Portfolio",
+    "PremiumCalculator",
+    "ReserveCalculator",
+    "compute_scr_catastrophe",
+    "compute_scr_interest_rate",
+    "compute_scr_longevity",
+    "compute_scr_mortality",
+    "run_full_scr",
 ]

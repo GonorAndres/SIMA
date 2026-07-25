@@ -36,15 +36,12 @@ These net premiums form the basis of reserve calculations.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
 from .exceptions import ActuarialComputationError
 from .validators import (
     validate_age_in_table,
     validate_non_negative_amount,
-    validate_term_bounds,
 )
 
 
@@ -68,7 +65,7 @@ class PremiumCalculator:
         self.av = ActuarialValues(commutation)
 
     # ---- internal helpers ---------------------------------------------------
-    def _check_common(self, SA: float, x: int, n: Optional[int] = None) -> None:
+    def _check_common(self, SA: float, x: int, n: int | None = None) -> None:
         """Validate SA and issue age (and term when provided)."""
         validate_non_negative_amount(SA, "sum_assured")
         validate_age_in_table(x, self.comm.min_age, self.comm.max_age)
@@ -146,7 +143,7 @@ class PremiumCalculator:
 
         if abs(denominator) < 1e-12:
             raise ActuarialComputationError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"Annuity-due denominator (N_{x} - N_{x + n}) is zero at "
                 f"age {x}, term {n}; the temporary annuity has no value",
                 field="n",
                 constraint="N_x - N_{x+n} != 0",
@@ -196,7 +193,7 @@ class PremiumCalculator:
 
         if abs(denominator) < 1e-12:
             raise ActuarialComputationError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"Annuity-due denominator (N_{x} - N_{x + n}) is zero at "
                 f"age {x}, term {n}; the endowment annuity has no value",
                 field="n",
                 constraint="N_x - N_{x+n} != 0",
@@ -236,7 +233,7 @@ class PremiumCalculator:
 
         if abs(denominator) < 1e-12:
             raise ActuarialComputationError(
-                f"Annuity-due denominator (N_{x} - N_{x+n}) is zero at "
+                f"Annuity-due denominator (N_{x} - N_{x + n}) is zero at "
                 f"age {x}, term {n}; the pure-endowment annuity has no value",
                 field="n",
                 constraint="N_x - N_{x+n} != 0",
@@ -295,8 +292,7 @@ class PremiumCalculator:
 
         if abs(denominator) < 1e-12:
             raise ActuarialComputationError(
-                f"Annuity-due denominator (N_{x} - N_{x+m}) is zero at "
-                f"age {x}, pay period {m}",
+                f"Annuity-due denominator (N_{x} - N_{x + m}) is zero at age {x}, pay period {m}",
                 field="m",
                 constraint="N_x - N_{x+m} != 0",
             )
@@ -304,7 +300,7 @@ class PremiumCalculator:
         return SA * (numerator / denominator)
 
     def single_premium(
-        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
+        self, SA: float, x: int, product: str = "whole_life", n: int | None = None
     ) -> float:
         """
         Single premium (one-time payment at issue).
@@ -347,8 +343,7 @@ class PremiumCalculator:
             constraint="product_type in {whole_life, term, endowment, pure_endowment}",
         )
 
-    def premium_per_unit(self, x: int, product: str = "whole_life",
-                         n: Optional[int] = None) -> float:
+    def premium_per_unit(self, x: int, product: str = "whole_life", n: int | None = None) -> float:
         """
         Calculate premium per $1 of sum assured (unit premium).
 
@@ -408,22 +403,22 @@ class PremiumCalculator:
             Formatted summary string
         """
         lines = [
-            f"Net Premium Summary",
-            f"=" * 50,
+            "Net Premium Summary",
+            "=" * 50,
             f"Sum Assured: ${SA:,.2f}",
             f"Issue Age: {x}",
             f"Interest Rate: {self.comm.i:.2%}",
-            f"",
-            f"Annual Premiums:",
+            "",
+            "Annual Premiums:",
             f"  Whole Life:           ${self.whole_life(SA, x):>12,.2f}",
             f"  Term ({n} years):       ${self.term(SA, x, n):>12,.2f}",
             f"  Endowment ({n} years):  ${self.endowment(SA, x, n):>12,.2f}",
             f"  Pure Endowment ({n}y):  ${self.pure_endowment(SA, x, n):>12,.2f}",
             f"  Limited Pay ({n}y) WL:  ${self.limited_pay_whole_life(SA, x, n):>12,.2f}",
-            f"",
+            "",
             f"Single Premium (Whole Life): ${self.single_premium(SA, x):>12,.2f}",
-            f"",
-            f"Premium Rates (per $1 SA):",
+            "",
+            "Premium Rates (per $1 SA):",
             f"  Whole Life:           {self.premium_per_unit(x, 'whole_life'):.6f}",
             f"  Term ({n}y):            {self.premium_per_unit(x, 'term', n):.6f}",
             f"  Endowment ({n}y):       {self.premium_per_unit(x, 'endowment', n):.6f}",
@@ -431,7 +426,7 @@ class PremiumCalculator:
 
         return "\n".join(lines)
 
-    def verify_equivalence(self, SA: float, x: int) -> dict:
+    def verify_equivalence(self, SA: float, x: int) -> dict[str, object]:
         """
         Verify equivalence principle holds for whole life.
 
@@ -453,10 +448,10 @@ class PremiumCalculator:
         tol = 1e-9 * max(abs(SA), 1.0)
 
         return {
-            'premium': P,
-            'apv_premiums': apv_premiums,
-            'apv_benefits': apv_benefits,
-            'difference': diff,
-            'tolerance': tol,
-            'balanced': diff <= tol,
+            "premium": P,
+            "apv_premiums": apv_premiums,
+            "apv_benefits": apv_benefits,
+            "difference": diff,
+            "tolerance": tol,
+            "balanced": diff <= tol,
         }

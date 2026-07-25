@@ -10,6 +10,7 @@ from backend.api.schemas.portfolio import (
     PortfolioSummaryResponse,
 )
 from backend.api.services import scr_service
+from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -21,18 +22,20 @@ def get_portfolio_summary():
 
     policies = []
     for p in portfolio.policies:
-        policies.append(PolicyResponse(
-            policy_id=p.policy_id,
-            product_type=p.product_type,
-            issue_age=p.issue_age,
-            attained_age=p.attained_age,
-            sum_assured=p.SA,
-            annual_pension=p.annual_pension,
-            term=p.n,
-            duration=p.duration,
-            is_death_product=p.is_death_product,
-            is_annuity=p.is_annuity,
-        ))
+        policies.append(
+            PolicyResponse(
+                policy_id=p.policy_id,
+                product_type=p.product_type,
+                issue_age=p.issue_age,
+                attained_age=p.attained_age,
+                sum_assured=p.SA,
+                annual_pension=p.annual_pension,
+                term=p.n,
+                duration=p.duration,
+                is_death_product=p.is_death_product,
+                is_annuity=p.is_annuity,
+            )
+        )
 
     return PortfolioSummaryResponse(
         n_policies=len(portfolio),
@@ -50,10 +53,12 @@ def compute_bel(request: PortfolioBELRequest):
     try:
         result = scr_service.compute_portfolio_bel(request.interest_rate, sex=request.sex)
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/policy")
@@ -74,10 +79,12 @@ def add_policy(policy: PolicyCreate):
             "policy_id": p.policy_id,
             "product_type": p.product_type,
         }
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/reset")

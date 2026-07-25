@@ -35,7 +35,7 @@ This module pivots them into matrices and handles:
 """
 
 from pathlib import Path
-from typing import Optional, Tuple, Dict
+
 import numpy as np
 import pandas as pd
 
@@ -93,7 +93,7 @@ class MortalityData:
         return len(self.years)
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> tuple[int, int]:
         """Matrix shape (n_ages, n_years)."""
         return (self.n_ages, self.n_years)
 
@@ -101,18 +101,14 @@ class MortalityData:
         """Validate and return array index for an age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in data (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in data (range: {self.ages[0]}-{self.ages[-1]})")
         return idx
 
     def _validate_year(self, year: int) -> int:
         """Validate and return array index for a year."""
         idx = np.searchsorted(self.years, year)
         if idx >= len(self.years) or self.years[idx] != year:
-            raise ValueError(
-                f"Year {year} not in data (range: {self.years[0]}-{self.years[-1]})"
-            )
+            raise ValueError(f"Year {year} not in data (range: {self.years[0]}-{self.years[-1]})")
         return idx
 
     def get_mx(self, age: int, year: int) -> float:
@@ -131,7 +127,7 @@ class MortalityData:
         age_idx = self._validate_age(age)
         return self.mx[age_idx, :]
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for quick inspection."""
         return {
             "country": self.country,
@@ -270,9 +266,7 @@ class MortalityData:
             Structured mortality data with three aligned matrices.
         """
         if sex not in ("Hombres", "Mujeres", "Total"):
-            raise ValueError(
-                f"sex must be 'Hombres', 'Mujeres', or 'Total', got '{sex}'"
-            )
+            raise ValueError(f"sex must be 'Hombres', 'Mujeres', or 'Total', got '{sex}'")
 
         # --- Load and filter ---
         dx_raw = _load_inegi_deaths(deaths_filepath, sex, year_start, year_end)
@@ -285,7 +279,8 @@ class MortalityData:
         # --- Compute m_x = deaths / population ---
         # Merge on (Year, Age) to ensure alignment
         merged = pd.merge(
-            dx_capped, ex_capped,
+            dx_capped,
+            ex_capped,
             on=["Year", "Age"],
             suffixes=("_dx", "_ex"),
         )
@@ -416,9 +411,7 @@ def _validate(
     """
     # Shape consistency
     if not (mx.shape == dx.shape == ex.shape):
-        raise ValueError(
-            f"Shape mismatch: mx={mx.shape}, dx={dx.shape}, ex={ex.shape}"
-        )
+        raise ValueError(f"Shape mismatch: mx={mx.shape}, dx={dx.shape}, ex={ex.shape}")
 
     # No missing values
     for name, arr in [("mx", mx), ("dx", dx), ("ex", ex)]:
@@ -458,9 +451,7 @@ def _validate(
         )
 
 
-def _load_inegi_deaths(
-    filepath: str, sex: str, year_start: int, year_end: int
-) -> pd.DataFrame:
+def _load_inegi_deaths(filepath: str, sex: str, year_start: int, year_end: int) -> pd.DataFrame:
     """
     Load INEGI deaths file and filter by sex and year range.
 

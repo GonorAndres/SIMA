@@ -38,7 +38,6 @@ for ratio-based calculations (A_x = M_x/D_x, etc).
 from __future__ import annotations
 
 import warnings
-from typing import Dict
 
 from .a01_life_table import LifeTable
 from .exceptions import ActuarialValidationError
@@ -116,10 +115,10 @@ class CommutationFunctions:
         self.v = 1.0 if self.i == 0.0 else 1.0 / (1.0 + self.i)
 
         # Storage for commutation values
-        self.D: Dict[int, float] = {}
-        self.N: Dict[int, float] = {}
-        self.C: Dict[int, float] = {}
-        self.M: Dict[int, float] = {}
+        self.D: dict[int, float] = {}
+        self.N: dict[int, float] = {}
+        self.C: dict[int, float] = {}
+        self.M: dict[int, float] = {}
 
         # Compute all values
         self._compute_D()
@@ -140,7 +139,7 @@ class CommutationFunctions:
         for age in self.life_table.ages:
             # Normalized exponent: years from table start
             exponent = age - min_age
-            self.D[age] = (self.v ** exponent) * self.life_table.get_l(age)
+            self.D[age] = (self.v**exponent) * self.life_table.get_l(age)
 
     def _compute_N(self) -> None:
         """
@@ -171,7 +170,7 @@ class CommutationFunctions:
         for age in self.life_table.ages:
             # Exponent is one more than for D (death benefit paid at end of year)
             exponent = age + 1 - min_age
-            self.C[age] = (self.v ** exponent) * self.life_table.get_d(age)
+            self.C[age] = (self.v**exponent) * self.life_table.get_d(age)
 
     def _compute_M(self) -> None:
         """
@@ -194,8 +193,7 @@ class CommutationFunctions:
         """Get D_x at specified age."""
         if age not in self.D:
             raise ActuarialValidationError(
-                f"D_x not available for age {age}; table covers "
-                f"[{self.min_age}, {self.max_age}]",
+                f"D_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
                 field="age",
                 constraint=f"age in [{self.min_age}, {self.max_age}]",
             )
@@ -205,8 +203,7 @@ class CommutationFunctions:
         """Get N_x at specified age."""
         if age not in self.N:
             raise ActuarialValidationError(
-                f"N_x not available for age {age}; table covers "
-                f"[{self.min_age}, {self.max_age}]",
+                f"N_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
                 field="age",
                 constraint=f"age in [{self.min_age}, {self.max_age}]",
             )
@@ -216,8 +213,7 @@ class CommutationFunctions:
         """Get C_x at specified age."""
         if age not in self.C:
             raise ActuarialValidationError(
-                f"C_x not available for age {age}; table covers "
-                f"[{self.min_age}, {self.max_age}]",
+                f"C_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
                 field="age",
                 constraint=f"age in [{self.min_age}, {self.max_age}]",
             )
@@ -227,8 +223,7 @@ class CommutationFunctions:
         """Get M_x at specified age."""
         if age not in self.M:
             raise ActuarialValidationError(
-                f"M_x not available for age {age}; table covers "
-                f"[{self.min_age}, {self.max_age}]",
+                f"M_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
                 field="age",
                 constraint=f"age in [{self.min_age}, {self.max_age}]",
             )
@@ -247,14 +242,14 @@ class CommutationFunctions:
     def summary(self) -> str:
         """Generate summary of commutation functions."""
         lines = [
-            f"Commutation Functions Summary",
-            f"=" * 50,
+            "Commutation Functions Summary",
+            "=" * 50,
             f"Interest rate: {self.i:.2%}",
             f"Discount factor (v): {self.v:.6f}",
             f"Age range: {self.min_age} to {self.max_age}",
-            f"",
+            "",
             f"{'Age':>5} {'D_x':>12} {'N_x':>12} {'C_x':>12} {'M_x':>12}",
-            f"-" * 55,
+            "-" * 55,
         ]
 
         for age in self.life_table.ages:
@@ -269,7 +264,4 @@ class CommutationFunctions:
         return "\n".join(lines)
 
     def __repr__(self) -> str:
-        return (
-            f"CommutationFunctions(ages={self.min_age}-{self.max_age}, "
-            f"i={self.i:.2%})"
-        )
+        return f"CommutationFunctions(ages={self.min_age}-{self.max_age}, i={self.i:.2%})"

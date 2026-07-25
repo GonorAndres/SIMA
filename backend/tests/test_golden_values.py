@@ -47,16 +47,16 @@ from backend.engine.a03_actuarial_values import ActuarialValues
 from backend.engine.a04_premiums import PremiumCalculator
 
 # ---- Analytic fixture parameters -------------------------------------------
-MU = 0.03                      # constant force of mortality
-INTEREST = 0.05                # annual effective interest
+MU = 0.03  # constant force of mortality
+INTEREST = 0.05  # annual effective interest
 RADIX = 1_000_000
-OMEGA = 130                    # terminal age (q_omega forced to 1 by the engine)
+OMEGA = 130  # terminal age (q_omega forced to 1 by the engine)
 
-P = math.exp(-MU)              # age-independent one-year survival
+P = math.exp(-MU)  # age-independent one-year survival
 Q = 1.0 - P
 V = 1.0 / (1.0 + INTEREST)
-BETA = V * P                   # geometric ratio of the discounted survivors
-REL = 1e-9                     # these are exact identities -> very tight tolerance
+BETA = V * P  # geometric ratio of the discounted survivors
+REL = 1e-9  # these are exact identities -> very tight tolerance
 
 
 @pytest.fixture(scope="module")
@@ -96,12 +96,12 @@ def _temp_annuity_due(n):
 
 def _whole_life_A(x):
     n = OMEGA - x
-    return Q * V * (1.0 - BETA**n) / (1.0 - BETA) + V**(n + 1) * P**n
+    return Q * V * (1.0 - BETA**n) / (1.0 - BETA) + V ** (n + 1) * P**n
 
 
 def _whole_life_a_due(x):
     n = OMEGA - x
-    return (1.0 - BETA**(n + 1)) / (1.0 - BETA)
+    return (1.0 - BETA ** (n + 1)) / (1.0 - BETA)
 
 
 # ---- Tests: insurances -----------------------------------------------------

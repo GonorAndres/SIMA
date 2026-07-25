@@ -32,11 +32,10 @@ HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 Demographic Studies (France). Available at www.mortality.org.
 """
 
-from typing import Dict, Tuple, Optional
 import numpy as np
 
-from .a08_lee_carter import LeeCarter
 from .a01_life_table import LifeTable
+from .a08_lee_carter import LeeCarter
 
 
 class MortalityProjection:
@@ -95,7 +94,7 @@ class MortalityProjection:
         self.kt_central = self._project_kt_central()
         self.kt_simulated = self._simulate_kt_paths()
 
-    def _estimate_drift_and_sigma(self) -> Tuple[float, float]:
+    def _estimate_drift_and_sigma(self) -> tuple[float, float]:
         """
         Estimate drift and volatility from observed k_t differences.
 
@@ -204,8 +203,8 @@ class MortalityProjection:
         self,
         age: int,
         year: int,
-        quantiles: Tuple[float, float] = (0.05, 0.95),
-    ) -> Tuple[float, float]:
+        quantiles: tuple[float, float] = (0.05, 0.95),
+    ) -> tuple[float, float]:
         """
         Get confidence interval for projected death rate at (age, year).
 
@@ -241,8 +240,8 @@ class MortalityProjection:
         self,
         year: int,
         radix: float = 100_000,
-        age_min: Optional[int] = None,
-        age_max: Optional[int] = None,
+        age_min: int | None = None,
+        age_max: int | None = None,
     ) -> LifeTable:
         """
         Convert projected mortality rates to a LifeTable for a specific year.
@@ -317,7 +316,7 @@ class MortalityProjection:
         quantile_low: float = 0.05,
         quantile_high: float = 0.95,
         radix: float = 100_000,
-    ) -> Tuple[LifeTable, LifeTable, LifeTable]:
+    ) -> tuple[LifeTable, LifeTable, LifeTable]:
         """
         Create three LifeTables: central, optimistic (low mortality),
         and pessimistic (high mortality).
@@ -347,7 +346,7 @@ class MortalityProjection:
 
         # Simulated k_t at this horizon
         kt_sims = self.kt_simulated[:, year_idx]
-        kt_low = np.quantile(kt_sims, quantile_low)    # Lower k_t = lower mortality = optimistic
+        kt_low = np.quantile(kt_sims, quantile_low)  # Lower k_t = lower mortality = optimistic
         kt_high = np.quantile(kt_sims, quantile_high)  # Higher k_t = higher mortality = pessimistic
 
         def _build_lt(kt_val):
@@ -363,7 +362,7 @@ class MortalityProjection:
 
         return _build_lt(kt_central), _build_lt(kt_low), _build_lt(kt_high)
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """
         Validate projection results.
 
@@ -380,7 +379,7 @@ class MortalityProjection:
             "no_nan_in_central": bool(not np.any(np.isnan(self.kt_central))),
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for the projection."""
         return {
             "horizon": self.horizon,

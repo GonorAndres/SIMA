@@ -22,10 +22,9 @@ Key Validations:
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Dict, List
 import csv
 import warnings
+from pathlib import Path
 
 from .exceptions import ActuarialValidationError
 from .validators import (
@@ -50,7 +49,7 @@ class LifeTable:
         p_x: Dict mapping age -> survival rate
     """
 
-    def __init__(self, ages: List[int], l_x_values: List[float]):
+    def __init__(self, ages: list[int], l_x_values: list[float]):
         """
         Initialize life table from age and l_x arrays.
 
@@ -81,8 +80,8 @@ class LifeTable:
         self._omega = self.max_age  # Ultimate age
 
         # Build l_x dictionary
-        self.l_x: Dict[int, float] = {}
-        for age, lx in zip(ages_list, l_x_values):
+        self.l_x: dict[int, float] = {}
+        for age, lx in zip(ages_list, l_x_values, strict=True):
             self.l_x[age] = float(lx)
 
         # Derive d_x, q_x, p_x
@@ -90,9 +89,9 @@ class LifeTable:
 
     def _compute_derivatives(self) -> None:
         """Compute d_x, q_x, p_x from l_x."""
-        self.d_x: Dict[int, float] = {}
-        self.q_x: Dict[int, float] = {}
-        self.p_x: Dict[int, float] = {}
+        self.d_x: dict[int, float] = {}
+        self.q_x: dict[int, float] = {}
+        self.p_x: dict[int, float] = {}
 
         for age in range(self.min_age, self.max_age):
             l_current = self.l_x[age]
@@ -128,7 +127,7 @@ class LifeTable:
         self.p_x[self.max_age] = 0.0
 
     @classmethod
-    def from_csv(cls, filepath: str) -> "LifeTable":
+    def from_csv(cls, filepath: str) -> LifeTable:
         """
         Load life table from CSV file.
 
@@ -148,14 +147,14 @@ class LifeTable:
         if not path.exists():
             raise FileNotFoundError(f"Life table file not found: {filepath}")
 
-        ages: List[int] = []
-        l_x_values: List[float] = []
+        ages: list[int] = []
+        l_x_values: list[float] = []
 
-        with open(path, 'r', newline='') as f:
+        with open(path, newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                ages.append(int(row['age']))
-                l_x_values.append(float(row['l_x']))
+                ages.append(int(row["age"]))
+                l_x_values.append(float(row["l_x"]))
 
         return cls(ages, l_x_values)
 
@@ -165,7 +164,7 @@ class LifeTable:
         filepath: str,
         sex: str = "male",
         radix: float = 100_000.0,
-    ) -> "LifeTable":
+    ) -> LifeTable:
         """
         Load life table from a Mexican regulatory table (CNSF, EMSSA).
 
@@ -192,10 +191,10 @@ class LifeTable:
 
         col = f"qx_{sex}"
 
-        ages: List[int] = []
-        qx_values: List[float] = []
+        ages: list[int] = []
+        qx_values: list[float] = []
 
-        with open(path, "r", newline="") as f:
+        with open(path, newline="") as f:
             reader = csv.DictReader(f)
             other_col = "qx_female" if sex == "male" else "qx_male"
             identical_count = 0
@@ -221,13 +220,13 @@ class LifeTable:
             )
 
         # Build l_x from q_x: l_0 = radix, l_{x+1} = l_x * (1 - q_x)
-        l_x_values: List[float] = [radix]
+        l_x_values: list[float] = [radix]
         for qx in qx_values[:-1]:
             l_x_values.append(l_x_values[-1] * (1.0 - qx))
 
         return cls(ages, l_x_values)
 
-    def subset(self, start_age: int, end_age: int) -> "LifeTable":
+    def subset(self, start_age: int, end_age: int) -> LifeTable:
         """
         Create a subset of the life table for a specific age range.
 
@@ -297,7 +296,7 @@ class LifeTable:
             )
         return self.p_x[age]
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """
         Validate life table consistency.
 
@@ -322,9 +321,7 @@ class LifeTable:
         results["terminal_mortality_is_one"] = abs(self.q_x[self.max_age] - 1.0) <= 1e-9
 
         # Validation 3: All mortality rates are valid probabilities
-        results["all_rates_valid"] = all(
-            -1e-9 <= q <= 1.0 + 1e-9 for q in self.q_x.values()
-        )
+        results["all_rates_valid"] = all(-1e-9 <= q <= 1.0 + 1e-9 for q in self.q_x.values())
 
         return results
 
@@ -334,7 +331,7 @@ class LifeTable:
         return self._omega
 
     @property
-    def ages(self) -> List[int]:
+    def ages(self) -> list[int]:
         """List of all ages in the table."""
         return list(range(self.min_age, self.max_age + 1))
 
@@ -344,20 +341,17 @@ class LifeTable:
     def summary(self) -> str:
         """Generate a summary of the life table."""
         lines = [
-            f"Life Table Summary",
-            f"=" * 40,
+            "Life Table Summary",
+            "=" * 40,
             f"Age range: {self.min_age} to {self.max_age}",
             f"Initial population: {self.l_x[self.min_age]:,.0f}",
             f"Final survivors: {self.l_x[self.max_age]:,.0f}",
-            f"",
-            f"First 5 ages:",
+            "",
+            "First 5 ages:",
         ]
 
         for age in list(self.ages)[:5]:
-            lines.append(
-                f"  Age {age}: l_x={self.l_x[age]:>10,.2f}, "
-                f"q_x={self.q_x[age]:.4f}"
-            )
+            lines.append(f"  Age {age}: l_x={self.l_x[age]:>10,.2f}, q_x={self.q_x[age]:.4f}")
 
         validations = self.validate()
         lines.append("")

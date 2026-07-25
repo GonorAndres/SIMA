@@ -7,19 +7,20 @@ Tests for the CommutationFunctions class (Blocks 2-3).
 Each test validates a specific property from actuarial theory.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a02_commutation import CommutationFunctions
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mini_table():
@@ -38,6 +39,7 @@ def comm(mini_table):
 # Test: Basic Setup
 # =============================================================================
 
+
 def test_discount_factor(comm):
     """
     THEORY: v = 1 / (1 + i)
@@ -52,6 +54,7 @@ def test_discount_factor(comm):
 # =============================================================================
 # Test: D_x Calculation
 # =============================================================================
+
 
 def test_D_x_at_min_age(comm):
     """
@@ -92,6 +95,7 @@ def test_D_decreases_with_age(comm):
 # Test: N_x Recursion
 # =============================================================================
 
+
 def test_N_omega_equals_D_omega(comm):
     """
     THEORY: N_omega = D_omega (base case of recursion)
@@ -131,6 +135,7 @@ def test_N_equals_sum_of_D(comm):
 # Test: C_x Calculation
 # =============================================================================
 
+
 def test_C_x_extra_discounting(comm):
     """
     THEORY: C_x = v^{x+1 - min_age} * d_x
@@ -162,6 +167,7 @@ def test_C_vs_D_relationship(comm, mini_table):
 # =============================================================================
 # Test: M_x Recursion
 # =============================================================================
+
 
 def test_M_omega_equals_C_omega(comm):
     """
@@ -196,6 +202,7 @@ def test_M_equals_sum_of_C(comm):
 # =============================================================================
 # Test: Difference Formulas (Used in Term Insurance)
 # =============================================================================
+
 
 def test_N_difference_gives_limited_sum(comm):
     """

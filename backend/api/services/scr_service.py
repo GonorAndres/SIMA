@@ -4,16 +4,14 @@ SCR service: bridges API requests to engine modules a11-a12.
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 _project_dir = str(Path(__file__).parent.parent.parent.parent)
 if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
+from backend.api.services.precomputed import get_regulatory_lt
 from backend.engine.a11_portfolio import Policy, Portfolio, create_sample_portfolio
 from backend.engine.a12_scr import run_full_scr
-from backend.api.services.precomputed import get_regulatory_lt
-
 
 # Module-level portfolio (can be modified via API).
 # NOTE: This is global mutable state shared across all requests -- intentional
@@ -48,7 +46,7 @@ def add_policy(
     issue_age: int,
     sum_assured: float = 0.0,
     annual_pension: float = 0.0,
-    term: Optional[int] = None,
+    term: int | None = None,
     duration: int = 0,
 ) -> Policy:
     """Add a policy to the portfolio."""
@@ -227,7 +225,7 @@ def run_scr(
     cat_shock_factor: float = 1.35,
     coc_rate: float = 0.06,
     portfolio_duration: float = 15.0,
-    available_capital: Optional[float] = None,
+    available_capital: float | None = None,
     sex: str = "male",
 ) -> dict:
     """Run the full SCR pipeline."""
@@ -288,7 +286,8 @@ def run_scr(
             "diversification_benefit": result["total_aggregation"]["diversification_benefit"],
             "diversification_pct": (
                 result["total_aggregation"]["diversification_benefit"]
-                / result["total_aggregation"]["sum_individual"] * 100
+                / result["total_aggregation"]["sum_individual"]
+                * 100
                 if result["total_aggregation"]["sum_individual"] > 0
                 else 0.0
             ),

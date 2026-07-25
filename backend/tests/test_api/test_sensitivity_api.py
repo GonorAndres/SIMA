@@ -5,12 +5,15 @@ import pytest
 
 def test_mortality_shock(client):
     """THEORY: Positive mortality shock should increase premiums; negative should decrease."""
-    response = client.post("/api/sensitivity/mortality-shock", json={
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "product_type": "whole_life",
-        "factors": [-0.30, 0, 0.30],
-    })
+    response = client.post(
+        "/api/sensitivity/mortality-shock",
+        json={
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "product_type": "whole_life",
+            "factors": [-0.30, 0, 0.30],
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data["factors"]) == 3
@@ -51,13 +54,16 @@ def test_covid_comparison(client):
 
 def test_mortality_shock_with_sex(client):
     """THEORY: Mortality shock should work with explicit sex=female and return valid results."""
-    response = client.post("/api/sensitivity/mortality-shock", json={
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "product_type": "whole_life",
-        "factors": [-0.30, 0, 0.30],
-        "sex": "female",
-    })
+    response = client.post(
+        "/api/sensitivity/mortality-shock",
+        json={
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "product_type": "whole_life",
+            "factors": [-0.30, 0, 0.30],
+            "sex": "female",
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["sex"] == "female"

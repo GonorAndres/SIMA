@@ -1,18 +1,19 @@
 """Mortality data, Lee-Carter, and projection endpoints."""
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from backend.api.schemas.mortality import (
-    LifeTableResponse,
-    LeeCarterFitResponse,
-    ProjectionResponse,
-    MortalityDataSummary,
-    ValidationResponse,
     GraduationResponse,
-    MortalitySurfaceResponse,
     LCDiagnosticsResponse,
+    LeeCarterFitResponse,
+    LifeTableResponse,
+    MortalityDataSummary,
+    MortalitySurfaceResponse,
+    ProjectionResponse,
+    ValidationResponse,
 )
 from backend.api.services import mortality_service
+from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/mortality", tags=["mortality"])
 
@@ -46,10 +47,12 @@ def get_projection(
             projection_year=projection_year,
             sex=sex,
         )
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (IndexError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/life-table", response_model=LifeTableResponse)
@@ -60,10 +63,12 @@ def get_life_table(
     """Get a regulatory life table (CNSF 2000-I, CNSF 2013, or EMSSA 2009)."""
     try:
         return mortality_service.get_life_table_data(table_type, sex)
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/validation", response_model=ValidationResponse)
@@ -75,12 +80,16 @@ def get_validation(
     """Compare projected mortality against regulatory benchmark."""
     try:
         return mortality_service.get_validation(
-            projection_year, table_type, sex=sex,
+            projection_year,
+            table_type,
+            sex=sex,
         )
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/graduation", response_model=GraduationResponse)

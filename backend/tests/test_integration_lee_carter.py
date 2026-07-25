@@ -11,20 +11,20 @@ These tests prove that empirical data flows through the entire engine
 and produces actuarially reasonable results.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from backend.engine.a02_commutation import CommutationFunctions
+from backend.engine.a04_premiums import PremiumCalculator
 from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
 from backend.engine.a09_projection import MortalityProjection
-from backend.engine.a02_commutation import CommutationFunctions
-from backend.engine.a04_premiums import PremiumCalculator
-
 
 # =============================================================================
 # Test Fixtures
@@ -56,6 +56,7 @@ def full_pipeline_usa():
 # =============================================================================
 # Test: Full Pipeline End-to-End
 # =============================================================================
+
 
 def test_full_pipeline_produces_valid_premiums(full_pipeline_usa):
     """

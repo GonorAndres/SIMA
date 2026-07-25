@@ -1,18 +1,19 @@
 """Pricing, reserves, and commutation function endpoints."""
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from backend.api.schemas.pricing import (
+    CommutationResponse,
+    CrossCountryPremiumResponse,
     PremiumRequest,
     PremiumResponse,
     ReserveRequest,
     ReserveResponse,
-    CommutationResponse,
     SensitivityRequest,
     SensitivityResponse,
-    CrossCountryPremiumResponse,
 )
 from backend.api.services import pricing_service
+from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
 
@@ -30,10 +31,12 @@ def calculate_premium(request: PremiumRequest):
             sex=request.sex,
         )
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/reserve", response_model=ReserveResponse)
@@ -49,10 +52,12 @@ def calculate_reserve(request: ReserveRequest):
             sex=request.sex,
         )
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/commutation", response_model=CommutationResponse)
@@ -64,10 +69,12 @@ def get_commutation(
     """Get commutation function values (D, N, C, M) and actuarial values at a given age."""
     try:
         return pricing_service.get_commutation_values(age, interest_rate, sex=sex)
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/sensitivity", response_model=SensitivityResponse)
@@ -83,10 +90,12 @@ def calculate_sensitivity(request: SensitivityRequest):
             sex=request.sex,
         )
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/cross-country", response_model=CrossCountryPremiumResponse)
@@ -102,7 +111,9 @@ def cross_country_premium(request: PremiumRequest):
             sex=request.sex,
         )
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None

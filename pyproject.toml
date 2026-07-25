@@ -1,0 +1,117 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sima"
+version = "0.1.0"
+description = "SIMA - Sistema Integral de Modelacion Actuarial"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["backend/tests"]
+addopts = "-ra"
+filterwarnings = [
+    # Promote our own deprecation-style warnings in tests so regressions are
+    # visible, but keep expired-policy / zero-interest notices as warnings
+    # (they are intentional informational signals, not errors).
+    "default::UserWarning",
+]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["backend/analysis", "backend/scripts", "frontend", "node_modules"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (unused imports, undefined names)
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line length handled by formatter; not enforcing here
+    "E741",   # ambiguous variable name (actuarial code uses l, x, n, t, m)
+    "B008",   # function call in default argument (FastAPI Depends)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use simpler style and longer lines.
+"backend/tests/**/*.py" = ["E402", "F401", "F811", "B017", "S101"]
+# API services/routers insert the repo root into sys.path before importing
+# backend.* (they are also runnable as scripts); E402 is expected there until
+# the package is fully installed.
+"backend/api/**/*.py" = ["E402"]
+
+[tool.ruff.format]
+docstring-code-format = false
+
+# ---------------------------------------------------------------------------
+# mypy (strict-but-pragmatic)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Only the hardened, fully-typed core is type-checked under strict mode today.
+# Each downstream phase expands this list as it types its own modules:
+#   phase 2 -> a11_portfolio, a12_scr
+#   phase 3 -> a06_mortality_data, a07_graduation, a08_lee_carter,
+#              a09_projection, a10_validation
+#   phase 4 -> backend.api.*
+files = [
+    "backend/engine/exceptions.py",
+    "backend/engine/validators.py",
+    "backend/engine/a01_life_table.py",
+    "backend/engine/a02_commutation.py",
+    "backend/engine/a03_actuarial_values.py",
+    "backend/engine/a04_premiums.py",
+    "backend/engine/a05_reserves.py",
+]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+no_implicit_reexport = true
+show_error_codes = true
+
+# Third-party libraries without stubs: relax missing-imports so mypy does
+# not emit spurious "untyped import" errors for numpy/pandas/scipy.
+[[tool.mypy.overrides]]
+module = ["numpy.*", "pandas.*", "scipy.*", "scipy.optimize.*"]
+ignore_missing_imports = true
+
+# Modules not yet typed: imported (e.g. via backend.engine.__init__) but not
+# type-checked until their phase types them. Remove each module from here as
+# it is added to `files` above and brought up to strict.
+#   phase 2 -> a11_portfolio, a12_scr
+#   phase 3 -> a06-a10
+#   phase 4 -> backend.api.*
+[[tool.mypy.overrides]]
+module = [
+    "backend.engine.a06_mortality_data",
+    "backend.engine.a07_graduation",
+    "backend.engine.a08_lee_carter",
+    "backend.engine.a09_projection",
+    "backend.engine.a10_validation",
+    "backend.engine.a11_portfolio",
+    "backend.engine.a12_scr",
+    "backend.api",
+    "backend.api.*",
+]
+ignore_errors = true

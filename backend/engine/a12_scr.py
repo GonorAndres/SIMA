@@ -46,15 +46,11 @@ must include both BEL (Mejor Estimacion) and risk margin (Margen de Riesgo).
 """
 
 import math
-from typing import Dict, Optional
 
 import numpy as np
 
 from .a01_life_table import LifeTable
-from .a02_commutation import CommutationFunctions
-from .a03_actuarial_values import ActuarialValues
-from .a11_portfolio import Portfolio, Policy, compute_policy_bel
-
+from .a11_portfolio import Portfolio, compute_policy_bel
 
 # =============================================================================
 # Solvency II Constants (Standard Formula)
@@ -62,11 +58,13 @@ from .a11_portfolio import Portfolio, Policy, compute_policy_bel
 
 # Life underwriting correlation matrix (Solvency II Article 136)
 #             Mort   Long    Cat
-LIFE_CORR = np.array([
-    [1.00, -0.25, 0.25],
-    [-0.25, 1.00, 0.00],
-    [0.25,  0.00, 1.00],
-])
+LIFE_CORR = np.array(
+    [
+        [1.00, -0.25, 0.25],
+        [-0.25, 1.00, 0.00],
+        [0.25, 0.00, 1.00],
+    ]
+)
 
 # Default correlation between life underwriting and market risk
 RHO_LIFE_MARKET = 0.25
@@ -78,6 +76,7 @@ DEFAULT_COC_RATE = 0.06
 # =============================================================================
 # Helper: Build Shocked Life Table
 # =============================================================================
+
 
 def build_shocked_life_table(
     base_lt: LifeTable,
@@ -118,12 +117,13 @@ def build_shocked_life_table(
 # SCR Component 1: Mortality Risk
 # =============================================================================
 
+
 def compute_scr_mortality(
     portfolio: Portfolio,
     base_lt: LifeTable,
     interest_rate: float,
     shock: float = 0.15,
-) -> Dict:
+) -> dict:
     """
     Compute SCR for mortality risk.
 
@@ -147,15 +147,11 @@ def compute_scr_mortality(
         return {"bel_base": 0.0, "bel_stressed": 0.0, "scr": 0.0, "shock": shock}
 
     # Base BEL for death products
-    bel_base = sum(
-        compute_policy_bel(p, base_lt, interest_rate) for p in death_policies
-    )
+    bel_base = sum(compute_policy_bel(p, base_lt, interest_rate) for p in death_policies)
 
     # Stressed BEL: mortality increases by shock factor
     stressed_lt = build_shocked_life_table(base_lt, 1.0 + shock)
-    bel_stressed = sum(
-        compute_policy_bel(p, stressed_lt, interest_rate) for p in death_policies
-    )
+    bel_stressed = sum(compute_policy_bel(p, stressed_lt, interest_rate) for p in death_policies)
 
     scr = max(bel_stressed - bel_base, 0.0)
 
@@ -171,12 +167,13 @@ def compute_scr_mortality(
 # SCR Component 2: Longevity Risk
 # =============================================================================
 
+
 def compute_scr_longevity(
     portfolio: Portfolio,
     base_lt: LifeTable,
     interest_rate: float,
     shock: float = 0.20,
-) -> Dict:
+) -> dict:
     """
     Compute SCR for longevity risk.
 
@@ -203,15 +200,11 @@ def compute_scr_longevity(
         return {"bel_base": 0.0, "bel_stressed": 0.0, "scr": 0.0, "shock": shock}
 
     # Base BEL for annuity products
-    bel_base = sum(
-        compute_policy_bel(p, base_lt, interest_rate) for p in annuity_policies
-    )
+    bel_base = sum(compute_policy_bel(p, base_lt, interest_rate) for p in annuity_policies)
 
     # Stressed BEL: mortality decreases by shock factor (people live longer)
     stressed_lt = build_shocked_life_table(base_lt, 1.0 - shock)
-    bel_stressed = sum(
-        compute_policy_bel(p, stressed_lt, interest_rate) for p in annuity_policies
-    )
+    bel_stressed = sum(compute_policy_bel(p, stressed_lt, interest_rate) for p in annuity_policies)
 
     scr = max(bel_stressed - bel_base, 0.0)
 
@@ -227,12 +220,13 @@ def compute_scr_longevity(
 # SCR Component 3: Interest Rate Risk
 # =============================================================================
 
+
 def compute_scr_interest_rate(
     portfolio: Portfolio,
     base_lt: LifeTable,
     base_rate: float,
     shock_bps: int = 100,
-) -> Dict:
+) -> dict:
     """
     Compute SCR for interest rate risk.
 
@@ -278,12 +272,13 @@ def compute_scr_interest_rate(
 # SCR Component 4: Catastrophe Risk (COVID-Calibrated)
 # =============================================================================
 
+
 def compute_scr_catastrophe(
     portfolio: Portfolio,
     base_lt: LifeTable,
     interest_rate: float,
     cat_shock_factor: float = 1.35,
-) -> Dict:
+) -> dict:
     """
     Compute SCR for catastrophe risk.
 
@@ -331,14 +326,16 @@ def compute_scr_catastrophe(
 
         extra_claim = p.SA * delta_q * v
         total_extra += extra_claim
-        details.append({
-            "policy_id": p.policy_id,
-            "attained_age": age,
-            "q_base": q_base,
-            "q_shocked": q_shocked,
-            "delta_q": delta_q,
-            "extra_claim": extra_claim,
-        })
+        details.append(
+            {
+                "policy_id": p.policy_id,
+                "attained_age": age,
+                "q_base": q_base,
+                "q_shocked": q_shocked,
+                "delta_q": delta_q,
+                "extra_claim": extra_claim,
+            }
+        )
 
     return {
         "scr": max(total_extra, 0.0),
@@ -351,12 +348,13 @@ def compute_scr_catastrophe(
 # Aggregation: Life Underwriting
 # =============================================================================
 
+
 def aggregate_scr_life(
     scr_mort: float,
     scr_long: float,
     scr_cat: float,
-    corr_matrix: Optional[np.ndarray] = None,
-) -> Dict:
+    corr_matrix: np.ndarray | None = None,
+) -> dict:
     """
     Aggregate life underwriting SCR components using correlation matrix.
 
@@ -389,9 +387,7 @@ def aggregate_scr_life(
 
     diversification_benefit = sum_individual - scr_life
     diversification_pct = (
-        (diversification_benefit / sum_individual * 100)
-        if sum_individual > 0
-        else 0.0
+        (diversification_benefit / sum_individual * 100) if sum_individual > 0 else 0.0
     )
 
     return {
@@ -406,11 +402,12 @@ def aggregate_scr_life(
 # Aggregation: Total SCR (Life + Market)
 # =============================================================================
 
+
 def aggregate_scr_total(
     scr_life: float,
     scr_ir: float,
     rho: float = RHO_LIFE_MARKET,
-) -> Dict:
+) -> dict:
     """
     Aggregate SCR across life underwriting and market risk.
 
@@ -425,11 +422,7 @@ def aggregate_scr_total(
         Dict with scr_total, scr_life, scr_ir, rho,
         sum_individual, diversification_benefit
     """
-    scr_total_sq = (
-        scr_life ** 2
-        + scr_ir ** 2
-        + 2.0 * rho * scr_life * scr_ir
-    )
+    scr_total_sq = scr_life**2 + scr_ir**2 + 2.0 * rho * scr_life * scr_ir
     scr_total = math.sqrt(max(scr_total_sq, 0.0))
 
     sum_individual = scr_life + scr_ir
@@ -449,12 +442,13 @@ def aggregate_scr_total(
 # Risk Margin
 # =============================================================================
 
+
 def compute_risk_margin(
     scr_total: float,
     duration: float,
     coc_rate: float = DEFAULT_COC_RATE,
     discount_rate: float = 0.05,
-) -> Dict:
+) -> dict:
     """
     Compute the risk margin (Margen de Riesgo / MdR).
 
@@ -488,7 +482,7 @@ def compute_risk_margin(
         }
 
     v = 1.0 / (1.0 + discount_rate)
-    annuity_factor = (1.0 - v ** duration) / discount_rate
+    annuity_factor = (1.0 - v**duration) / discount_rate
 
     risk_margin = coc_rate * scr_total * annuity_factor
 
@@ -504,7 +498,8 @@ def compute_risk_margin(
 # Solvency Ratio
 # =============================================================================
 
-def compute_solvency_ratio(available_capital: float, scr_total: float) -> Dict:
+
+def compute_solvency_ratio(available_capital: float, scr_total: float) -> dict:
     """
     Compute the solvency ratio.
 
@@ -524,7 +519,7 @@ def compute_solvency_ratio(available_capital: float, scr_total: float) -> Dict:
         Dict with ratio, available_capital, scr_total, is_solvent
     """
     if scr_total <= 0:
-        ratio = float('inf') if available_capital > 0 else 0.0
+        ratio = float("inf") if available_capital > 0 else 0.0
     else:
         ratio = available_capital / scr_total
 
@@ -541,6 +536,7 @@ def compute_solvency_ratio(available_capital: float, scr_total: float) -> Dict:
 # Full SCR Pipeline
 # =============================================================================
 
+
 def run_full_scr(
     portfolio: Portfolio,
     base_lt: LifeTable,
@@ -551,8 +547,8 @@ def run_full_scr(
     cat_shock_factor: float = 1.35,
     coc_rate: float = DEFAULT_COC_RATE,
     portfolio_duration: float = 15.0,
-    available_capital: Optional[float] = None,
-) -> Dict:
+    available_capital: float | None = None,
+) -> dict:
     """
     Run the complete SCR computation pipeline.
 
@@ -585,23 +581,15 @@ def run_full_scr(
     bel_breakdown = portfolio.compute_bel_by_type(base_lt, interest_rate)
 
     # Individual SCR components
-    mort_result = compute_scr_mortality(
-        portfolio, base_lt, interest_rate, shock=mortality_shock
-    )
-    long_result = compute_scr_longevity(
-        portfolio, base_lt, interest_rate, shock=longevity_shock
-    )
-    ir_result = compute_scr_interest_rate(
-        portfolio, base_lt, interest_rate, shock_bps=ir_shock_bps
-    )
+    mort_result = compute_scr_mortality(portfolio, base_lt, interest_rate, shock=mortality_shock)
+    long_result = compute_scr_longevity(portfolio, base_lt, interest_rate, shock=longevity_shock)
+    ir_result = compute_scr_interest_rate(portfolio, base_lt, interest_rate, shock_bps=ir_shock_bps)
     cat_result = compute_scr_catastrophe(
         portfolio, base_lt, interest_rate, cat_shock_factor=cat_shock_factor
     )
 
     # Life underwriting aggregation
-    life_agg = aggregate_scr_life(
-        mort_result["scr"], long_result["scr"], cat_result["scr"]
-    )
+    life_agg = aggregate_scr_life(mort_result["scr"], long_result["scr"], cat_result["scr"])
 
     # Total aggregation
     total_agg = aggregate_scr_total(life_agg["scr_life"], ir_result["scr"])

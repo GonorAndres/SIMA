@@ -7,19 +7,20 @@ Tests for the LifeTable class (Block 1).
 Each test validates a specific property from actuarial theory.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a01_life_table import LifeTable
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mini_table():
@@ -38,6 +39,7 @@ def sample_table():
 # =============================================================================
 # Test: Life Table Structure
 # =============================================================================
+
 
 def test_table_loads_correctly(mini_table):
     """
@@ -63,6 +65,7 @@ def test_l_x_values_loaded(mini_table):
 # =============================================================================
 # Test: d_x Derivation
 # =============================================================================
+
 
 def test_d_x_derivation(mini_table):
     """
@@ -96,6 +99,7 @@ def test_terminal_age_deaths(mini_table):
 # Test: q_x Derivation
 # =============================================================================
 
+
 def test_q_x_derivation(mini_table):
     """
     THEORY: q_x = d_x / l_x
@@ -124,6 +128,7 @@ def test_terminal_mortality_is_one(mini_table):
 # Test: p_x Derivation
 # =============================================================================
 
+
 def test_p_x_derivation(mini_table):
     """
     THEORY: p_x = 1 - q_x
@@ -140,6 +145,7 @@ def test_p_x_derivation(mini_table):
 # =============================================================================
 # Test: Fundamental Validation - Sum of Deaths = Initial Population
 # =============================================================================
+
 
 def test_sum_of_deaths_equals_l0(mini_table):
     """
@@ -166,14 +172,15 @@ def test_validation_method(mini_table):
     """
     results = mini_table.validate()
 
-    assert results['sum_deaths_equals_l0'] == True
-    assert results['terminal_mortality_is_one'] == True
-    assert results['all_rates_valid'] == True
+    assert results["sum_deaths_equals_l0"] is True
+    assert results["terminal_mortality_is_one"] is True
+    assert results["all_rates_valid"] is True
 
 
 # =============================================================================
 # Test: Subsetting
 # =============================================================================
+
 
 def test_subset_creation(sample_table):
     """

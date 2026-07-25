@@ -21,9 +21,9 @@ Golden edge cases: i=0, terminal age omega, expired term, single premium.
 
 from __future__ import annotations
 
+import sys
 import warnings
 from pathlib import Path
-import sys
 
 import pytest
 
@@ -49,10 +49,10 @@ from backend.engine.validators import (
     validate_term_bounds,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mini_table():
@@ -84,11 +84,10 @@ def rc(comm):
 # exceptions.py
 # =============================================================================
 
+
 class TestActuarialValidationError:
     def test_carries_structured_fields(self):
-        err = ActuarialValidationError(
-            "bad input", field="sum_assured", constraint="SA > 0"
-        )
+        err = ActuarialValidationError("bad input", field="sum_assured", constraint="SA > 0")
         assert err.field == "sum_assured"
         assert err.constraint == "SA > 0"
         assert err.message == "bad input"
@@ -107,6 +106,7 @@ class TestActuarialValidationError:
 # =============================================================================
 # validators.py
 # =============================================================================
+
 
 class TestValidators:
     def test_consecutive_ages_rejects_gap(self):
@@ -194,6 +194,7 @@ class TestValidators:
 # a01 LifeTable hardening
 # =============================================================================
 
+
 class TestLifeTableValidation:
     def test_non_consecutive_ages_raise(self):
         with pytest.raises(ActuarialValidationError, match="consecutive"):
@@ -247,6 +248,7 @@ class TestLifeTableValidation:
 # a02 CommutationFunctions hardening
 # =============================================================================
 
+
 class TestCommutationValidation:
     def test_rate_above_one_warns(self, mini_table):
         with pytest.warns(UserWarning, match="Interest rate"):
@@ -291,6 +293,7 @@ class TestZeroInterest:
 # Terminal age (omega) edge case
 # =============================================================================
 
+
 class TestTerminalAge:
     def test_A_x_at_omega_is_one(self, comm):
         av = ActuarialValues(comm)
@@ -317,6 +320,7 @@ class TestTerminalAge:
 # Expired term policy edge case
 # =============================================================================
 
+
 class TestExpiredTerm:
     def test_reserve_term_expired_returns_zero_with_warning(self, rc):
         sa, x, n = 100_000.0, 60, 3
@@ -332,6 +336,7 @@ class TestExpiredTerm:
 # =============================================================================
 # Single-premium equivalence & all-product coverage
 # =============================================================================
+
 
 class TestSinglePremium:
     def test_whole_life_single_premium_equals_sa_times_Ax(self, comm):
@@ -350,17 +355,13 @@ class TestSinglePremium:
         av = ActuarialValues(comm)
         pc = PremiumCalculator(comm)
         sa, x, n = 100_000.0, 60, 3
-        assert pc.single_premium(sa, x, "endowment", n) == pytest.approx(
-            sa * av.A_endowment(x, n)
-        )
+        assert pc.single_premium(sa, x, "endowment", n) == pytest.approx(sa * av.A_endowment(x, n))
 
     def test_pure_endowment_single_premium(self, comm):
         av = ActuarialValues(comm)
         pc = PremiumCalculator(comm)
         sa, x, n = 100_000.0, 60, 3
-        assert pc.single_premium(sa, x, "pure_endowment", n) == pytest.approx(
-            sa * av.nE_x(x, n)
-        )
+        assert pc.single_premium(sa, x, "pure_endowment", n) == pytest.approx(sa * av.nE_x(x, n))
 
     def test_single_premium_rejects_missing_n(self, comm):
         pc = PremiumCalculator(comm)
@@ -381,6 +382,7 @@ class TestSinglePremium:
 # =============================================================================
 # Reserve validation helpers
 # =============================================================================
+
 
 class TestReserveValidation:
     def test_validate_zero_reserve_includes_pure_endowment(self, comm):
@@ -404,5 +406,5 @@ class TestReserveValidation:
 
     def test_reserve_term_rejects_negative_duration(self, comm):
         rc = ReserveCalculator(comm)
-        with pytest.raises(ActuarialValidationError, match="cannot be negative|non-negative"):
+        with pytest.raises(ActuarialValidationError, match=r"cannot be negative|non-negative"):
             rc.reserve_term(100_000.0, 60, 3, t=-1)

@@ -89,11 +89,14 @@ def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
     cnsf_2013 = str(REAL_CNSF_2013) if REAL_CNSF_2013.exists() else None
     emssa = str(REAL_EMSSA) if REAL_EMSSA.exists() else str(MOCK_EMSSA)
 
-    logger.info("Data path resolution: source=%s, deaths=%s, population=%s", source, deaths, population)
+    logger.info(
+        "Data path resolution: source=%s, deaths=%s, population=%s", source, deaths, population
+    )
     if source == "mock":
         logger.warning(
             "REAL DATA NOT FOUND. Expected: %s and %s. Falling back to mock.",
-            REAL_DEATHS, REAL_POPULATION,
+            REAL_DEATHS,
+            REAL_POPULATION,
         )
 
     return deaths, population, cnsf, cnsf_2013, emssa, source
@@ -144,7 +147,9 @@ def _resolve_hmd_dir(country: str) -> str:
         return str(real_dir.parent)
     logger.warning(
         "HMD %s: real data not found at %s (exists=%s, files=%s). Falling back to mock.",
-        country, real_dir, real_dir.exists(),
+        country,
+        real_dir,
+        real_dir.exists(),
         list(real_dir.glob("*")) if real_dir.exists() else "dir_missing",
     )
     return str(mock_dir.parent)
@@ -183,9 +188,7 @@ def load_all() -> None:
             hmd_dir = _resolve_hmd_dir(country)
             for sex_key, hmd_sex in SEX_TO_HMD.items():
                 logger.info("Loading %s %s (%s) pipeline...", country, sex_key, hmd_sex)
-                _hmd_pipelines[(country, sex_key)] = _build_hmd_pipeline(
-                    hmd_dir, country, hmd_sex
-                )
+                _hmd_pipelines[(country, sex_key)] = _build_hmd_pipeline(hmd_dir, country, hmd_sex)
 
         # Load regulatory tables (both sexes)
         _cnsf_lt = LifeTable.from_regulatory_table(cnsf, sex="male")
@@ -281,8 +284,7 @@ def get_hmd_pipeline(country: str, sex: str = "unisex") -> dict:
     key = (country, sex)
     if key not in _hmd_pipelines:
         raise ValueError(
-            f"Unknown country/sex: {country}/{sex}. "
-            f"Valid: {list(_hmd_pipelines.keys())}"
+            f"Unknown country/sex: {country}/{sex}. Valid: {list(_hmd_pipelines.keys())}"
         )
     return _hmd_pipelines[key]
 

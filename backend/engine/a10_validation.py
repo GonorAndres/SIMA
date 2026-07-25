@@ -32,7 +32,6 @@ tools for that comparison.
 """
 
 import numpy as np
-from typing import List
 
 from .a01_life_table import LifeTable
 
@@ -77,7 +76,7 @@ class MortalityComparison:
                 f"Regulatory: [{regulatory.min_age}, {regulatory.max_age}]"
             )
 
-        self.overlap_ages: List[int] = overlap
+        self.overlap_ages: list[int] = overlap
 
     def qx_ratio(self) -> np.ndarray:
         """
@@ -134,7 +133,7 @@ class MortalityComparison:
         reg_qx = np.array([self.regulatory.get_q(a) for a in ages])
 
         diff = proj_qx - reg_qx
-        return float(np.sqrt(np.mean(diff ** 2)))
+        return float(np.sqrt(np.mean(diff**2)))
 
     def summary(self) -> dict:
         """

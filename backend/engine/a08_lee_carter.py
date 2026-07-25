@@ -40,11 +40,19 @@ HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 Demographic Studies (France). Available at www.mortality.org.
 """
 
-from typing import Dict, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy.optimize import brentq
 
 from .a06_mortality_data import MortalityData
+
+if TYPE_CHECKING:
+    # Avoid a runtime import cycle: graduation -> mortality_data, and
+    # Lee-Carter references GraduatedRates only in type annotations.
+    from .a07_graduation import GraduatedRates
 
 
 class LeeCarter:
@@ -96,9 +104,9 @@ class LeeCarter:
     @classmethod
     def fit(
         cls,
-        data: Union[MortalityData, "GraduatedRates"],
+        data: MortalityData | GraduatedRates,
         reestimate_kt: bool = True,
-    ) -> "LeeCarter":
+    ) -> LeeCarter:
         """
         Fit Lee-Carter model to mortality data.
 
@@ -180,7 +188,7 @@ class LeeCarter:
         U, S, Vt = np.linalg.svd(residual, full_matrices=False)
 
         # Explained variance: S[0]^2 / sum(S^2)
-        explained_var = S[0] ** 2 / np.sum(S ** 2)
+        explained_var = S[0] ** 2 / np.sum(S**2)
 
         # Raw components
         bx_raw = U[:, 0]
@@ -252,14 +260,12 @@ class LeeCarter:
         kt_new = np.zeros(n_years)
 
         for t in range(n_years):
-            observed_deaths = np.sum(dx[:, t])
-            exposures_t = ex[:, t]
 
-            def death_residual(k):
+            def death_residual(k, _ex=ex[:, t], _d=np.sum(dx[:, t])):
                 """Difference between model-implied and observed deaths."""
                 model_rates = np.exp(ax + bx * k)
-                model_deaths = np.sum(exposures_t * model_rates)
-                return model_deaths - observed_deaths
+                model_deaths = np.sum(_ex * model_rates)
+                return model_deaths - _d
 
             try:
                 kt_new[t] = brentq(death_residual, -500, 500)
@@ -274,9 +280,7 @@ class LeeCarter:
 
                 for i in range(len(f_vals) - 1):
                     if f_vals[i] * f_vals[i + 1] < 0:
-                        kt_new[t] = brentq(
-                            death_residual, k_candidates[i], k_candidates[i + 1]
-                        )
+                        kt_new[t] = brentq(death_residual, k_candidates[i], k_candidates[i + 1])
                         found = True
                         break
 
@@ -297,27 +301,21 @@ class LeeCarter:
         """Get a_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})")
         return float(self.ax[idx])
 
     def get_bx(self, age: int) -> float:
         """Get b_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})")
         return float(self.bx[idx])
 
     def get_kt(self, year: int) -> float:
         """Get k_t for a specific year."""
         idx = np.searchsorted(self.years, year)
         if idx >= len(self.years) or self.years[idx] != year:
-            raise ValueError(
-                f"Year {year} not in model (range: {self.years[0]}-{self.years[-1]})"
-            )
+            raise ValueError(f"Year {year} not in model (range: {self.years[0]}-{self.years[-1]})")
         return float(self.kt[idx])
 
     def fitted_rate(self, age: int, year: int) -> float:
@@ -343,7 +341,7 @@ class LeeCarter:
         """
         return np.exp(self.ax[:, np.newaxis] + np.outer(self.bx, self.kt))
 
-    def goodness_of_fit(self) -> Dict:
+    def goodness_of_fit(self) -> dict:
         """
         Compute goodness-of-fit metrics.
 
@@ -357,12 +355,12 @@ class LeeCarter:
 
         return {
             "explained_variance": self.explained_variance,
-            "rmse": float(np.sqrt(np.mean(errors ** 2))),
+            "rmse": float(np.sqrt(np.mean(errors**2))),
             "max_abs_error": float(np.max(np.abs(errors))),
             "mean_abs_error": float(np.mean(np.abs(errors))),
         }
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """
         Validate Lee-Carter parameter constraints.
 
@@ -383,7 +381,7 @@ class LeeCarter:
             "explained_var_reasonable": bool(self.explained_variance > 0.5),
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for the fitted model."""
         gof = self.goodness_of_fit()
         return {
@@ -411,7 +409,7 @@ class LeeCarter:
         lambda_param: float = 1e5,
         reestimate_kt: bool = True,
         download_date: str = "",
-    ) -> "LeeCarter":
+    ) -> LeeCarter:
         """
         Convenience: load HMD data, optionally graduate, and fit Lee-Carter.
 
@@ -453,6 +451,7 @@ class LeeCarter:
 
         if graduate:
             from .a07_graduation import GraduatedRates
+
             data = GraduatedRates(data, lambda_param=lambda_param)
 
         return cls.fit(data, reestimate_kt=reestimate_kt)

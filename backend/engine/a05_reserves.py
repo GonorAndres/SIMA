@@ -32,7 +32,6 @@ using the net premium method, which is exactly what we implement.
 from __future__ import annotations
 
 import warnings
-from typing import Dict, List, Optional, Tuple
 
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
@@ -66,7 +65,7 @@ class ReserveCalculator:
 
     # ---- internal helpers ---------------------------------------------------
     def _check_inputs(
-        self, SA: float, x: int, n: Optional[int] = None, t: int = 0, *, product: str = "whole_life"
+        self, SA: float, x: int, n: int | None = None, t: int = 0, *, product: str = "whole_life"
     ) -> None:
         """Validate SA, issue age, and (for finite products) non-negative term.
 
@@ -142,8 +141,8 @@ class ReserveCalculator:
 
         # Step 2: Get actuarial values at CURRENT age (x+t)
         # These reflect the remaining lifetime from now
-        A_attained = self.av.A_x(attained_age)          # Future death benefit PV
-        a_due_attained = self.av.a_due(attained_age)    # Future premium collection PV
+        A_attained = self.av.A_x(attained_age)  # Future death benefit PV
+        a_due_attained = self.av.a_due(attained_age)  # Future premium collection PV
 
         # Step 3: Apply prospective formula
         # Reserve = Future Benefits - Future Premiums
@@ -282,8 +281,8 @@ class ReserveCalculator:
         return reserve
 
     def reserve_trajectory(
-        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
-    ) -> List[Tuple[int, float]]:
+        self, SA: float, x: int, product: str = "whole_life", n: int | None = None
+    ) -> list[tuple[int, float]]:
         """
         Calculate reserve at each duration from 0 to end of policy.
 
@@ -299,7 +298,7 @@ class ReserveCalculator:
         Returns:
             List of (t, tV) tuples
         """
-        trajectory: List[Tuple[int, float]] = []
+        trajectory: list[tuple[int, float]] = []
 
         if product == "whole_life":
             max_t = self.comm.max_age - x
@@ -309,18 +308,21 @@ class ReserveCalculator:
 
         elif product == "term":
             validate_term_bounds(n, 0, "term")  # raises if n is None/negative
+            assert n is not None  # narrowing for mypy after validate_term_bounds
             for t in range(n + 1):
                 reserve = self.reserve_term(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         elif product == "endowment":
             validate_term_bounds(n, 0, "endowment")
+            assert n is not None
             for t in range(n + 1):
                 reserve = self.reserve_endowment(SA, x, n, t)
                 trajectory.append((t, reserve))
 
         elif product == "pure_endowment":
             validate_term_bounds(n, 0, "pure_endowment")
+            assert n is not None
             for t in range(n + 1):
                 reserve = self.reserve_pure_endowment(SA, x, n, t)
                 trajectory.append((t, reserve))
@@ -335,8 +337,8 @@ class ReserveCalculator:
         return trajectory
 
     def validate_zero_reserve(
-        self, SA: float, x: int, product: str = "whole_life", n: Optional[int] = None
-    ) -> Dict:
+        self, SA: float, x: int, product: str = "whole_life", n: int | None = None
+    ) -> dict[str, object]:
         """
         Validate that reserve at issue (t=0) equals zero.
 
@@ -362,14 +364,17 @@ class ReserveCalculator:
             P = self.pc.whole_life(SA, x)
         elif product == "term":
             validate_term_bounds(n, 0, "term")
+            assert n is not None
             reserve_0 = self.reserve_term(SA, x, n, 0)
             P = self.pc.term(SA, x, n)
         elif product == "endowment":
             validate_term_bounds(n, 0, "endowment")
+            assert n is not None
             reserve_0 = self.reserve_endowment(SA, x, n, 0)
             P = self.pc.endowment(SA, x, n)
         elif product == "pure_endowment":
             validate_term_bounds(n, 0, "pure_endowment")
+            assert n is not None
             reserve_0 = self.reserve_pure_endowment(SA, x, n, 0)
             P = self.pc.pure_endowment(SA, x, n)
         else:
@@ -381,21 +386,19 @@ class ReserveCalculator:
 
         tol = 1e-9 * max(abs(SA), 1.0)
         return {
-            'product': product,
-            'issue_age': x,
-            'sum_assured': SA,
-            'premium': P,
-            'reserve_at_0': reserve_0,
-            'tolerance': tol,
-            'is_zero': abs(reserve_0) <= tol,
-            'explanation': (
-                "0V = 0 confirms equivalence principle: "
-                "at issue, APV(premiums) = APV(benefits)"
-            )
+            "product": product,
+            "issue_age": x,
+            "sum_assured": SA,
+            "premium": P,
+            "reserve_at_0": reserve_0,
+            "tolerance": tol,
+            "is_zero": abs(reserve_0) <= tol,
+            "explanation": (
+                "0V = 0 confirms equivalence principle: at issue, APV(premiums) = APV(benefits)"
+            ),
         }
 
-    def summary(self, SA: float, x: int, product: str = "whole_life",
-                n: int = None) -> str:
+    def summary(self, SA: float, x: int, product: str = "whole_life", n: int | None = None) -> str:
         """
         Generate reserve summary for a policy.
 
@@ -410,7 +413,7 @@ class ReserveCalculator:
         """
         lines = [
             f"Reserve Summary: {product.replace('_', ' ').title()}",
-            f"=" * 50,
+            "=" * 50,
             f"Sum Assured: ${SA:,.2f}",
             f"Issue Age: {x}",
             f"Interest Rate: {self.comm.i:.2%}",
@@ -423,8 +426,10 @@ class ReserveCalculator:
         if product == "whole_life":
             P = self.pc.whole_life(SA, x)
         elif product == "term":
+            assert n is not None
             P = self.pc.term(SA, x, n)
         elif product == "endowment":
+            assert n is not None
             P = self.pc.endowment(SA, x, n)
 
         lines.append(f"Annual Premium: ${P:,.2f}")
@@ -438,13 +443,13 @@ class ReserveCalculator:
         # Show first few and last few
         if len(trajectory) <= 10:
             for t, reserve in trajectory:
-                lines.append(f"{t:>10} {x+t:>6} ${reserve:>14,.2f}")
+                lines.append(f"{t:>10} {x + t:>6} ${reserve:>14,.2f}")
         else:
             for t, reserve in trajectory[:5]:
-                lines.append(f"{t:>10} {x+t:>6} ${reserve:>14,.2f}")
+                lines.append(f"{t:>10} {x + t:>6} ${reserve:>14,.2f}")
             lines.append(f"{'...':>10}")
             for t, reserve in trajectory[-3:]:
-                lines.append(f"{t:>10} {x+t:>6} ${reserve:>14,.2f}")
+                lines.append(f"{t:>10} {x + t:>6} ${reserve:>14,.2f}")
 
         # Validation
         lines.append("")

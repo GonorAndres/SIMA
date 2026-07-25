@@ -19,10 +19,9 @@ regulator-friendly errors.
 from __future__ import annotations
 
 import math
-from typing import Iterable, Optional, Sequence
+from collections.abc import Iterable, Sequence
 
 from .exceptions import ActuarialValidationError
-
 
 # ---------------------------------------------------------------------------
 # Numeric tolerances
@@ -62,7 +61,7 @@ def validate_consecutive_ages(ages: Sequence[int]) -> None:
             )
 
 
-def validate_lx_monotonic(l_x: Sequence[float], ages: Optional[Sequence[int]] = None) -> None:
+def validate_lx_monotonic(l_x: Sequence[float], ages: Sequence[int] | None = None) -> None:
     """
     Ensure survivor counts ``l_x`` are non-negative and (weakly) monotone
     non-increasing.
@@ -88,7 +87,7 @@ def validate_lx_monotonic(l_x: Sequence[float], ages: Optional[Sequence[int]] = 
         # allow tiny relative increase from float recurrence
         denom = max(abs(prev), 1.0)
         if curr > prev and (curr - prev) / denom > MONO_REL_TOL:
-            where = f"ages {ages[i-1]}->{ages[i]}" if ages is not None else f"index {i-1}->{i}"
+            where = f"ages {ages[i - 1]}->{ages[i]}" if ages is not None else f"index {i - 1}->{i}"
             raise ActuarialValidationError(
                 f"Survivor counts must be non-increasing; l_x increased at {where} "
                 f"({prev} -> {curr})",
@@ -144,13 +143,11 @@ def validate_product_type(product: str) -> None:
         )
 
 
-def _sorted(s: set) -> str:
+def _sorted(s: set[str]) -> str:
     return "{" + ", ".join(sorted(s)) + "}"
 
 
-def validate_term_bounds(
-    n: Optional[int], t: int = 0, product_type: str = "term"
-) -> None:
+def validate_term_bounds(n: int | None, t: int = 0, product_type: str = "term") -> None:
     """
     Validate duration ``t`` against term ``n`` for finite-horizon products.
 
@@ -306,15 +303,15 @@ def validate_interest_rate(
 
 
 __all__ = [
-    "PROB_TOL",
     "MONO_REL_TOL",
-    "validate_consecutive_ages",
-    "validate_lx_monotonic",
-    "validate_probabilities",
+    "PROB_TOL",
     "validate_age_in_table",
-    "validate_product_type",
-    "validate_term_bounds",
+    "validate_consecutive_ages",
+    "validate_interest_rate",
+    "validate_lx_monotonic",
     "validate_non_negative_amount",
     "validate_positive_amount",
-    "validate_interest_rate",
+    "validate_probabilities",
+    "validate_product_type",
+    "validate_term_bounds",
 ]

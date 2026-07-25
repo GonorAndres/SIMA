@@ -15,21 +15,22 @@ Production (Cloud Run):
 
 import os
 import sys
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 # Ensure backend is importable
 _project_dir = str(Path(__file__).parent.parent.parent)
 if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
-from backend.api.services.precomputed import load_all, get_data_source
-from backend.api.routers import mortality, pricing, portfolio, scr, sensitivity
+from backend.api.routers import mortality, portfolio, pricing, scr, sensitivity
+from backend.api.services.precomputed import get_data_source, load_all
+from backend.engine.exceptions import ActuarialValidationError
 
 
 @asynccontextmanager
@@ -61,6 +62,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def security_headers(request, call_next):
     response = await call_next(request)
@@ -68,6 +70,19 @@ async def security_headers(request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+# Backstop exception handler: if an ActuarialValidationError escapes a route's
+# own try/except (e.g. raised in a dependency or shared service before the
+# handler runs), map it to a structured 422 response so raw engine errors
+# never leak as an unstructured 500. Routes also handle this explicitly for a
+# richer detail payload; this guarantees the mapping regardless of path.
+@app.exception_handler(ActuarialValidationError)
+async def actuarial_validation_exception_handler(
+    request: Request, exc: ActuarialValidationError
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content=exc.to_dict())
+
 
 # Register API routers (must come before static file mounts)
 app.include_router(mortality.router, prefix="/api")

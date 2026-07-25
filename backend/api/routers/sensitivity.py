@@ -3,12 +3,13 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.api.schemas.sensitivity import (
+    CovidComparisonResponse,
+    CrossCountryResponse,
     MortalityShockRequest,
     MortalityShockResponse,
-    CrossCountryResponse,
-    CovidComparisonResponse,
 )
 from backend.api.services import sensitivity_service
+from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/sensitivity", tags=["sensitivity"])
 
@@ -25,10 +26,12 @@ def mortality_shock(request: MortalityShockRequest):
             term=request.term,
             sex=request.sex,
         )
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/cross-country", response_model=CrossCountryResponse)

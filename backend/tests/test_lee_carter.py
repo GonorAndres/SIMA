@@ -6,17 +6,17 @@ Validates the Lee-Carter decomposition produces correct parameters
 and satisfies identifiability constraints.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
-
 
 # =============================================================================
 # Test Fixtures
@@ -73,6 +73,7 @@ def spain_lc(spain_data):
 # Test: a_x Computation
 # =============================================================================
 
+
 def test_ax_centering_preserves_reconstruction(usa_data, usa_lc_no_reest):
     """
     THEORY: After centering k_t and absorbing the offset into a_x,
@@ -96,9 +97,7 @@ def test_ax_centering_preserves_reconstruction(usa_data, usa_lc_no_reest):
     full_reconstruction = row_means[:, np.newaxis] + svd_approx
 
     # The fitted model should match this reconstruction
-    fitted = usa_lc_no_reest.ax[:, np.newaxis] + np.outer(
-        usa_lc_no_reest.bx, usa_lc_no_reest.kt
-    )
+    fitted = usa_lc_no_reest.ax[:, np.newaxis] + np.outer(usa_lc_no_reest.bx, usa_lc_no_reest.kt)
     np.testing.assert_allclose(fitted, full_reconstruction, rtol=1e-8)
 
 
@@ -110,6 +109,7 @@ def test_ax_shape(usa_lc):
 # =============================================================================
 # Test: Identifiability Constraints
 # =============================================================================
+
 
 def test_bx_sums_to_one(usa_lc):
     """
@@ -141,6 +141,7 @@ def test_kt_sums_to_zero_no_reest(usa_lc_no_reest):
 # Test: SVD Reconstruction Quality
 # =============================================================================
 
+
 def test_svd_explains_significant_variance(usa_lc):
     """
     THEORY: The first SVD component should capture the dominant mortality
@@ -162,6 +163,7 @@ def test_fitted_rates_approximate_input(usa_lc):
 # Test: k_t Behavior
 # =============================================================================
 
+
 def test_kt_generally_decreasing(usa_lc):
     """
     THEORY: For countries with improving mortality, k_t should
@@ -181,6 +183,7 @@ def test_kt_length_matches_years(usa_lc):
 # =============================================================================
 # Test: k_t Re-estimation
 # =============================================================================
+
 
 def test_reestimated_kt_matches_deaths(usa_data, usa_lc):
     """
@@ -203,6 +206,7 @@ def test_reestimated_kt_matches_deaths(usa_data, usa_lc):
 # Test: Synthetic Data Recovery
 # =============================================================================
 
+
 def test_synthetic_data_recovery():
     """
     THEORY: If we generate data from known a_x, b_x, k_t, the
@@ -213,7 +217,7 @@ def test_synthetic_data_recovery():
 
     # Known parameters
     true_ax = np.linspace(-6, -1, n_ages)  # Increasing with age
-    true_bx = np.ones(n_ages) / n_ages     # Uniform sensitivity
+    true_bx = np.ones(n_ages) / n_ages  # Uniform sensitivity
     true_kt = np.linspace(5, -5, n_years)  # Decreasing trend
 
     # Generate synthetic mx (no noise)
@@ -252,6 +256,7 @@ def test_synthetic_data_recovery():
 # Test: Country Comparison
 # =============================================================================
 
+
 def test_usa_vs_spain_different_parameters(usa_lc, spain_lc):
     """
     Different countries should produce different a_x and k_t parameters.
@@ -266,6 +271,7 @@ def test_usa_vs_spain_different_parameters(usa_lc, spain_lc):
 # =============================================================================
 # Test: Accessor Methods
 # =============================================================================
+
 
 def test_get_ax_returns_float(usa_lc):
     """get_ax should return a single float."""
@@ -289,6 +295,7 @@ def test_fitted_mx_matrix_shape(usa_lc):
 # Test: Validation and Summary
 # =============================================================================
 
+
 def test_validate_all_pass(usa_lc):
     """All validation checks should pass for a properly fitted model."""
     v = usa_lc.validate()
@@ -307,6 +314,7 @@ def test_summary_contains_trend(usa_lc):
 # =============================================================================
 # Test: fit_from_hmd convenience
 # =============================================================================
+
 
 def test_fit_from_hmd():
     """fit_from_hmd should load data and fit in one step."""

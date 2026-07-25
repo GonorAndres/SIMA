@@ -1,32 +1,34 @@
 """Pydantic schemas for sensitivity analysis endpoints."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import Literal, List, Optional
 
 
 class MortalityShockRequest(BaseModel):
     """Request for mortality shock sweep analysis."""
+
     age: int = Field(default=40, ge=20, le=70)
     sum_assured: float = Field(default=1_000_000, gt=0, le=1e12)
     product_type: Literal["whole_life", "term", "endowment"] = Field(default="whole_life")
-    factors: List[float] = Field(
+    factors: list[float] = Field(
         default=[-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30],
         max_length=50,
         description="Shock factors to apply to q_x",
     )
-    term: Optional[int] = Field(default=20, ge=1)
+    term: int | None = Field(default=20, ge=1)
     sex: Literal["male", "female", "unisex"] = Field(
-        default="unisex",
-        description="Sex for base mortality table"
+        default="unisex", description="Sex for base mortality table"
     )
 
 
 class MortalityShockResponse(BaseModel):
     """Result of mortality shock sweep."""
-    factors: List[float]
-    premiums: List[float]
+
+    factors: list[float]
+    premiums: list[float]
     base_premium: float
-    pct_changes: List[float]
+    pct_changes: list[float]
     age: int
     product_type: str
     sex: str
@@ -34,6 +36,7 @@ class MortalityShockResponse(BaseModel):
 
 class CrossCountryEntry(BaseModel):
     """Single country comparison entry."""
+
     country: str
     drift: float
     explained_var: float
@@ -44,37 +47,42 @@ class CrossCountryEntry(BaseModel):
 
 class CrossCountryProfile(BaseModel):
     """Parameter profile for one country."""
+
     country: str
-    ages: List[int]
-    values: List[float]
+    ages: list[int]
+    values: list[float]
 
 
 class CrossCountryKtProfile(BaseModel):
     """k_t trajectory for one country."""
+
     country: str
-    years: List[int]
-    kt: List[float]
+    years: list[int]
+    kt: list[float]
 
 
 class CrossCountryResponse(BaseModel):
     """Cross-country comparison results."""
-    countries: List[CrossCountryEntry]
-    kt_profiles: List[CrossCountryKtProfile]
-    ax_profiles: List[CrossCountryProfile]
-    bx_profiles: List[CrossCountryProfile]
+
+    countries: list[CrossCountryEntry]
+    kt_profiles: list[CrossCountryKtProfile]
+    ax_profiles: list[CrossCountryProfile]
+    bx_profiles: list[CrossCountryProfile]
 
 
 class CovidPeriodData(BaseModel):
     """Lee-Carter data for one period."""
+
     drift: float
     sigma: float
     explained_var: float
-    kt: List[float]
-    years: List[int]
+    kt: list[float]
+    years: list[int]
 
 
 class CovidPremiumImpact(BaseModel):
     """Premium impact at one age."""
+
     age: int
     pre_covid: float
     full: float
@@ -83,6 +91,7 @@ class CovidPremiumImpact(BaseModel):
 
 class CovidComparisonResponse(BaseModel):
     """COVID-19 impact comparison."""
+
     pre_covid: CovidPeriodData
     full_period: CovidPeriodData
-    premium_impact: List[CovidPremiumImpact]
+    premium_impact: list[CovidPremiumImpact]

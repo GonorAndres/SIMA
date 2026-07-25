@@ -13,10 +13,11 @@ patterns (Gompertz mortality, infant spike, young-adult hump) but are
 deterministic and committed to the repo for CI reproducibility.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -28,7 +29,6 @@ from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
 from backend.engine.a09_projection import MortalityProjection
 from backend.engine.a10_validation import MortalityComparison
-
 
 # =============================================================================
 # Test Fixtures
@@ -85,6 +85,7 @@ def inegi_pipeline(inegi_data):
 # =============================================================================
 # Test: Full Pipeline End-to-End (INEGI -> Premiums)
 # =============================================================================
+
 
 def test_mock_inegi_full_pipeline(inegi_pipeline, cnsf_life_table):
     """
@@ -179,17 +180,14 @@ def test_comparison_cnsf_vs_emssa(cnsf_life_table, emssa_life_table):
     In practice, the EMSSA table is fitted to IMSS-affiliated workers
     who tend to have better healthcare access, so their mortality is lower.
     """
-    comp = MortalityComparison(
-        cnsf_life_table, emssa_life_table, name="CNSF_vs_EMSSA"
-    )
+    comp = MortalityComparison(cnsf_life_table, emssa_life_table, name="CNSF_vs_EMSSA")
 
     # CNSF (general) vs EMSSA (social security):
     # General population mortality should be higher on average
     ratios = comp.qx_ratio()
     mean_ratio = np.mean(ratios)
     assert mean_ratio > 1.0, (
-        f"CNSF q_x should be higher than EMSSA on average, "
-        f"but mean ratio = {mean_ratio:.4f}"
+        f"CNSF q_x should be higher than EMSSA on average, but mean ratio = {mean_ratio:.4f}"
     )
 
 

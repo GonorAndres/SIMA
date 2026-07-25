@@ -33,7 +33,6 @@ HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 Demographic Studies (France). Available at www.mortality.org.
 """
 
-from typing import Dict, Optional
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
@@ -199,10 +198,7 @@ class GraduatedRates:
             log_col = log_mx[:, j]
 
             # Weights: use exposure for this year, or uniform
-            if self.weight_by_exposure:
-                w = self.ex[:, j]
-            else:
-                w = np.ones(self.n_ages)
+            w = self.ex[:, j] if self.weight_by_exposure else np.ones(self.n_ages)
 
             graduated_log_mx[:, j] = self._whittaker_henderson_1d(log_col, w)
 
@@ -243,10 +239,10 @@ class GraduatedRates:
         for j in range(rates.shape[1]):
             col = np.log(rates[:, j])
             d2 = np.diff(col, n=2)
-            total += np.sum(d2 ** 2)
+            total += np.sum(d2**2)
         return total
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """
         Validate graduated rates for consistency.
 
@@ -259,14 +255,12 @@ class GraduatedRates:
         results = {}
         results["no_nan"] = bool(not np.any(np.isnan(self.mx)))
         results["all_positive"] = bool(np.all(self.mx > 0))
-        results["smoother_than_raw"] = bool(
-            self.roughness(self.mx) < self.roughness(self.raw_mx)
-        )
+        results["smoother_than_raw"] = bool(self.roughness(self.mx) < self.roughness(self.raw_mx))
         resid = self.residuals()
         results["residual_mean_near_zero"] = bool(abs(np.mean(resid)) < 0.1)
         return results
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for quick inspection."""
         resid = self.residuals()
         return {

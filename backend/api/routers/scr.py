@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter, HTTPException
 
-from backend.api.schemas.scr import SCRRequest, SCRResponse, LISFComplianceResponse
+from backend.api.schemas.scr import LISFComplianceResponse, SCRRequest, SCRResponse
 from backend.api.services import scr_service
+from backend.engine.exceptions import ActuarialValidationError
 
 router = APIRouter(prefix="/scr", tags=["scr"])
 
@@ -24,10 +25,12 @@ def compute_scr(request: SCRRequest):
             sex=request.sex,
         )
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/compliance", response_model=LISFComplianceResponse)
@@ -42,7 +45,9 @@ def compute_scr_defaults():
     try:
         result = scr_service.run_scr()
         return result
+    except ActuarialValidationError as e:
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None

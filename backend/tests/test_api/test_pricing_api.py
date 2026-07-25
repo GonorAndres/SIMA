@@ -5,12 +5,15 @@ import pytest
 
 def test_whole_life_premium(client):
     """THEORY: Whole life premium should be positive and less than SA."""
-    response = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-    })
+    response = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["annual_premium"] > 0
@@ -21,53 +24,68 @@ def test_whole_life_premium(client):
 
 def test_term_premium(client):
     """THEORY: Term premium < whole life premium (covers less)."""
-    wl = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-    }).json()
+    wl = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+        },
+    ).json()
 
-    term = client.post("/api/pricing/premium", json={
-        "product_type": "term",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "term": 20,
-    }).json()
+    term = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "term",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "term": 20,
+        },
+    ).json()
 
     assert term["annual_premium"] < wl["annual_premium"]
 
 
 def test_endowment_premium(client):
     """THEORY: Endowment premium > term premium (pays on death OR survival)."""
-    term = client.post("/api/pricing/premium", json={
-        "product_type": "term",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "term": 20,
-    }).json()
+    term = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "term",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "term": 20,
+        },
+    ).json()
 
-    endow = client.post("/api/pricing/premium", json={
-        "product_type": "endowment",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "term": 20,
-    }).json()
+    endow = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "endowment",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "term": 20,
+        },
+    ).json()
 
     assert endow["annual_premium"] > term["annual_premium"]
 
 
 def test_reserve_trajectory(client):
     """THEORY: Reserve at t=0 should be ~0 (equivalence principle)."""
-    response = client.post("/api/pricing/reserve", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-    })
+    response = client.post(
+        "/api/pricing/reserve",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data["trajectory"]) > 0
@@ -89,12 +107,15 @@ def test_commutation_values(client):
 
 def test_sensitivity(client):
     """THEORY: Higher interest rate should produce lower whole life premium."""
-    response = client.post("/api/pricing/sensitivity", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "rates": [0.02, 0.05, 0.08],
-    })
+    response = client.post(
+        "/api/pricing/sensitivity",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "rates": [0.02, 0.05, 0.08],
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     results = data["results"]
@@ -107,13 +128,16 @@ def test_sensitivity(client):
 def test_premium_sex_parameter(client):
     """THEORY: Sex parameter should be echoed back and produce valid premiums for all values."""
     for sex in ["male", "female", "unisex"]:
-        resp = client.post("/api/pricing/premium", json={
-            "product_type": "whole_life",
-            "age": 40,
-            "sum_assured": 1_000_000,
-            "interest_rate": 0.05,
-            "sex": sex,
-        })
+        resp = client.post(
+            "/api/pricing/premium",
+            json={
+                "product_type": "whole_life",
+                "age": 40,
+                "sum_assured": 1_000_000,
+                "interest_rate": 0.05,
+                "sex": sex,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["sex"] == sex
@@ -123,47 +147,61 @@ def test_premium_sex_parameter(client):
 
 def test_male_female_premiums_differ(client):
     """THEORY: Male q_x > female q_x in CNSF tables, so male premiums must be higher."""
-    male = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 30,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "sex": "male",
-    }).json()
+    male = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 30,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": "male",
+        },
+    ).json()
 
-    female = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 30,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "sex": "female",
-    }).json()
+    female = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 30,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": "female",
+        },
+    ).json()
 
-    assert male["annual_premium"] != female["annual_premium"], \
+    assert male["annual_premium"] != female["annual_premium"], (
         "Male and female premiums are identical -- CNSF tables must have sex-specific rates"
-    assert male["annual_premium"] > female["annual_premium"], \
+    )
+    assert male["annual_premium"] > female["annual_premium"], (
         "Male premium must be higher (male q_x > female q_x at all adult ages)"
+    )
 
 
 def test_premium_unisex_uses_projected(client):
     """THEORY: Unisex premium uses the projected LC life table (Total population).
     It should differ from male/female regulatory-table premiums since it comes
     from a completely different data source (Lee-Carter projection vs CNSF table)."""
-    male = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "sex": "male",
-    }).json()
+    male = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": "male",
+        },
+    ).json()
 
-    unisex = client.post("/api/pricing/premium", json={
-        "product_type": "whole_life",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-        "sex": "unisex",
-    }).json()
+    unisex = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "whole_life",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": "unisex",
+        },
+    ).json()
 
     assert unisex["sex"] == "unisex"
     assert unisex["annual_premium"] > 0
@@ -174,10 +212,13 @@ def test_premium_unisex_uses_projected(client):
 
 def test_invalid_product_type(client):
     """THEORY: Unknown product type should return 422 (Pydantic Literal validation)."""
-    response = client.post("/api/pricing/premium", json={
-        "product_type": "unknown_product",
-        "age": 40,
-        "sum_assured": 1_000_000,
-        "interest_rate": 0.05,
-    })
+    response = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "unknown_product",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+        },
+    )
     assert response.status_code == 422

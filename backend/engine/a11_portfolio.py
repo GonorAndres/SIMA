@@ -34,12 +34,11 @@ BEL as the present value of future obligations less future premium income,
 using best-estimate mortality assumptions and risk-free discount rates.
 """
 
-from typing import List, Dict, Optional
+from typing import ClassVar
 
 from .a01_life_table import LifeTable
 from .a02_commutation import CommutationFunctions
 from .a03_actuarial_values import ActuarialValues
-from .a04_premiums import PremiumCalculator
 from .a05_reserves import ReserveCalculator
 
 
@@ -57,9 +56,9 @@ class Policy:
         duration: Years since issue (0 = newly issued)
     """
 
-    DEATH_PRODUCTS = {"whole_life", "term", "endowment"}
-    ANNUITY_PRODUCTS = {"annuity"}
-    VALID_PRODUCTS = DEATH_PRODUCTS | ANNUITY_PRODUCTS
+    DEATH_PRODUCTS: ClassVar[frozenset[str]] = frozenset({"whole_life", "term", "endowment"})
+    ANNUITY_PRODUCTS: ClassVar[frozenset[str]] = frozenset({"annuity"})
+    VALID_PRODUCTS: ClassVar[frozenset[str]] = DEATH_PRODUCTS | ANNUITY_PRODUCTS
 
     def __init__(
         self,
@@ -68,7 +67,7 @@ class Policy:
         issue_age: int,
         SA: float = 0.0,
         annual_pension: float = 0.0,
-        n: Optional[int] = None,
+        n: int | None = None,
         duration: int = 0,
     ):
         if product_type not in self.VALID_PRODUCTS:
@@ -121,7 +120,7 @@ def compute_policy_bel(
     policy: Policy,
     life_table: LifeTable,
     interest_rate: float,
-    comm: Optional[CommutationFunctions] = None,
+    comm: CommutationFunctions | None = None,
 ) -> float:
     """
     Compute BEL for a single policy.
@@ -143,13 +142,9 @@ def compute_policy_bel(
     if policy.is_death_product:
         rc = ReserveCalculator(comm)
         if policy.product_type == "whole_life":
-            return rc.reserve_whole_life(
-                SA=policy.SA, x=policy.issue_age, t=policy.duration
-            )
+            return rc.reserve_whole_life(SA=policy.SA, x=policy.issue_age, t=policy.duration)
         elif policy.product_type == "term":
-            return rc.reserve_term(
-                SA=policy.SA, x=policy.issue_age, n=policy.n, t=policy.duration
-            )
+            return rc.reserve_term(SA=policy.SA, x=policy.issue_age, n=policy.n, t=policy.duration)
         elif policy.product_type == "endowment":
             return rc.reserve_endowment(
                 SA=policy.SA, x=policy.issue_age, n=policy.n, t=policy.duration
@@ -168,16 +163,16 @@ class Portfolio:
     and per-policy breakdown.
     """
 
-    def __init__(self, policies: List[Policy]):
+    def __init__(self, policies: list[Policy]):
         self.policies = list(policies)
 
     @property
-    def death_products(self) -> List[Policy]:
+    def death_products(self) -> list[Policy]:
         """All death-benefit policies (whole_life, term, endowment)."""
         return [p for p in self.policies if p.is_death_product]
 
     @property
-    def annuity_products(self) -> List[Policy]:
+    def annuity_products(self) -> list[Policy]:
         """All annuity policies."""
         return [p for p in self.policies if p.is_annuity]
 
@@ -194,13 +189,10 @@ class Portfolio:
         """
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         return sum(
-            compute_policy_bel(p, life_table, interest_rate, comm=comm)
-            for p in self.policies
+            compute_policy_bel(p, life_table, interest_rate, comm=comm) for p in self.policies
         )
 
-    def compute_bel_breakdown(
-        self, life_table: LifeTable, interest_rate: float
-    ) -> List[Dict]:
+    def compute_bel_breakdown(self, life_table: LifeTable, interest_rate: float) -> list[dict]:
         """
         Per-policy BEL breakdown.
 
@@ -226,9 +218,7 @@ class Portfolio:
             breakdown.append(entry)
         return breakdown
 
-    def compute_bel_by_type(
-        self, life_table: LifeTable, interest_rate: float
-    ) -> Dict[str, float]:
+    def compute_bel_by_type(self, life_table: LifeTable, interest_rate: float) -> dict[str, float]:
         """
         BEL split by product category: death vs annuity.
 
@@ -237,8 +227,7 @@ class Portfolio:
         """
         comm = CommutationFunctions(life_table, interest_rate=interest_rate)
         death_bel = sum(
-            compute_policy_bel(p, life_table, interest_rate, comm=comm)
-            for p in self.death_products
+            compute_policy_bel(p, life_table, interest_rate, comm=comm) for p in self.death_products
         )
         annuity_bel = sum(
             compute_policy_bel(p, life_table, interest_rate, comm=comm)
@@ -267,8 +256,9 @@ class Portfolio:
         lines.append(f"Total annual pension (annuity): ${total_pension:,.0f}")
 
         lines.append("")
-        lines.append(f"{'ID':>5} {'Type':>12} {'Issue':>6} {'Att':>5} "
-                      f"{'Dur':>4} {'SA/Pension':>14}")
+        lines.append(
+            f"{'ID':>5} {'Type':>12} {'Issue':>6} {'Att':>5} {'Dur':>4} {'SA/Pension':>14}"
+        )
         lines.append("-" * 55)
         for p in self.policies:
             amount = f"${p.SA:,.0f}" if p.is_death_product else f"${p.annual_pension:,.0f}/yr"

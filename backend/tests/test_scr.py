@@ -9,34 +9,35 @@ Each test validates a specific actuarial property of the Solvency II /
 CNSF capital requirement framework.
 """
 
-import pytest
 import math
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a11_portfolio import Policy, Portfolio, compute_policy_bel
 from backend.engine.a12_scr import (
-    build_shocked_life_table,
-    compute_scr_mortality,
-    compute_scr_longevity,
-    compute_scr_interest_rate,
-    compute_scr_catastrophe,
+    LIFE_CORR,
     aggregate_scr_life,
     aggregate_scr_total,
+    build_shocked_life_table,
     compute_risk_margin,
+    compute_scr_catastrophe,
+    compute_scr_interest_rate,
+    compute_scr_longevity,
+    compute_scr_mortality,
     compute_solvency_ratio,
     run_full_scr,
-    LIFE_CORR,
 )
-
 
 # =============================================================================
 # Helper: Build LifeTable from Gompertz q_x
 # =============================================================================
+
 
 def build_gompertz_life_table(ages=None, radix=100_000):
     """Gompertz mortality: q_x = 0.0005 * exp(0.07 * x)."""
@@ -53,6 +54,7 @@ def build_gompertz_life_table(ages=None, radix=100_000):
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def life_table():
     return build_gompertz_life_table()
@@ -66,36 +68,43 @@ def interest_rate():
 @pytest.fixture
 def death_portfolio():
     """Portfolio with only death products."""
-    return Portfolio([
-        Policy("WL-01", "whole_life", issue_age=35, SA=1_000_000, duration=5),
-        Policy("TM-02", "term", issue_age=40, SA=2_000_000, n=20, duration=5),
-        Policy("EN-03", "endowment", issue_age=30, SA=1_500_000, n=20, duration=8),
-    ])
+    return Portfolio(
+        [
+            Policy("WL-01", "whole_life", issue_age=35, SA=1_000_000, duration=5),
+            Policy("TM-02", "term", issue_age=40, SA=2_000_000, n=20, duration=5),
+            Policy("EN-03", "endowment", issue_age=30, SA=1_500_000, n=20, duration=8),
+        ]
+    )
 
 
 @pytest.fixture
 def annuity_portfolio():
     """Portfolio with only annuity products."""
-    return Portfolio([
-        Policy("AN-01", "annuity", issue_age=60, annual_pension=120_000),
-        Policy("AN-02", "annuity", issue_age=65, annual_pension=150_000),
-        Policy("AN-03", "annuity", issue_age=70, annual_pension=100_000),
-    ])
+    return Portfolio(
+        [
+            Policy("AN-01", "annuity", issue_age=60, annual_pension=120_000),
+            Policy("AN-02", "annuity", issue_age=65, annual_pension=150_000),
+            Policy("AN-03", "annuity", issue_age=70, annual_pension=100_000),
+        ]
+    )
 
 
 @pytest.fixture
 def mixed_portfolio():
     """Portfolio with both death and annuity products."""
-    return Portfolio([
-        Policy("WL-01", "whole_life", issue_age=35, SA=1_000_000, duration=5),
-        Policy("TM-02", "term", issue_age=40, SA=2_000_000, n=20, duration=5),
-        Policy("AN-01", "annuity", issue_age=65, annual_pension=150_000),
-    ])
+    return Portfolio(
+        [
+            Policy("WL-01", "whole_life", issue_age=35, SA=1_000_000, duration=5),
+            Policy("TM-02", "term", issue_age=40, SA=2_000_000, n=20, duration=5),
+            Policy("AN-01", "annuity", issue_age=65, annual_pension=150_000),
+        ]
+    )
 
 
 # =============================================================================
 # Test 1: Mortality shock increases death BEL
 # =============================================================================
+
 
 def test_mortality_shock_increases_death_bel(death_portfolio, life_table, interest_rate):
     """
@@ -115,6 +124,7 @@ def test_mortality_shock_increases_death_bel(death_portfolio, life_table, intere
 # Test 2: Mortality SCR excludes annuities
 # =============================================================================
 
+
 def test_mortality_scr_excludes_annuities(annuity_portfolio, life_table, interest_rate):
     """
     THEORY: Annuity-only portfolio has SCR_mort = 0.
@@ -133,6 +143,7 @@ def test_mortality_scr_excludes_annuities(annuity_portfolio, life_table, interes
 # Test 3: Mortality SCR proportional to shock
 # =============================================================================
 
+
 def test_mortality_scr_proportional(death_portfolio, life_table, interest_rate):
     """
     THEORY: A 30% shock produces approximately 2x the SCR of a 15% shock.
@@ -141,12 +152,8 @@ def test_mortality_scr_proportional(death_portfolio, life_table, interest_rate):
     linear for small shocks. This is because BEL is roughly linear in
     mortality rates for death products (more claims proportional to q_x).
     """
-    scr_15 = compute_scr_mortality(
-        death_portfolio, life_table, interest_rate, shock=0.15
-    )["scr"]
-    scr_30 = compute_scr_mortality(
-        death_portfolio, life_table, interest_rate, shock=0.30
-    )["scr"]
+    scr_15 = compute_scr_mortality(death_portfolio, life_table, interest_rate, shock=0.15)["scr"]
+    scr_30 = compute_scr_mortality(death_portfolio, life_table, interest_rate, shock=0.30)["scr"]
 
     ratio = scr_30 / scr_15
     assert 1.5 < ratio < 2.5, f"30% shock should be ~2x of 15%, got ratio={ratio:.2f}"
@@ -155,6 +162,7 @@ def test_mortality_scr_proportional(death_portfolio, life_table, interest_rate):
 # =============================================================================
 # Test 4: Mortality SCR non-negative
 # =============================================================================
+
 
 def test_mortality_scr_positive(death_portfolio, life_table, interest_rate):
     """
@@ -170,6 +178,7 @@ def test_mortality_scr_positive(death_portfolio, life_table, interest_rate):
 # =============================================================================
 # Test 5: Longevity shock increases annuity BEL
 # =============================================================================
+
 
 def test_longevity_shock_increases_annuity_bel(annuity_portfolio, life_table, interest_rate):
     """
@@ -189,6 +198,7 @@ def test_longevity_shock_increases_annuity_bel(annuity_portfolio, life_table, in
 # Test 6: Longevity SCR excludes death products
 # =============================================================================
 
+
 def test_longevity_scr_excludes_death(death_portfolio, life_table, interest_rate):
     """
     THEORY: Death-only portfolio has SCR_long = 0.
@@ -206,6 +216,7 @@ def test_longevity_scr_excludes_death(death_portfolio, life_table, interest_rate
 # Test 7: Longevity larger for younger annuitants
 # =============================================================================
 
+
 def test_longevity_larger_for_younger_annuitants(life_table, interest_rate):
     """
     THEORY: A 60-year-old annuitant has more longevity risk than a 70-year-old.
@@ -214,12 +225,8 @@ def test_longevity_larger_for_younger_annuitants(life_table, interest_rate):
     permanent mortality improvement affects them over MORE years.
     The absolute BEL change is larger for younger annuitants.
     """
-    port_60 = Portfolio([
-        Policy("A60", "annuity", issue_age=60, annual_pension=120_000)
-    ])
-    port_70 = Portfolio([
-        Policy("A70", "annuity", issue_age=70, annual_pension=120_000)
-    ])
+    port_60 = Portfolio([Policy("A60", "annuity", issue_age=60, annual_pension=120_000)])
+    port_70 = Portfolio([Policy("A70", "annuity", issue_age=70, annual_pension=120_000)])
 
     scr_60 = compute_scr_longevity(port_60, life_table, interest_rate)["scr"]
     scr_70 = compute_scr_longevity(port_70, life_table, interest_rate)["scr"]
@@ -230,6 +237,7 @@ def test_longevity_larger_for_younger_annuitants(life_table, interest_rate):
 # =============================================================================
 # Test 8: Longevity SCR non-negative
 # =============================================================================
+
 
 def test_longevity_scr_positive(annuity_portfolio, life_table, interest_rate):
     """
@@ -245,6 +253,7 @@ def test_longevity_scr_positive(annuity_portfolio, life_table, interest_rate):
 # =============================================================================
 # Test 9: Interest rate down is worse
 # =============================================================================
+
 
 def test_ir_down_worse_than_up(mixed_portfolio, life_table, interest_rate):
     """
@@ -267,6 +276,7 @@ def test_ir_down_worse_than_up(mixed_portfolio, life_table, interest_rate):
 # Test 10: Interest rate affects all products
 # =============================================================================
 
+
 def test_ir_affects_all_products(life_table, interest_rate):
     """
     THEORY: Interest rate risk affects BOTH death and annuity products.
@@ -276,12 +286,8 @@ def test_ir_affects_all_products(life_table, interest_rate):
     verifies that both a death-only and annuity-only portfolio have
     positive IR SCR.
     """
-    death_port = Portfolio([
-        Policy("WL", "whole_life", issue_age=35, SA=1_000_000, duration=5)
-    ])
-    annuity_port = Portfolio([
-        Policy("AN", "annuity", issue_age=65, annual_pension=150_000)
-    ])
+    death_port = Portfolio([Policy("WL", "whole_life", issue_age=35, SA=1_000_000, duration=5)])
+    annuity_port = Portfolio([Policy("AN", "annuity", issue_age=65, annual_pension=150_000)])
 
     scr_death = compute_scr_interest_rate(death_port, life_table, interest_rate)["scr"]
     scr_annuity = compute_scr_interest_rate(annuity_port, life_table, interest_rate)["scr"]
@@ -293,6 +299,7 @@ def test_ir_affects_all_products(life_table, interest_rate):
 # =============================================================================
 # Test 11: Interest rate SCR non-negative
 # =============================================================================
+
 
 def test_ir_scr_non_negative(mixed_portfolio, life_table, interest_rate):
     """
@@ -308,6 +315,7 @@ def test_ir_scr_non_negative(mixed_portfolio, life_table, interest_rate):
 # =============================================================================
 # Test 12: Catastrophe SCR positive
 # =============================================================================
+
 
 def test_cat_scr_positive(death_portfolio, life_table, interest_rate):
     """
@@ -325,6 +333,7 @@ def test_cat_scr_positive(death_portfolio, life_table, interest_rate):
 # Test 13: Catastrophe SCR proportional to SA
 # =============================================================================
 
+
 def test_cat_proportional_to_sa(life_table, interest_rate):
     """
     THEORY: Doubling the sum assured doubles the catastrophe SCR.
@@ -332,12 +341,8 @@ def test_cat_proportional_to_sa(life_table, interest_rate):
     SCR_cat = sum(SA * delta_q * v), which is LINEAR in SA.
     A portfolio with 2x the coverage faces 2x the catastrophe claims.
     """
-    port_1x = Portfolio([
-        Policy("W1", "whole_life", issue_age=40, SA=1_000_000, duration=0)
-    ])
-    port_2x = Portfolio([
-        Policy("W2", "whole_life", issue_age=40, SA=2_000_000, duration=0)
-    ])
+    port_1x = Portfolio([Policy("W1", "whole_life", issue_age=40, SA=1_000_000, duration=0)])
+    port_2x = Portfolio([Policy("W2", "whole_life", issue_age=40, SA=2_000_000, duration=0)])
 
     scr_1x = compute_scr_catastrophe(port_1x, life_table, interest_rate)["scr"]
     scr_2x = compute_scr_catastrophe(port_2x, life_table, interest_rate)["scr"]
@@ -348,6 +353,7 @@ def test_cat_proportional_to_sa(life_table, interest_rate):
 # =============================================================================
 # Test 14: Aggregated SCR_life less than sum (diversification)
 # =============================================================================
+
 
 def test_aggregated_less_than_sum():
     """
@@ -377,6 +383,7 @@ def test_aggregated_less_than_sum():
 # Test 15: Correlation matrix is PSD
 # =============================================================================
 
+
 def test_correlation_matrix_psd():
     """
     THEORY: The life underwriting correlation matrix must be positive
@@ -394,6 +401,7 @@ def test_correlation_matrix_psd():
 # =============================================================================
 # Test 16: Total aggregation hand calculation
 # =============================================================================
+
 
 def test_total_aggregation():
     """
@@ -420,6 +428,7 @@ def test_total_aggregation():
 # Test 17: Risk margin positive
 # =============================================================================
 
+
 def test_risk_margin_positive():
     """
     THEORY: Risk margin > 0 when SCR > 0 and duration > 0.
@@ -437,6 +446,7 @@ def test_risk_margin_positive():
 # =============================================================================
 # Test 18: Solvency ratio computation
 # =============================================================================
+
 
 def test_solvency_ratio():
     """
@@ -466,6 +476,7 @@ def test_solvency_ratio():
 # Test 19: Full pipeline integration
 # =============================================================================
 
+
 def test_full_scr_pipeline(life_table, interest_rate):
     """
     THEORY: run_full_scr produces consistent, non-degenerate results.
@@ -477,11 +488,10 @@ def test_full_scr_pipeline(life_table, interest_rate):
     - No NaN or Inf values in output
     """
     from backend.engine.a11_portfolio import create_sample_portfolio
+
     port = create_sample_portfolio()
 
-    result = run_full_scr(
-        port, life_table, interest_rate, available_capital=5_000_000
-    )
+    result = run_full_scr(port, life_table, interest_rate, available_capital=5_000_000)
 
     # All SCR components non-negative
     assert result["mortality"]["scr"] >= 0

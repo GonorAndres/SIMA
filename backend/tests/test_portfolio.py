@@ -8,10 +8,11 @@ Each test validates an actuarial property of the Best Estimate Liability
 under the Solvency II / CNSF framework.
 """
 
-import pytest
 import math
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -23,10 +24,10 @@ from backend.engine.a11_portfolio import (
     create_sample_portfolio,
 )
 
-
 # =============================================================================
 # Helper: Build LifeTable from Gompertz q_x
 # =============================================================================
+
 
 def build_gompertz_life_table(ages=None, radix=100_000):
     """
@@ -48,6 +49,7 @@ def build_gompertz_life_table(ages=None, radix=100_000):
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def life_table():
     """Standard Gompertz life table (ages 0-110)."""
@@ -62,6 +64,7 @@ def interest_rate():
 # =============================================================================
 # Test: Policy Creation
 # =============================================================================
+
 
 def test_policy_creation():
     """
@@ -105,6 +108,7 @@ def test_policy_term_requires_n():
 # Test: Policy Classification
 # =============================================================================
 
+
 def test_policy_is_death_product():
     """
     THEORY: whole_life, term, endowment are all death products.
@@ -141,6 +145,7 @@ def test_policy_is_annuity():
 # Test: Portfolio Filtering
 # =============================================================================
 
+
 def test_portfolio_filters():
     """
     THEORY: death_products and annuity_products partition the portfolio.
@@ -164,6 +169,7 @@ def test_portfolio_filters():
 # =============================================================================
 # Test: BEL Computation
 # =============================================================================
+
 
 def test_bel_whole_life_at_issue_zero(life_table, interest_rate):
     """
@@ -248,9 +254,7 @@ def test_aggregate_bel_is_sum(life_table, interest_rate):
     port = Portfolio(policies)
 
     total_bel = port.compute_bel(life_table, interest_rate)
-    sum_individual = sum(
-        compute_policy_bel(p, life_table, interest_rate) for p in policies
-    )
+    sum_individual = sum(compute_policy_bel(p, life_table, interest_rate) for p in policies)
 
     assert total_bel == pytest.approx(sum_individual, rel=1e-10)
 
@@ -258,6 +262,7 @@ def test_aggregate_bel_is_sum(life_table, interest_rate):
 # =============================================================================
 # Test: Sample Portfolio
 # =============================================================================
+
 
 def test_sample_portfolio_creation():
     """

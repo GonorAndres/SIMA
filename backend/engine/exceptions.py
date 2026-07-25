@@ -21,8 +21,6 @@ Every error carries three optional structured fields:
     - ``message``:     user-facing explanation.
 """
 
-from typing import Optional
-
 
 class ActuarialError(Exception):
     """Base class for all actuarial-engine domain errors."""
@@ -31,8 +29,8 @@ class ActuarialError(Exception):
         self,
         message: str,
         *,
-        field: Optional[str] = None,
-        constraint: Optional[str] = None,
+        field: str | None = None,
+        constraint: str | None = None,
     ) -> None:
         self.message = message
         self.field = field
@@ -47,7 +45,7 @@ class ActuarialError(Exception):
             parts.append(f"constraint={self.constraint}")
         return " | ".join(parts)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """Structured representation suitable for JSON API responses."""
         return {
             "error": self.__class__.__name__,

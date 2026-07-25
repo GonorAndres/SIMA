@@ -6,16 +6,16 @@ Validates Whittaker-Henderson smoothing produces graduated rates that
 are smoother than raw data while preserving essential mortality patterns.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
-
 
 # =============================================================================
 # Test Fixtures
@@ -46,6 +46,7 @@ def graduated(usa_raw):
 # =============================================================================
 # Test: Difference Matrix
 # =============================================================================
+
 
 def test_difference_matrix_shape():
     """
@@ -80,6 +81,7 @@ def test_difference_matrix_second_order():
 # =============================================================================
 # Test: Smoothing Properties
 # =============================================================================
+
 
 def test_smoothing_reduces_roughness(graduated):
     """
@@ -119,6 +121,7 @@ def test_large_lambda_produces_smoother(usa_raw):
 # Test: Output Quality
 # =============================================================================
 
+
 def test_no_nan_in_graduated(graduated):
     """Graduated rates must have no NaN values."""
     assert not np.any(np.isnan(graduated.mx))
@@ -151,6 +154,7 @@ def test_shape_preserved(graduated, usa_raw):
 # Test: Validate and Summary
 # =============================================================================
 
+
 def test_validate_all_pass(graduated):
     """All validation checks should pass for properly graduated data."""
     v = graduated.validate()
@@ -171,6 +175,7 @@ def test_summary_has_expected_keys(graduated):
 # =============================================================================
 # Test: from_hmd convenience
 # =============================================================================
+
 
 def test_from_hmd_convenience():
     """from_hmd should load and graduate in one step."""
