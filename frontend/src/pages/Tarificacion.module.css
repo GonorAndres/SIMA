@@ -1,35 +1,25 @@
-/* === Tarificacion Page === */
+/* === Tarificacion Page ===
+   Section chrome lives in Section.module.css; this is content layout
+   inside a section body. Mobile-first: single column, split upward. */
 
 .splitLayout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+  align-items: stretch;
 }
 
 .resultPanel {
-  border-left: 2px solid var(--color-gray-200);
-  padding-left: 32px;
+  border-top: 2px solid var(--color-gray-200);
+  padding-top: var(--space-lg);
 }
 
 .productLabel {
   text-transform: uppercase;
-  font-size: 0.75rem;
-  color: var(--color-gray-500);
+  font-size: var(--text-xs);
+  color: var(--color-gray-700);
   letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
-.section {
-  border-top: 1px solid var(--color-gray-200);
-  padding: 32px 0;
-  margin-top: 32px;
-}
-
-.sectionTitle {
-  font-size: 1.563rem;
-  font-weight: 600;
-  margin: 0 0 16px 0;
+  margin-bottom: var(--space-xs);
 }
 
 .errorText {
@@ -38,20 +28,22 @@
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
 
-@media (max-width: 768px) {
+/* Form and result sit side by side only when both keep a usable width. */
+@media (min-width: 860px) {
   .splitLayout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xxl);
   }
 
   .resultPanel {
-    border-left: none;
-    border-top: 2px solid var(--color-gray-200);
-    padding-left: 0;
-    padding-top: 24px;
+    border-top: none;
+    border-left: 2px solid var(--color-gray-200);
+    padding-top: 0;
+    padding-left: var(--space-xl);
   }
 }

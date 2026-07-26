@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
+import Section from '../components/layout/Section';
+import OptionGroup from '../components/forms/OptionGroup';
 import MetricBlock from '../components/data/MetricBlock';
 import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
@@ -22,6 +24,7 @@ import type {
 import styles from './Mortalidad.module.css';
 
 type SexKey = 'male' | 'female' | 'unisex';
+type TableKey = 'cnsf' | 'cnsf_2013' | 'emssa';
 
 function getValidationColumns(t: (key: string) => string): Column[] {
   return [
@@ -33,7 +36,7 @@ function getValidationColumns(t: (key: string) => string): Column[] {
 
 export default function Mortalidad() {
   const { t } = useTranslation();
-  const [validationTab, setValidationTab] = useState<'cnsf' | 'cnsf_2013' | 'emssa'>('cnsf');
+  const [validationTab, setValidationTab] = useState<TableKey>('cnsf');
   const [sex, setSex] = useState<SexKey>('unisex');
 
   const validationColumns = useMemo(() => getValidationColumns(t), [t]);
@@ -80,31 +83,30 @@ export default function Mortalidad() {
       title={t('mortalidad.title')}
       subtitle={t('mortalidad.subtitle')}
     >
-      {/* Sex selector */}
-      <div className={styles.validationTabs} style={{ marginBottom: '2rem' }}>
-        {(['unisex', 'male', 'female'] as SexKey[]).map((s) => (
-          <button
-            key={s}
-            className={`${styles.validationTab} ${sex === s ? styles.validationTabActive : ''}`}
-            onClick={() => setSex(s)}
-          >
-            {t(`forms.${s}`)}
-          </button>
-        ))}
-      </div>
+      {/* Page-level control: stated up front because it re-runs every section. */}
+      <OptionGroup<SexKey>
+        label={t('mortalidad.controlSexLabel')}
+        hint={t('mortalidad.controlSexHint')}
+        value={sex}
+        onChange={setSex}
+        options={[
+          { value: 'unisex', label: t('forms.unisex') },
+          { value: 'male', label: t('forms.male') },
+          { value: 'female', label: t('forms.female') },
+        ]}
+      />
 
       {/* 1. Graduation: raw vs graduated */}
       {graduation.loading && <LoadingState message={t('mortalidad.loadingGraduation')} />}
 
       {graduation.data && (
-        <div className={styles.section} data-demo-section="graduation">
-          <h3 className={styles.sectionTitle}>{t('mortalidad.graduationTitle')}</h3>
-          <InsightCard variant="insight" title={t('mortalidad.graduationInsightTitle')}>
-            <p>{t('mortalidad.graduationInsight')}</p>
-          </InsightCard>
-          <p className={styles.narrative}>
-            {t('mortalidad.graduationDesc')}
-          </p>
+        <Section
+          step="1"
+          title={t('mortalidad.graduationTitle')}
+          explainer={t('mortalidad.graduationExplainer')}
+          demoSection="graduation"
+        >
+          <p className={styles.narrative}>{t('mortalidad.graduationDesc')}</p>
           <FormulaBlock
             src="/formulas/whittaker_henderson.png"
             alt="g_hat = (W + lambda D'D)^{-1} W m"
@@ -148,21 +150,23 @@ export default function Mortalidad() {
             yTitle={t('charts.lnMx')}
             height={400}
           />
-        </div>
+          <InsightCard variant="insight" title={t('mortalidad.graduationInsightTitle')}>
+            <p>{t('mortalidad.graduationInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {/* 2. Mortality Surface (3D) */}
       {surface.loading && <LoadingState message={t('mortalidad.loadingSurface')} />}
 
       {surface.data && (
-        <div className={styles.section} data-demo-section="surface">
-          <h3 className={styles.sectionTitle}>{t('mortalidad.surfaceTitle')}</h3>
-          <InsightCard variant="info" title={t('mortalidad.surfaceInsightTitle')}>
-            <p>{t('mortalidad.surfaceInsight')}</p>
-          </InsightCard>
-          <p className={styles.narrative}>
-            {t('mortalidad.surfaceDesc')}
-          </p>
+        <Section
+          step="2"
+          title={t('mortalidad.surfaceTitle')}
+          explainer={t('mortalidad.surfaceExplainer')}
+          demoSection="surface"
+        >
+          <p className={styles.narrative}>{t('mortalidad.surfaceDesc')}</p>
           <MortalitySurface
             ages={surface.data.ages}
             years={surface.data.years}
@@ -170,47 +174,58 @@ export default function Mortalidad() {
             title="log(m_{x,t})"
             height={500}
           />
-        </div>
+          <InsightCard variant="info" title={t('mortalidad.surfaceInsightTitle')}>
+            <p>{t('mortalidad.surfaceInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {/* 3. Lee-Carter formula + fit */}
-      <div data-demo-section="lee-carter">
-      <FormulaBlock
-        src="/formulas/lee_carter.png"
-        alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
-        label={t('mortalidad.lcModel')}
-        description="a_x = average log-mortality by age, b_x = age sensitivity to change, k_t = temporal index"
-      />
-
       {lc.loading && <LoadingState message={t('mortalidad.fitting')} />}
       {lc.error && <p className={styles.errorText}>Error: {lc.error}</p>}
 
       {lc.data && (
         <>
-          <div className={styles.metricsRow}>
-            <MetricBlock
-              label={t('mortalidad.explainedVar')}
-              value={`${(lc.data.explained_variance * 100).toFixed(1)}%`}
+          <Section
+            step="3"
+            title={t('mortalidad.lcTitle')}
+            explainer={t('mortalidad.lcExplainer')}
+            demoSection="lee-carter"
+          >
+            <FormulaBlock
+              src="/formulas/lee_carter.png"
+              alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
+              label={t('mortalidad.lcModel')}
+              description="a_x = average log-mortality by age, b_x = age sensitivity to change, k_t = temporal index"
             />
-            <MetricBlock
-              label={t('mortalidad.drift')}
-              value={lc.data.drift.toFixed(3)}
-            />
-            <MetricBlock
-              label={t('mortalidad.sigma')}
-              value={lc.data.sigma.toFixed(3)}
-            />
-            <MetricBlock
-              label={t('mortalidad.ageRange')}
-              value={`${lc.data.ages[0]} - ${lc.data.ages[lc.data.ages.length - 1]}`}
-            />
-          </div>
+            <div className={styles.metricsRow}>
+              <MetricBlock
+                label={t('mortalidad.explainedVar')}
+                value={`${(lc.data.explained_variance * 100).toFixed(1)}%`}
+              />
+              <MetricBlock
+                label={t('mortalidad.drift')}
+                value={lc.data.drift.toFixed(3)}
+              />
+              <MetricBlock
+                label={t('mortalidad.sigma')}
+                value={lc.data.sigma.toFixed(3)}
+              />
+              <MetricBlock
+                label={t('mortalidad.ageRange')}
+                value={`${lc.data.ages[0]} - ${lc.data.ages[lc.data.ages.length - 1]}`}
+              />
+            </div>
+          </Section>
 
-          {/* Three charts side by side */}
-          <div className={styles.section}>
+          <Section
+            step="4"
+            title={t('mortalidad.paramsTitle')}
+            explainer={t('mortalidad.paramsExplainer')}
+          >
             <div className={styles.chartGrid}>
               <div>
-                <h3 className={styles.sectionTitle}>{t('mortalidad.axTitle')}</h3>
+                <h3 className={styles.chartTitle}>{t('mortalidad.axTitle')}</h3>
                 <LineChart
                   traces={[{
                     x: lc.data.ages,
@@ -224,7 +239,7 @@ export default function Mortalidad() {
                 />
               </div>
               <div>
-                <h3 className={styles.sectionTitle}>{t('mortalidad.bxTitle')}</h3>
+                <h3 className={styles.chartTitle}>{t('mortalidad.bxTitle')}</h3>
                 <LineChart
                   traces={[{
                     x: lc.data.ages,
@@ -238,7 +253,7 @@ export default function Mortalidad() {
                 />
               </div>
               <div>
-                <h3 className={styles.sectionTitle}>{t('mortalidad.ktTitle')}</h3>
+                <h3 className={styles.chartTitle}>{t('mortalidad.ktTitle')}</h3>
                 <LineChart
                   traces={[{
                     x: lc.data.years,
@@ -252,39 +267,45 @@ export default function Mortalidad() {
                 />
               </div>
             </div>
-          </div>
+          </Section>
         </>
       )}
-      </div>
 
       {/* 5. SVD Diagnostics */}
       {diagnostics.loading && <LoadingState message={t('mortalidad.loadingDiagnostics')} />}
 
       {diagnostics.data && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('mortalidad.svdTitle')}</h3>
-          <InsightCard variant="insight" title={t('mortalidad.svdInsightTitle')}>
-            <p>{t('mortalidad.svdInsight')}</p>
-          </InsightCard>
-          <p className={styles.narrative}>
-            {t('mortalidad.svdDesc')}
-          </p>
+        <Section
+          step="5"
+          title={t('mortalidad.svdTitle')}
+          explainer={t('mortalidad.svdExplainer')}
+        >
+          <p className={styles.narrative}>{t('mortalidad.svdDesc')}</p>
           <div className={styles.metricsRow}>
             <MetricBlock label={t('mortalidad.rmse')} value={diagnostics.data.rmse.toFixed(6)} />
             <MetricBlock label={t('mortalidad.maxAbsError')} value={diagnostics.data.max_abs_error.toFixed(6)} />
             <MetricBlock label={t('mortalidad.meanAbsError')} value={diagnostics.data.mean_abs_error.toFixed(6)} />
             <MetricBlock label={t('mortalidad.explainedVar')} value={`${(diagnostics.data.explained_variance * 100).toFixed(1)}%`} />
           </div>
-        </div>
+          <InsightCard variant="insight" title={t('mortalidad.svdInsightTitle')}>
+            <p>{t('mortalidad.svdInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {/* 6. Projection */}
       {proj.loading && <LoadingState message={t('mortalidad.projecting')} />}
 
       {proj.data && (
-        <div className={styles.section} data-demo-section="projection">
-          <h3 className={styles.sectionTitle}>{t('mortalidad.projTitle')}</h3>
-          <MetricBlock label={t('mortalidad.drift')} value={proj.data.drift.toFixed(3)} />
+        <Section
+          step="6"
+          title={t('mortalidad.projTitle')}
+          explainer={t('mortalidad.projExplainer')}
+          demoSection="projection"
+        >
+          <div className={styles.metricsRow}>
+            <MetricBlock label={t('mortalidad.drift')} value={proj.data.drift.toFixed(3)} />
+          </div>
           <FanChart
             x={proj.data.projected_years}
             central={proj.data.kt_central}
@@ -298,7 +319,7 @@ export default function Mortalidad() {
             yTitle="k_t"
             height={400}
           />
-        </div>
+        </Section>
       )}
 
       {/* 7. Validation with CNSF/EMSSA tabs */}
@@ -307,8 +328,12 @@ export default function Mortalidad() {
       )}
 
       {(validation.data || validationCnsf2013.data || validationEmssa.data) && (
-        <div className={styles.validationSection} data-demo-section="validation">
-          <h3 className={styles.sectionTitle}>{t('mortalidad.validationTitle')}</h3>
+        <Section
+          step="7"
+          title={t('mortalidad.validationTitle')}
+          explainer={t('mortalidad.validationExplainer')}
+          demoSection="validation"
+        >
           <ul className={styles.narrative}>
             <li>{t('mortalidad.validationDescRatio')}</li>
             <li>{t('mortalidad.validationDescDiff')}</li>
@@ -316,26 +341,17 @@ export default function Mortalidad() {
             <li>{t('mortalidad.validationDescConservative')}</li>
           </ul>
 
-          <div className={styles.validationTabs}>
-            <button
-              className={`${styles.validationTab} ${validationTab === 'cnsf' ? styles.validationTabActive : ''}`}
-              onClick={() => setValidationTab('cnsf')}
-            >
-              {t('mortalidad.validationCnsf')}
-            </button>
-            <button
-              className={`${styles.validationTab} ${validationTab === 'cnsf_2013' ? styles.validationTabActive : ''}`}
-              onClick={() => setValidationTab('cnsf_2013')}
-            >
-              {t('mortalidad.validationCnsf2013')}
-            </button>
-            <button
-              className={`${styles.validationTab} ${validationTab === 'emssa' ? styles.validationTabActive : ''}`}
-              onClick={() => setValidationTab('emssa')}
-            >
-              {t('mortalidad.validationEmssa')}
-            </button>
-          </div>
+          <OptionGroup<TableKey>
+            label={t('mortalidad.controlTableLabel')}
+            hint={t('mortalidad.controlTableHint')}
+            value={validationTab}
+            onChange={setValidationTab}
+            options={[
+              { value: 'cnsf', label: t('mortalidad.validationCnsf') },
+              { value: 'cnsf_2013', label: t('mortalidad.validationCnsf2013') },
+              { value: 'emssa', label: t('mortalidad.validationEmssa') },
+            ]}
+          />
 
           {activeValidation.data && (
             <>
@@ -354,7 +370,7 @@ export default function Mortalidad() {
               />
             </>
           )}
-        </div>
+        </Section>
       )}
     </PageLayout>
   );

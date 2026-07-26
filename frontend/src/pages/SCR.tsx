@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
+import Section from '../components/layout/Section';
 import MetricBlock from '../components/data/MetricBlock';
 import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
@@ -98,8 +99,12 @@ export default function SCR() {
     >
       {/* LISF Regulatory Context */}
       {compliance.data && (
-        <div className={styles.section} style={{ borderTop: 'none', paddingTop: 0 }}>
-          <InsightCard variant="regulatory" title={t('scr.regulatoryTitle')}>
+        <Section
+          step="1"
+          title={t('scr.regulatorySectionTitle')}
+          explainer={t('scr.regulatoryExplainer')}
+        >
+          <InsightCard variant="regulatory" title={t('scr.whatIsScrTitle')}>
             <p>{lang === 'es' ? compliance.data.framework_description_es : compliance.data.framework_description_en}</p>
           </InsightCard>
 
@@ -119,33 +124,35 @@ export default function SCR() {
           <InsightCard variant="insight" title={t('scr.diversificationInsight')}>
             <p>{lang === 'es' ? compliance.data.correlation_basis_es : compliance.data.correlation_basis_en}</p>
           </InsightCard>
-        </div>
+        </Section>
       )}
 
-      <div data-demo-section="top">
-      <FormulaBlock
-        src="/formulas/scr_aggregation.png"
-        alt="SCR = sqrt(S^T * C * S)"
-        label={t('scr.aggFormula')}
-        description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
-      />
-
-      {/* Portfolio section */}
-      <div className={styles.section}>
-        <div className={styles.portfolioHeader}>
-          <h3 className={styles.sectionTitle}>{t('scr.portfolio')}</h3>
+      <Section
+        step="2"
+        title={t('scr.portfolio')}
+        explainer={t('scr.portfolioExplainer')}
+        demoSection="top"
+        actions={
           <div className={styles.btnRow}>
             <button
               className={styles.addPolicyToggle}
               onClick={() => setShowPolicyForm(!showPolicyForm)}
+              aria-expanded={showPolicyForm}
             >
-              {showPolicyForm ? 'X' : t('scr.addPolicy')}
+              {showPolicyForm ? t('scr.close') : t('scr.addPolicy')}
             </button>
             <button className={styles.resetBtn} onClick={handleReset}>
               {t('scr.reset')}
             </button>
           </div>
-        </div>
+        }
+      >
+        <FormulaBlock
+          src="/formulas/scr_aggregation.png"
+          alt="SCR = sqrt(S^T * C * S)"
+          label={t('scr.aggFormula')}
+          description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
+        />
 
         {showPolicyForm && (
           <div className={styles.policyFormWrapper}>
@@ -171,13 +178,12 @@ export default function SCR() {
             />
           </>
         )}
-      </div>
-
-      </div>
+      </Section>
 
       {/* Compute SCR button */}
       {!computed && (
         <div className={styles.computeCenter}>
+          <p className={styles.computeHint}>{t('scr.computeHint')}</p>
           <button
             onClick={handleCompute}
             disabled={scr.loading}
@@ -194,8 +200,11 @@ export default function SCR() {
       {scr.data && (
         <>
           {/* BEL Metrics */}
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t('scr.belTitle')}</h3>
+          <Section
+            step="3"
+            title={t('scr.belTitle')}
+            explainer={t('scr.belExplainer')}
+          >
             <InsightCard variant="info" title={t('scr.belExplainTitle')}>
               <p>{t('scr.belExplain')}</p>
             </InsightCard>
@@ -217,11 +226,14 @@ export default function SCR() {
                 />
               </>
             )}
-          </div>
+          </Section>
 
           {/* Risk Modules */}
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t('scr.riskModules')}</h3>
+          <Section
+            step="4"
+            title={t('scr.riskModules')}
+            explainer={t('scr.riskModulesExplainer')}
+          >
 
             {/* Per-module insights */}
             {compliance.data && (
@@ -272,11 +284,14 @@ export default function SCR() {
               title={t('scr.decomposition')}
               height={400}
             />
-          </div>
+          </Section>
 
           {/* Aggregation & Solvency */}
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t('scr.aggSolvency')}</h3>
+          <Section
+            step="5"
+            title={t('scr.aggSolvency')}
+            explainer={t('scr.aggExplainer')}
+          >
 
             <InsightCard variant="insight" title={t('scr.diversificationInsight')}>
               <p>{t('scr.diversificationExplain')}</p>
@@ -308,12 +323,15 @@ export default function SCR() {
                 <p>{lang === 'es' ? compliance.data.risk_margin_basis_es : compliance.data.risk_margin_basis_en}</p>
               </InsightCard>
             )}
-          </div>
+          </Section>
 
           {/* Limitations disclosure */}
           {compliance.data && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>{t('scr.coverageLimitations')}</h3>
+            <Section
+              step="6"
+              title={t('scr.coverageLimitations')}
+              explainer={t('scr.coverageExplainer')}
+            >
               <div className={styles.twoCol}>
                 <div>
                   <h4 className={styles.belSubheading}>{t('scr.coverageTitle')}</h4>
@@ -328,7 +346,7 @@ export default function SCR() {
                   </ul>
                 </div>
               </div>
-            </div>
+            </Section>
           )}
         </>
       )}

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
+import Section from '../components/layout/Section';
+import EmptyState from '../components/common/EmptyState';
 import PremiumForm from '../components/forms/PremiumForm';
 import type { PremiumRequest as PremiumFormData } from '../components/forms/PremiumForm';
 import MetricBlock from '../components/data/MetricBlock';
@@ -80,49 +82,60 @@ export default function Tarificacion() {
         <p>{t('tarificacion.equivalenceExplain')}</p>
       </InsightCard>
 
-      <div className={styles.splitLayout} data-demo-section="top">
-        <div>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.calcTitle')}</h3>
+      <Section
+        step="1"
+        title={t('tarificacion.calcTitle')}
+        explainer={t('tarificacion.calcExplainer')}
+        demoSection="top"
+      >
+        <div className={styles.splitLayout}>
           <PremiumForm onSubmit={handleSubmit} loading={loading} />
-        </div>
 
-        <div>
-          {premium.loading && <LoadingState />}
-          {premium.error && <p className={styles.errorText}>Error: {premium.error}</p>}
+          <div>
+            {premium.loading && <LoadingState />}
+            {premium.error && <p className={styles.errorText}>Error: {premium.error}</p>}
 
-          {premium.data && (
-            <div className={styles.resultPanel}>
-              <div className={styles.productLabel}>
-                {productLabels[premium.data.product_type] ?? premium.data.product_type}
-                {` -- ${t('tarificacion.ageLabel')} `}{premium.data.age}
-              </div>
-              <MetricBlock
-                label={t('tarificacion.annualPremium')}
-                value={`$${premium.data.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            {!premium.data && !premium.loading && !premium.error && (
+              <EmptyState
+                title={t('tarificacion.emptyStateTitle')}
+                message={t('tarificacion.emptyState')}
               />
-              <MetricBlock
-                label={t('tarificacion.premiumRate')}
-                value={`${(premium.data.premium_rate * 100).toFixed(4)}%`}
-              />
+            )}
 
-              {lastRequest && formulaSrcMap[lastRequest.product_type] && (
-                <FormulaBlock
-                  src={formulaSrcMap[lastRequest.product_type]}
-                  alt={formulaAltMap[lastRequest.product_type]}
-                  label={t('tarificacion.formula')}
+            {premium.data && (
+              <div className={styles.resultPanel}>
+                <div className={styles.productLabel}>
+                  {productLabels[premium.data.product_type] ?? premium.data.product_type}
+                  {` \u00b7 ${t('tarificacion.ageLabel')} `}{premium.data.age}
+                </div>
+                <MetricBlock
+                  label={t('tarificacion.annualPremium')}
+                  value={`$${premium.data.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
                 />
-              )}
-            </div>
-          )}
+                <MetricBlock
+                  label={t('tarificacion.premiumRate')}
+                  value={`${(premium.data.premium_rate * 100).toFixed(4)}%`}
+                />
+
+                {lastRequest && formulaSrcMap[lastRequest.product_type] && (
+                  <FormulaBlock
+                    src={formulaSrcMap[lastRequest.product_type]}
+                    alt={formulaAltMap[lastRequest.product_type]}
+                    label={t('tarificacion.formula')}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Section>
 
       {reserve.data && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.reserveTitle')}</h3>
-          <InsightCard variant="info" title={t('tarificacion.reserveInsightTitle')}>
-            <p>{t('tarificacion.reserveInsight')}</p>
-          </InsightCard>
+        <Section
+          step="2"
+          title={t('tarificacion.reserveTitle')}
+          explainer={t('tarificacion.reserveExplainer')}
+        >
           <FormulaBlock
             src="/formulas/prospective_reserve.png"
             alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
@@ -140,15 +153,18 @@ export default function Tarificacion() {
             yTitle={t('tarificacion.reserveAmount')}
             height={350}
           />
-        </div>
+          <InsightCard variant="info" title={t('tarificacion.reserveInsightTitle')}>
+            <p>{t('tarificacion.reserveInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {sensitivity.data && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.sensitivityTitle')}</h3>
-          <InsightCard variant="warning" title={t('tarificacion.sensitivityInsightTitle')}>
-            <p>{t('tarificacion.sensitivityInsight')}</p>
-          </InsightCard>
+        <Section
+          step="3"
+          title={t('tarificacion.sensitivityTitle')}
+          explainer={t('tarificacion.sensitivityExplainer')}
+        >
           <LineChart
             traces={[{
               x: sensitivity.data.results.map(r => `${(r.interest_rate * 100).toFixed(0)}%`),
@@ -160,7 +176,10 @@ export default function Tarificacion() {
             yTitle={t('tarificacion.annualPremiumAxis')}
             height={350}
           />
-        </div>
+          <InsightCard variant="warning" title={t('tarificacion.sensitivityInsightTitle')}>
+            <p>{t('tarificacion.sensitivityInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {crossCountry.data && (() => {
@@ -170,8 +189,11 @@ export default function Tarificacion() {
           ((e.annual_premium - mxPremium) / mxPremium * 100).toFixed(0);
 
         return (
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t('tarificacion.crossCountryTitle')}</h3>
+          <Section
+            step="4"
+            title={t('tarificacion.crossCountryTitle')}
+            explainer={t('tarificacion.crossCountryExplainer')}
+          >
             <InsightCard variant="insight" title={t('tarificacion.crossCountryInsightTitle')}>
               <p>{t('tarificacion.crossCountryInsight')}</p>
               {entries.length >= 3 && (
@@ -221,9 +243,10 @@ export default function Tarificacion() {
               }}
               config={defaultConfig}
               style={{ width: '100%' }}
+              useResizeHandler
             />
             <DataTable columns={crossCountryColumns} data={crossCountry.data.entries as unknown as Record<string, unknown>[]} sortable={false} />
-          </div>
+          </Section>
         );
       })()}
     </PageLayout>

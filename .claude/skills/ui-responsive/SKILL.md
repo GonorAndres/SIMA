@@ -121,7 +121,18 @@ equally terse — a translation that rambles breaks the layout it was measured f
 
 ---
 
-## 5. Component rules
+## 5. Shared primitives — use these, do not re-roll them
+
+| Component | Use for | Rule |
+|-----------|---------|------|
+| `layout/PageLayout` | Every page shell | Owns the title, subtitle, gutters and tab title. No page sets `document.title` itself. |
+| `layout/Section` | Every content block | Card with a header. `explainer` is **required** — a reader must never meet a chart without knowing what question it answers. `step` numbers long analytical pages. |
+| `forms/OptionGroup` | Any "choose one of N" control | Never ship a bare row of buttons. Always a `label`, usually a `hint` saying what changes when you press it. Renders a labelled `radiogroup`. |
+| `common/EmptyState` | Any panel awaiting user input | Say what to do next, not just that nothing is here. A blank panel reads as broken. |
+| `data/InsightCard` | Deeper theory / commentary | Goes *after* the data it comments on, not before. The Section explainer sets up the data; the InsightCard interprets it. |
+| `data/MetricBlock` | Single figures | Value type is fluid and wraps; safe in a 320px column. |
+
+## 6. Component rules
 
 **Tables** — wrap in `overflow-x: auto` with `-webkit-overflow-scrolling: touch`.
 Never shrink font below `--text-small` to force a fit. Right-align and
@@ -142,7 +153,7 @@ desktop grid without content clipping. Long figures wrap, never truncate.
 
 ---
 
-## 6. Verification
+## 7. Verification
 
 Before calling frontend work done:
 

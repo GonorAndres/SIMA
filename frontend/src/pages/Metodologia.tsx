@@ -5,7 +5,7 @@ import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
 import { useGet, usePost } from '../hooks/useApi';
-import usePageTitle from '../hooks/usePageTitle';
+import PageLayout from '../components/layout/PageLayout';
 import type {
   CrossCountryResponse,
   CrossCountryEntry,
@@ -60,8 +60,6 @@ export default function Metodologia() {
     runCovid();
   }, [runCross, runScr, runCovid]);
 
-  usePageTitle(t('metodologia.title'));
-
   // --- Derived values fed into prose and metric blocks ---
   const country = (name: string): CrossCountryEntry | undefined =>
     cross.data?.countries.find((c) => c.country === name);
@@ -83,12 +81,8 @@ export default function Metodologia() {
   const premiumMax = premiumPcts?.length ? Math.max(...premiumPcts) : undefined;
 
   return (
-    <main className={styles.page} data-demo-section="top">
-      <header className={styles.header}>
-        <h1 className={styles.headerTitle}>{t('metodologia.title')}</h1>
-        <p className={styles.headerSubtitle}>{t('metodologia.subtitle')}</p>
-      </header>
-
+    <PageLayout title={t('metodologia.title')} subtitle={t('metodologia.subtitle')}>
+      <div data-demo-section="top" />
       <InsightCard variant="insight" title={t('metodologia.portfolioFramingTitle')}>
         <p>{t('metodologia.portfolioFraming')}</p>
       </InsightCard>
@@ -319,6 +313,6 @@ export default function Metodologia() {
           ))}
         </div>
       </Section>
-    </main>
+    </PageLayout>
   );
 }

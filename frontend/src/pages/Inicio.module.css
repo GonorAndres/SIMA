@@ -3,17 +3,17 @@
 /* --- Hero: 5fr left + 1fr right --- */
 .hero {
   display: grid;
-  grid-template-columns: 5fr 1fr;
-  gap: 48px;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
   align-items: start;
-  margin-bottom: 48px;
+  margin-bottom: var(--space-xxl);
 }
 
 .heroLeft {}
 
 /* --- Header --- */
 .projectTitle {
-  font-size: 2.441rem;
+  font-size: var(--text-h1);
   font-weight: 600;
   margin: 0 0 16px 0;
   line-height: 1.2;
@@ -37,11 +37,9 @@
 
 /* --- Stats Sidebar (heroRight) --- */
 .heroRight {
-  border-left: 2px solid var(--color-gray-200);
-  padding: 24px 16px 24px 24px;
+  border-top: 2px solid var(--color-gray-200);
+  padding: var(--space-lg) 0 0;
   background: var(--color-warm-50);
-  position: sticky;
-  top: 80px;
 }
 
 .statsLabel {
@@ -54,7 +52,7 @@
 }
 
 .contextTitle {
-  font-size: 1.563rem;
+  font-size: var(--text-h3);
   font-weight: 600;
   margin: 0 0 24px 0;
 }
@@ -120,15 +118,15 @@
 }
 
 .pipelineLabel {
-  font-size: 1.563rem;
+  font-size: var(--text-h3);
   font-weight: 600;
   margin: 0 0 24px 0;
 }
 
 .pipelineGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-lg);
 }
 
 .pipelineCard {
@@ -166,29 +164,29 @@
 }
 
 .metricsRow {
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  margin-bottom: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
 }
 
 /* --- Chart Section --- */
 .sectionBlockAccent {
-  padding: 48px 32px;
-  margin: 0 -32px;
+  padding: var(--space-xl) var(--page-gutter);
+  margin-inline: calc(var(--page-gutter) * -1);
   background: var(--color-accent-light);
   border-top: 1px solid var(--color-gray-200);
 }
 
 .sectionTitle {
-  font-size: 1.563rem;
+  font-size: var(--text-h3);
   font-weight: 600;
   margin: 0 0 16px 0;
 }
 
 /* --- COVID Teaser --- */
 .covidTeaser {
-  padding: 32px 0 32px 24px;
+  padding: var(--space-xl) 0 var(--space-xl) var(--space-lg);
   border-left: 3px solid var(--color-accent);
   margin: 48px 0;
 }
@@ -208,37 +206,31 @@
 
 .covidTeaserMetrics {
   display: flex;
-  gap: 32px;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-md);
 }
 
-/* --- Responsive --- */
-@media (max-width: 768px) {
+/* --- Desktop enhancements --- */
+@media (min-width: 900px) {
   .hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: 5fr 1fr;
+    gap: var(--space-xxl);
   }
 
   .heroRight {
-    border-left: none;
-    border-top: 2px solid var(--color-gray-200);
-    padding: 24px 0 0 0;
-    position: static;
-  }
-
-  .pipelineGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .metricsRow {
-    flex-direction: column;
-    gap: 16px;
+    border-top: none;
+    border-left: 2px solid var(--color-gray-200);
+    padding: var(--space-lg) var(--space-md) var(--space-lg) var(--space-lg);
+    position: sticky;
+    top: 80px;
   }
 }
 
 /* Justified prose is part of the Swiss look, but a narrow column
    cannot justify without rivers of whitespace. Restore it only once
    the measure is wide enough (--bp-md). */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .projectDesc {
     text-align: justify;
   }
