@@ -1,5 +1,23 @@
 import { test, expect } from '@playwright/test';
 
+/**
+ * Visual regression baselines live in `visual-regression.spec.ts-snapshots/`
+ * and are committed, one PNG per route per browser project.
+ *
+ * Baselines currently exist for chromium and firefox only. The `webkit` and
+ * `mobile` projects (mobile uses webkit) need system libraries that are not
+ * installed here -- `npx playwright install-deps webkit` requires root. Those
+ * two projects will report missing snapshots until someone generates them.
+ *
+ * To regenerate after an intentional UI change, with the app running:
+ *   BASE_URL=http://localhost:5180 npx playwright test e2e/visual-regression.spec.ts \
+ *     --project=chromium --project=firefox --update-snapshots
+ *
+ * Baselines are rendered per platform (`-chromium-linux.png`) and are sensitive
+ * to font rendering, so they must be regenerated on the same OS/image that
+ * runs them. If these tests are ever added to CI, regenerate inside the CI
+ * container rather than reusing these.
+ */
 const ROUTES = [
   { path: '/', name: 'homepage' },
   { path: '/mortalidad', name: 'mortalidad' },
