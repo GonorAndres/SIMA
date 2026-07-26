@@ -38,7 +38,8 @@
   max-width: 720px;
   line-height: 1.75;
   margin: 0 0 24px 0;
-  text-align: justify;
+  text-align: left;
+  hyphens: auto;
 }
 
 .validationTabs {
@@ -68,5 +69,14 @@
 @media (max-width: 900px) {
   .chartGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Justified prose is part of the Swiss look, but a narrow column
+   cannot justify without rivers of whitespace. Restore it only once
+   the measure is wide enough (--bp-md). */
+@media (min-width: 768px) {
+  .narrative {
+    text-align: justify;
   }
 }

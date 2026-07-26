@@ -36,5 +36,5 @@ export default function LineChart({ traces, title, xTitle, yTitle, height = 400 
     legend: { orientation: 'h' as const, y: -0.15 },
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
 }

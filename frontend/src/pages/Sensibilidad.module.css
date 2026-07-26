@@ -109,7 +109,8 @@
   line-height: 1.75;
   font-size: 1rem;
   margin: 0 0 24px 0;
-  text-align: justify;
+  text-align: left;
+  hyphens: auto;
 }
 
 @media (max-width: 768px) {
@@ -124,5 +125,14 @@
 
   .controls {
     max-width: 100%;
+  }
+}
+
+/* Justified prose is part of the Swiss look, but a narrow column
+   cannot justify without rivers of whitespace. Restore it only once
+   the measure is wide enough (--bp-md). */
+@media (min-width: 768px) {
+  .narrative {
+    text-align: justify;
   }
 }

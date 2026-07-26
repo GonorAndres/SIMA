@@ -1,5 +1,8 @@
 .wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Keeps the scrollable region reachable by keyboard */
+  scrollbar-width: thin;
 }
 
 .table {

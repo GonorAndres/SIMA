@@ -25,7 +25,8 @@
   line-height: 1.75;
   margin: 0 0 32px 0;
   max-width: 720px;
-  text-align: justify;
+  text-align: left;
+  hyphens: auto;
 }
 
 /* --- Context (inside heroLeft) --- */
@@ -64,7 +65,8 @@
   line-height: 1.75;
   margin: 0 0 16px 0;
   max-width: 720px;
-  text-align: justify;
+  text-align: left;
+  hyphens: auto;
 }
 
 .contextParagraph:last-child {
@@ -230,5 +232,17 @@
   .metricsRow {
     flex-direction: column;
     gap: 16px;
+  }
+}
+
+/* Justified prose is part of the Swiss look, but a narrow column
+   cannot justify without rivers of whitespace. Restore it only once
+   the measure is wide enough (--bp-md). */
+@media (min-width: 768px) {
+  .projectDesc {
+    text-align: justify;
+  }
+  .contextParagraph {
+    text-align: justify;
   }
 }

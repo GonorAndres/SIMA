@@ -1,3 +1,6 @@
+/* Mobile-first: the base rules describe the phone layout.
+   Desktop is added upward at --bp-md (768px). */
+
 .nav {
   border-bottom: 1px solid var(--color-gray-200);
   background: var(--color-white);
@@ -7,13 +10,16 @@
 }
 
 .inner {
-  max-width: 1200px;
+  max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 48px;
+  padding: 0 var(--page-gutter);
+  padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--page-gutter), env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  height: 64px;
-  gap: 48px;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 56px;
 }
 
 .brand {
@@ -22,25 +28,58 @@
   letter-spacing: 0.15em;
   color: var(--color-black);
   text-decoration: none;
-}
-
-.links {
+  /* Keeps the wordmark tappable at the full target height */
   display: flex;
   align-items: center;
-  gap: 32px;
+  min-height: var(--tap-target);
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* --- Drawer (mobile) --- */
+.links {
+  display: none;
   list-style: none;
-  flex: 1;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 101;
+  flex-direction: column;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: var(--space-sm) var(--page-gutter) var(--space-md);
+  /* Never taller than the viewport below the bar */
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+}
+
+.linksOpen {
+  display: flex;
 }
 
 .link {
+  display: flex;
+  align-items: center;
+  /* WCAG 2.2 target size — the whole row is tappable */
+  min-height: var(--tap-target);
   text-transform: uppercase;
-  font-size: 0.875rem;
+  font-size: var(--text-small);
   letter-spacing: 0.1em;
   font-weight: 500;
   color: var(--color-gray-700);
   text-decoration: none;
-  padding: 20px 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1px solid var(--color-gray-100);
+  border-left: 2px solid transparent;
+  padding-left: var(--space-sm);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -49,9 +88,17 @@
   text-decoration: none;
 }
 
+/* Active page is marked in both views — never make the user guess. */
 .linkActive {
   color: var(--color-black);
-  border-bottom-color: var(--color-accent);
+  border-left-color: var(--color-accent);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 56px 0 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 99;
 }
 
 .demoBtn {
@@ -61,7 +108,8 @@
   font-weight: 700;
   color: var(--color-accent);
   border: 1px solid var(--color-accent);
-  padding: 6px 16px;
+  padding: 0 var(--space-md);
+  min-height: var(--tap-target);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   background: none;
@@ -73,51 +121,64 @@
 }
 
 .hamburger {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.375rem;
+  line-height: 1;
   cursor: pointer;
   color: var(--color-black);
-  padding: 4px 8px;
 }
 
-@media (max-width: 768px) {
-  .hamburger {
-    display: block;
+/* --- Desktop ---
+   Breakpoint is content-driven, not device-driven: the six uppercase labels
+   plus brand, DEMO and the language toggle need ~970px on one row. Switching
+   at 768px overflowed the bar. */
+@media (min-width: 1024px) {
+  .inner {
+    min-height: var(--nav-height);
+    gap: var(--space-lg);
+    justify-content: flex-start;
   }
 
-  .inner {
-    padding: 0 var(--space-md);
-    gap: var(--space-sm);
-    height: auto;
-    min-height: 56px;
-    flex-wrap: wrap;
-    padding-top: var(--space-sm);
-    padding-bottom: var(--space-sm);
+  .hamburger,
+  .backdrop {
+    display: none;
   }
 
   .links {
-    display: none;
-    flex-direction: column;
-    gap: 0;
-    order: 1;
-    width: 100%;
-    border-top: 1px solid var(--color-gray-200);
-    padding-top: var(--space-sm);
-  }
-
-  .linksOpen {
     display: flex;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-lg);
+    flex: 1;
+    background: none;
+    border-bottom: none;
+    padding: 0;
+    max-height: none;
+    overflow: visible;
   }
 
   .link {
-    font-size: var(--text-xs);
-    padding: 10px 0;
-    border-bottom: none;
+    min-height: var(--nav-height);
+    font-size: 0.875rem;
+    border-bottom: 2px solid transparent;
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .linkActive {
+    border-left-color: transparent;
+    border-bottom-color: var(--color-accent);
   }
 
   .demoBtn {
-    order: 0;
+    min-height: 34px;
+    padding: 6px var(--space-md);
   }
 }

@@ -69,5 +69,5 @@ export default function FanChart({ x, central, lower, upper, title, xTitle, yTit
     legend: { orientation: 'h' as const, y: -0.15 },
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
 }

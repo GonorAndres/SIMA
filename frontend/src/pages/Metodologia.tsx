@@ -5,6 +5,7 @@ import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
 import { useGet, usePost } from '../hooks/useApi';
+import usePageTitle from '../hooks/usePageTitle';
 import type {
   CrossCountryResponse,
   CrossCountryEntry,
@@ -59,10 +60,7 @@ export default function Metodologia() {
     runCovid();
   }, [runCross, runScr, runCovid]);
 
-  useEffect(() => {
-    document.title = `${t('metodologia.title')} -- SIMA`;
-    return () => { document.title = 'SIMA -- Sistema Integral de Modelacion Actuarial'; };
-  }, [t]);
+  usePageTitle(t('metodologia.title'));
 
   // --- Derived values fed into prose and metric blocks ---
   const country = (name: string): CrossCountryEntry | undefined =>

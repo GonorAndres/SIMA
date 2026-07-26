@@ -11,6 +11,12 @@ const resources = {
         scr: 'RCS',
         sensibilidad: 'SENSIBILIDAD',
         metodologia: 'METODOLOGÍA',
+        ariaMain: 'Navegación principal',
+        ariaHome: 'SIMA, ir al inicio',
+        ariaDemo: 'Iniciar recorrido guiado',
+        ariaOpenMenu: 'Abrir menú',
+        ariaCloseMenu: 'Cerrar menú',
+        skipToContent: 'Saltar al contenido',
       },
       mortalidad: {
         title: 'Mortalidad',
@@ -96,7 +102,7 @@ const resources = {
       },
       sensibilidad: {
         title: 'Análisis de Sensibilidad',
-        subtitle: 'Impacto de la tasa de interés y parámetros de mortalidad sobre las primas',
+        subtitle: 'Impacto de la tasa y la mortalidad sobre las primas',
         tabInterest: 'TASA DE INTERÉS',
         tabMortality: 'CHOQUE MORTALIDAD',
         tabComparison: 'COMPARACIÓN',
@@ -158,7 +164,7 @@ const resources = {
       },
       metodologia: {
         title: 'Metodología',
-        subtitle: 'Fundamentos teóricos y el camino de los datos a las decisiones de capital',
+        subtitle: 'De los datos al capital: fundamentos y trazabilidad',
         portfolioFramingTitle: 'SOBRE ESTE PROYECTO',
         portfolioFraming: 'Este sistema demuestra cinco competencias clave: (1) manejo de datos demográficos reales (INEGI/CONAPO), (2) modelación estadística avanzada (Lee-Carter via SVD, Whittaker-Henderson), (3) valuación financiera (principio de equivalencia, funciones de conmutación), (4) gestión de riesgos regulatoria (RCS bajo LISF/CUSF), y (5) ingeniería de software full-stack (Python + FastAPI + React + GCP). Cada sección abajo detalla la teoría y conecta con la implementación.',
         sections: {
@@ -317,7 +323,7 @@ const resources = {
       },
       scr: {
         title: 'Requerimiento de Capital de Solvencia',
-        subtitle: 'SCR con módulos de riesgo de mortalidad, longevidad, tasa de interés y catástrofe',
+        subtitle: 'Módulos de mortalidad, longevidad, tasa de interés y catástrofe',
         aggFormula: 'Agregación por correlación',
         portfolio: 'Portafolio',
         loadingPortfolio: 'Cargando portafolio...',
@@ -364,7 +370,7 @@ const resources = {
       },
       inicio: {
         title: 'Sistema Integral de Modelación Actuarial',
-        subtitle: 'Motor de cálculo actuarial con Lee-Carter, valuación de reservas y requerimientos de capital',
+        subtitle: 'Lee-Carter, reservas y capital de solvencia en un solo motor',
         desc: 'Plataforma integral que conecta datos demográficos reales (INEGI/CONAPO) con modelos actuariales modernos. Desde la graduación de mortalidad hasta el cálculo de requerimientos de capital bajo Solvencia II.',
         contextTitle: 'Qué es SIMA',
         contextP1: 'SIMA es una plataforma de modelación actuarial construida como proyecto de conclusión en mi licenciatura en actuaría. Conecta datos demográficos reales con tarificación de seguros y requerimientos de capital. Combina métodos tradicionales (funciones de conmutación, reservas prospectivas) con técnicas modernas (Lee-Carter, proyección estocástica).',
@@ -442,10 +448,16 @@ const resources = {
         scr: 'SCR',
         sensibilidad: 'SENSITIVITY',
         metodologia: 'METHODOLOGY',
+        ariaMain: 'Main navigation',
+        ariaHome: 'SIMA, go to home',
+        ariaDemo: 'Start guided tour',
+        ariaOpenMenu: 'Open menu',
+        ariaCloseMenu: 'Close menu',
+        skipToContent: 'Skip to content',
       },
       inicio: {
         title: 'Integral Actuarial Modeling System',
-        subtitle: 'Actuarial calculation engine with Lee-Carter, reserve valuation and capital requirements',
+        subtitle: 'Lee-Carter, reserves and solvency capital in one engine',
         desc: 'Comprehensive platform connecting real demographic data (INEGI/CONAPO) with modern actuarial models. From mortality graduation to Solvency II capital requirements.',
         contextTitle: 'What is SIMA',
         contextP1: 'SIMA is an actuarial modeling platform built as a bachelor\'s portfolio project in actuarial science. It connects real demographic data to insurance pricing and capital requirements. Traditional methods (commutation functions, prospective reserves) alongside modern techniques (Lee-Carter, stochastic projection).',
@@ -566,7 +578,7 @@ const resources = {
       },
       scr: {
         title: 'Solvency Capital Requirement',
-        subtitle: 'SCR with mortality, longevity, interest rate and catastrophe risk modules',
+        subtitle: 'Mortality, longevity, interest rate and catastrophe modules',
         aggFormula: 'Correlation aggregation',
         portfolio: 'Portfolio',
         loadingPortfolio: 'Loading portfolio...',
@@ -613,7 +625,7 @@ const resources = {
       },
       sensibilidad: {
         title: 'Sensitivity Analysis',
-        subtitle: 'Impact of interest rate and mortality parameters on premiums',
+        subtitle: 'Impact of interest rate and mortality on premiums',
         tabInterest: 'INTEREST RATE',
         tabMortality: 'MORTALITY SHOCK',
         tabComparison: 'COMPARISON',
@@ -675,7 +687,7 @@ const resources = {
       },
       metodologia: {
         title: 'Methodology',
-        subtitle: 'Theoretical foundations and the path from data to capital decisions',
+        subtitle: 'From data to capital: foundations and traceability',
         portfolioFramingTitle: 'ABOUT THIS PROJECT',
         portfolioFraming: 'This system demonstrates five key competencies: (1) real demographic data handling (INEGI/CONAPO), (2) advanced statistical modeling (Lee-Carter via SVD, Whittaker-Henderson), (3) financial valuation (equivalence principle, commutation functions), (4) regulatory risk management (SCR under LISF/CUSF), and (5) full-stack software engineering (Python + FastAPI + React + GCP). Each section below details the theory and connects to the implementation.',
         sections: {
