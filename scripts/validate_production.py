@@ -13,12 +13,14 @@ Exit code 0 = all tests pass, 1 = failures detected.
 """
 
 import json
+import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "https://sima-451451662791.us-central1.run.app"
 API = f"{BASE_URL}/api"
+PROXY_SECRET = os.environ.get("SIMA_PROXY_SECRET", "")
 
 passed = 0
 failed = 0
@@ -27,15 +29,19 @@ results = []
 
 def get(path: str) -> dict:
     url = f"{API}{path}"
-    req = urllib.request.Request(url)
+    headers = {"X-SIMA-Proxy-Secret": PROXY_SECRET} if PROXY_SECRET else {}
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read())
 
 
-def post(path: str, body: dict = None) -> dict:
+def post(path: str, body: dict[str, object] | None = None) -> dict:
     url = f"{API}{path}"
     data = json.dumps(body or {}).encode()
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if PROXY_SECRET:
+        headers["X-SIMA-Proxy-Secret"] = PROXY_SECRET
+    req = urllib.request.Request(url, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read())
 
