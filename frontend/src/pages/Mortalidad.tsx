@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import Section from '../components/layout/Section';
+import SectionRail from '../components/layout/SectionRail';
+import type { RailItem } from '../components/layout/SectionRail';
 import OptionGroup from '../components/forms/OptionGroup';
 import MetricBlock from '../components/data/MetricBlock';
 import DataTable from '../components/data/DataTable';
@@ -40,6 +42,16 @@ export default function Mortalidad() {
   const [sex, setSex] = useState<SexKey>('unisex');
 
   const validationColumns = useMemo(() => getValidationColumns(t), [t]);
+
+  const railItems: RailItem[] = useMemo(() => [
+    { id: 'sec-graduacion', step: '1', label: t('mortalidad.railGraduation') },
+    { id: 'sec-superficie', step: '2', label: t('mortalidad.railSurface') },
+    { id: 'sec-lee-carter', step: '3', label: t('mortalidad.railLeeCarter') },
+    { id: 'sec-parametros', step: '4', label: t('mortalidad.railParams') },
+    { id: 'sec-diagnosticos', step: '5', label: t('mortalidad.railDiagnostics') },
+    { id: 'sec-proyeccion', step: '6', label: t('mortalidad.railProjection') },
+    { id: 'sec-validacion', step: '7', label: t('mortalidad.railValidation') },
+  ], [t]);
 
   const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const proj = useGet<ProjectionResponse>('/mortality/projection');
@@ -82,6 +94,7 @@ export default function Mortalidad() {
     <PageLayout
       title={t('mortalidad.title')}
       subtitle={t('mortalidad.subtitle')}
+      rail={<SectionRail items={railItems} />}
     >
       {/* Page-level control: stated up front because it re-runs every section. */}
       <OptionGroup<SexKey>
@@ -102,6 +115,7 @@ export default function Mortalidad() {
       {graduation.data && (
         <Section
           step="1"
+          id="sec-graduacion"
           title={t('mortalidad.graduationTitle')}
           explainer={t('mortalidad.graduationExplainer')}
           demoSection="graduation"
@@ -162,6 +176,7 @@ export default function Mortalidad() {
       {surface.data && (
         <Section
           step="2"
+          id="sec-superficie"
           title={t('mortalidad.surfaceTitle')}
           explainer={t('mortalidad.surfaceExplainer')}
           demoSection="surface"
@@ -188,6 +203,7 @@ export default function Mortalidad() {
         <>
           <Section
             step="3"
+            id="sec-lee-carter"
             title={t('mortalidad.lcTitle')}
             explainer={t('mortalidad.lcExplainer')}
             demoSection="lee-carter"
@@ -220,6 +236,7 @@ export default function Mortalidad() {
 
           <Section
             step="4"
+            id="sec-parametros"
             title={t('mortalidad.paramsTitle')}
             explainer={t('mortalidad.paramsExplainer')}
           >
@@ -277,6 +294,7 @@ export default function Mortalidad() {
       {diagnostics.data && (
         <Section
           step="5"
+          id="sec-diagnosticos"
           title={t('mortalidad.svdTitle')}
           explainer={t('mortalidad.svdExplainer')}
         >
@@ -299,6 +317,7 @@ export default function Mortalidad() {
       {proj.data && (
         <Section
           step="6"
+          id="sec-proyeccion"
           title={t('mortalidad.projTitle')}
           explainer={t('mortalidad.projExplainer')}
           demoSection="projection"
@@ -330,6 +349,7 @@ export default function Mortalidad() {
       {(validation.data || validationCnsf2013.data || validationEmssa.data) && (
         <Section
           step="7"
+          id="sec-validacion"
           title={t('mortalidad.validationTitle')}
           explainer={t('mortalidad.validationExplainer')}
           demoSection="validation"

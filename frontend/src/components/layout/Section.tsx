@@ -16,6 +16,8 @@ interface SectionProps {
   actions?: ReactNode;
   /** Passed through for the guided demo tour's scroll targets. */
   demoSection?: string;
+  /** Anchor target for the SectionRail. */
+  id?: string;
   children: ReactNode;
 }
 
@@ -25,10 +27,11 @@ export default function Section({
   step,
   actions,
   demoSection,
+  id,
   children,
 }: SectionProps) {
   return (
-    <section className={styles.section} data-demo-section={demoSection}>
+    <section id={id} className={styles.section} data-demo-section={demoSection}>
       <header className={styles.header}>
         <div className={styles.headings}>
           <div className={styles.titleRow}>

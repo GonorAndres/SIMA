@@ -127,6 +127,7 @@ equally terse — a translation that rambles breaks the layout it was measured f
 |-----------|---------|------|
 | `layout/PageLayout` | Every page shell | Owns the title, subtitle, gutters and tab title. No page sets `document.title` itself. |
 | `layout/Section` | Every content block | Card with a header. `explainer` is **required** — a reader must never meet a chart without knowing what question it answers. `step` numbers long analytical pages. |
+| `layout/SectionRail` | Pages with ≥6 sections | "On this page" nav, passed to `PageLayout`'s `rail` prop. Desktop: sticky right column. Mobile: a 2-column grid showing **every** section at once — never a horizontally-scrolling strip, which hides items. Each `Section` needs a matching `id`. |
 | `forms/OptionGroup` | Any "choose one of N" control | Never ship a bare row of buttons. Always a `label`, usually a `hint` saying what changes when you press it. Renders a labelled `radiogroup`. |
 | `common/EmptyState` | Any panel awaiting user input | Say what to do next, not just that nothing is here. A blank panel reads as broken. |
 | `data/InsightCard` | Deeper theory / commentary | Goes *after* the data it comments on, not before. The Section explainer sets up the data; the InsightCard interprets it. |

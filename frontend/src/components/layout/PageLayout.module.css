@@ -17,6 +17,42 @@
   font-weight: 600;
 }
 
+/* Page + rail. Mobile: rail stacked above the content.
+   Desktop: content left, sticky rail right. */
+.withRail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+.content {
+  /* Without this, wide children (charts, tables) refuse to shrink and
+     blow out the grid column. */
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .withRail {
+    grid-template-columns: minmax(0, 1fr) 200px;
+    gap: var(--space-xl);
+    /* Deliberately NOT `align-items: start`: the rail track must span the
+       full row height, otherwise the sticky nav inside it has no distance
+       to travel and scrolls away with the content. */
+    align-items: stretch;
+  }
+
+  .rail {
+    /* Second column, but first in the DOM for mobile reading order. */
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
 .subtitle {
   /* gray-400 on white is 2.1:1 — fails WCAG AA. gray-700 is 10.4:1. */
   color: var(--color-gray-700);
