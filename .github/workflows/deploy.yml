@@ -126,3 +126,27 @@ jobs:
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
         run: python3 scripts/validate_production.py "${{ needs.deploy.outputs.service_url }}"
+
+  sync-dev:
+    name: Fast-forward dev to deployed main
+    needs: [deploy, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.DEV_SYNC_DEPLOY_KEY }}
+
+      - name: Verify ancestry and fast-forward dev
+        run: |
+          git fetch origin dev:refs/remotes/origin/dev
+
+          if ! git merge-base --is-ancestor origin/dev HEAD; then
+            echo "::error::Refusing to update dev: it is not an ancestor of deployed main."
+            exit 1
+          fi
+
+          git push origin HEAD:dev
