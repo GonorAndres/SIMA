@@ -7,6 +7,9 @@ __pycache__/
 *.egg-info/
 .eggs/
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 # Environment
 .env
@@ -38,6 +41,7 @@ backend/data/conapo/
 # Frontend build artifacts and dependencies
 frontend/node_modules/
 frontend/dist/
+.wrangler/
 
 # Playwright E2E artifacts
 node_modules/

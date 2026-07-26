@@ -24,11 +24,12 @@ backend/data/conapo/*.xlsx
 # Mortality table PDFs (data CSVs are kept)
 backend/data/mortality_tables/*.pdf
 
-# Analysis result text files (precomputed, not needed at runtime)
-backend/analysis/results/
+# Analysis scripts and precomputed result text files (not needed at runtime)
+backend/analysis/
 
-# Backend tests (not needed in production)
+# Backend tests and proposed tests (not needed in production)
 backend/tests/
+backend/tests_proposed/
 
 # Frontend build artifacts (stage 1 rebuilds from source)
 frontend/node_modules/

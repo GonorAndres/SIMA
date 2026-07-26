@@ -14,7 +14,7 @@ Doc 14 described the SIMA engine as two rivers merging:
 - **River 2 (Theoretical):** Life table -> commutation -> premiums -> reserves
 - **The Bridge:** `to_life_table()` connects the two rivers
 
-That architecture covered 9 modules (a01-a09) with 106 tests. Now the system has grown to 12 engine modules, 21 API endpoints, and a full React frontend. Here is what was added and why.
+That architecture covered 9 modules (a01-a09) with 106 tests. The system has since grown to 12 engine modules, 24 API endpoints, and a full React frontend. Here is what was added and why.
 
 ---
 
@@ -204,7 +204,7 @@ THE COMPLETE PICTURE
        v
   TIER 3: API (FastAPI)
   =====================
-  5 routers handle 21 endpoints
+  5 routers handle 23 domain endpoints, plus `/api/health`
   Services orchestrate engine calls
   Pydantic validates request/response schemas
        |
@@ -318,4 +318,4 @@ A: "The frontend is a React SPA that visualizes the engine's outputs. It knows n
 
 **Q: "Could you replace the frontend without changing the backend?"**
 
-A: "Yes, completely. The API's 21 endpoints define a clean contract via Pydantic schemas. You could build a mobile app, a Jupyter dashboard, or an Excel add-in that calls the same endpoints. Similarly, the engine can be used without the API -- you can import a01-a12 directly in a Python script or notebook. Each tier is independently replaceable."
+A: "Yes, completely. The API's 24 endpoints define a clean contract via Pydantic schemas. You could build a mobile app, a Jupyter dashboard, or an Excel add-in that calls the same endpoints. Similarly, the engine can be used without the API -- you can import a01-a12 directly in a Python script or notebook. Each tier is independently replaceable."

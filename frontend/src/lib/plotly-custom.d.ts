@@ -1,5 +1,7 @@
 declare module 'plotly.js/lib/core' {
-  const Plotly: any;
+  // The custom core bundle exposes the same top-level API surface as the
+  // full plotly.js module (newPlot, react, purge, register, ...).
+  const Plotly: typeof import('plotly.js');
   export default Plotly;
 }
 

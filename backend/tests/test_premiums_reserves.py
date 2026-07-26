@@ -7,9 +7,10 @@ Tests for PremiumCalculator and ReserveCalculator (Blocks 5-6).
 These tests validate the equivalence principle and reserve properties.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -19,10 +20,10 @@ from backend.engine.a03_actuarial_values import ActuarialValues
 from backend.engine.a04_premiums import PremiumCalculator
 from backend.engine.a05_reserves import ReserveCalculator
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mini_table():
@@ -59,6 +60,7 @@ def rc(comm):
 # Test: Actuarial Identity A_x + d*a_x = 1
 # =============================================================================
 
+
 def test_actuarial_identity(comm, av):
     """
     THEORY: A_x + d * a_due_x = 1
@@ -83,6 +85,7 @@ def test_actuarial_identity(comm, av):
 # =============================================================================
 # Test: Equivalence Principle (Premium Verification)
 # =============================================================================
+
 
 def test_whole_life_equivalence(comm, av, pc):
     """
@@ -162,6 +165,7 @@ def test_endowment_premium_greater_than_term(pc):
 # Test: Zero Reserve at Issue (Equivalence Principle)
 # =============================================================================
 
+
 def test_zero_reserve_at_issue_whole_life(rc):
     """
     THEORY: 0V_x = 0 (reserve at issue is zero)
@@ -210,6 +214,7 @@ def test_zero_reserve_at_issue_endowment(rc):
 # Test: Reserve Growth
 # =============================================================================
 
+
 def test_reserve_increases_over_time(rc):
     """
     THEORY: Reserve increases as policy ages (for whole life)
@@ -248,6 +253,7 @@ def test_reserve_trajectory_starts_at_zero(rc):
 # Test: Reserve Formula Components
 # =============================================================================
 
+
 def test_reserve_formula_components(comm, av, pc, rc):
     """
     THEORY: tV = SA * A_{x+t} - P * a_due_{x+t}
@@ -279,6 +285,7 @@ def test_reserve_formula_components(comm, av, pc, rc):
 # Test: Term Insurance Reserve at Expiry
 # =============================================================================
 
+
 def test_term_reserve_zero_at_expiry(rc):
     """
     THEORY: Term reserve = 0 when t >= n (policy expired)
@@ -294,13 +301,14 @@ def test_term_reserve_zero_at_expiry(rc):
     assert reserve_at_n == 0.0
 
     # After expiry
-    reserve_after = rc.reserve_term(SA, x, n, t=n+1)
+    reserve_after = rc.reserve_term(SA, x, n, t=n + 1)
     assert reserve_after == 0.0
 
 
 # =============================================================================
 # Test: Endowment Reserve at Maturity
 # =============================================================================
+
 
 def test_endowment_reserve_equals_SA_at_maturity(rc):
     """
@@ -322,6 +330,7 @@ def test_endowment_reserve_equals_SA_at_maturity(rc):
 # Test: Validation Method
 # =============================================================================
 
+
 def test_validate_zero_reserve_method(rc):
     """
     Test the validation method returns correct structure.
@@ -331,16 +340,17 @@ def test_validate_zero_reserve_method(rc):
 
     result = rc.validate_zero_reserve(SA, x, product="whole_life")
 
-    assert result['product'] == "whole_life"
-    assert result['issue_age'] == x
-    assert result['sum_assured'] == SA
-    assert result['is_zero'] == True
-    assert abs(result['reserve_at_0']) < 0.01
+    assert result["product"] == "whole_life"
+    assert result["issue_age"] == x
+    assert result["sum_assured"] == SA
+    assert result["is_zero"] is True
+    assert abs(result["reserve_at_0"]) < 0.01
 
 
 # =============================================================================
 # Test: Pure Endowment Reserve
 # =============================================================================
+
 
 def test_zero_reserve_at_issue_pure_endowment(rc):
     """

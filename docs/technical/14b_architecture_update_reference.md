@@ -16,7 +16,7 @@ Doc 14 documented a 9-module engine with 106 tests. The system has since grown:
 | Tests | 106 | 191 | +85 tests |
 | Total files | ~30 | ~120 | +API, frontend, analysis |
 | Architectural tiers | 1 (engine) | 4 (engine, analysis, API, frontend) | +3 tiers |
-| API endpoints | 0 | 21 | +21 endpoints |
+| API endpoints | 0 | 24 | +24 endpoints |
 | Frontend pages | 0 | 6 | +6 pages |
 
 ---
@@ -348,7 +348,7 @@ Key observations:
 | Topic | Document |
 |:------|:---------|
 | Original architecture (a01-a09) | Doc 14: `14_architecture_integration_reference.md` |
-| API tier details (21 endpoints) | Doc 19: `19_api_architecture_reference.md` |
+| API tier details (24 endpoints) | Doc 19: `19_api_architecture_reference.md` |
 | Frontend tier details (React) | Doc 20: `20_frontend_architecture_reference.md` |
 | Sensitivity analysis engine | Doc 15: `15_sensitivity_analysis_reference.md` |
 | Capital requirements engine | Doc 18: `18_capital_requirements_reference.md` |

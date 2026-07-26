@@ -33,12 +33,14 @@ HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 Demographic Studies (France). Available at www.mortality.org.
 """
 
-from typing import Dict, Optional
+import warnings
+
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
 
 from .a06_mortality_data import MortalityData
+from .exceptions import ActuarialValidationError, DataQualityError
 
 
 class GraduatedRates:
@@ -65,6 +67,9 @@ class GraduatedRates:
         lambda_param: float = 1e5,
         diff_order: int = 2,
         weight_by_exposure: bool = True,
+        *,
+        residual_threshold: float = 0.1,
+        check_monotonicity: bool = True,
     ):
         """
         Graduate mortality rates from a MortalityData object.
@@ -76,12 +81,39 @@ class GraduatedRates:
         lambda_param : float
             Smoothing parameter. Higher = smoother.
             lambda=0 returns raw data; large lambda -> near-polynomial.
+            Must be non-negative.
         diff_order : int
-            Order of the difference penalty (2 = curvature penalty).
+            Difference order for penalty (2 = curvature penalty).
         weight_by_exposure : bool
-            If True, weight each age by its exposure (person-years).
+            Weight each age by its exposure (person-years).
             Ages with more data get more influence on the fit.
+        residual_threshold : float
+            Tolerance for ``residual_mean_near_zero`` validation.
+        check_monotonicity : bool
+            If True, warn when the column-wise graduated rates are not
+            broadly increasing by age (mortality should rise with age after
+            early childhood). This is a sanity check, not a hard failure.
         """
+        if lambda_param < 0:
+            raise ActuarialValidationError(
+                f"lambda_param must be non-negative (got {lambda_param})",
+                field="lambda_param",
+                constraint="lambda_param >= 0",
+            )
+        if diff_order < 1:
+            raise ActuarialValidationError(
+                f"diff_order must be >= 1 (got {diff_order})",
+                field="diff_order",
+                constraint="diff_order >= 1",
+            )
+        if not np.all(mortality_data.mx > 0):
+            raise DataQualityError(
+                "MortalityData contains non-positive rates; "
+                "graduation operates in log-space and requires all mx > 0",
+                field="mx",
+                constraint="mx > 0 for all cells",
+            )
+
         self.mortality_data = mortality_data
         self.ages = mortality_data.ages.copy()
         self.years = mortality_data.years.copy()
@@ -91,9 +123,14 @@ class GraduatedRates:
         self.lambda_param = lambda_param
         self.diff_order = diff_order
         self.weight_by_exposure = weight_by_exposure
+        self.residual_threshold = residual_threshold
+        self.check_monotonicity = check_monotonicity
 
         # Graduate all year columns
         self.mx = self._graduate_all_years()
+
+        if check_monotonicity:
+            self._warn_non_monotonic()
 
     @property
     def n_ages(self) -> int:
@@ -178,6 +215,23 @@ class GraduatedRates:
         A = W + penalty
         b = W @ log_rates
 
+        # Check conditioning of the system. A symmetric positive-definite matrix
+        # with a tiny minimum diagonal entry indicates the smoothness penalty is
+        # swamping the data for some ages; the result may still be numerically
+        # stable, but we surface a warning for auditability.
+        try:
+            min_diag = float(A.diagonal().min())
+            if min_diag <= 0:
+                warnings.warn(
+                    f"Whittaker-Henderson system has a non-positive diagonal "
+                    f"({min_diag:.3e}); lambda={self.lambda_param}, "
+                    f"diff_order={self.diff_order}. The system may be singular.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        except Exception:
+            pass
+
         return spsolve(A, b)
 
     def _graduate_all_years(self) -> np.ndarray:
@@ -199,10 +253,7 @@ class GraduatedRates:
             log_col = log_mx[:, j]
 
             # Weights: use exposure for this year, or uniform
-            if self.weight_by_exposure:
-                w = self.ex[:, j]
-            else:
-                w = np.ones(self.n_ages)
+            w = self.ex[:, j] if self.weight_by_exposure else np.ones(self.n_ages)
 
             graduated_log_mx[:, j] = self._whittaker_henderson_1d(log_col, w)
 
@@ -222,6 +273,25 @@ class GraduatedRates:
                 f"Year {year} not in graduated data (range: {self.years[0]}-{self.years[-1]})"
             )
         return float(self.mx[age_idx, year_idx])
+
+    def _warn_non_monotonic(self) -> None:
+        """Warn if graduated mortality is not broadly increasing by age."""
+        for j in range(self.n_years):
+            col = self.mx[:, j]
+            # Mortality at very young ages (0-1) often dips before rising, so
+            # we inspect the ages from 2 onward.
+            if len(col) > 3:
+                increasing = np.diff(col[2:]) > 0
+                frac = float(np.mean(increasing))
+                if frac < 0.75:
+                    warnings.warn(
+                        f"Graduated mortality for year {self.years[j]} is not "
+                        f"monotonically increasing for only {frac:.1%} of age "
+                        f"intervals (expected broadly rising). "
+                        f"lambda={self.lambda_param} may be too large.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
     def residuals(self) -> np.ndarray:
         """
@@ -243,10 +313,10 @@ class GraduatedRates:
         for j in range(rates.shape[1]):
             col = np.log(rates[:, j])
             d2 = np.diff(col, n=2)
-            total += np.sum(d2 ** 2)
+            total += np.sum(d2**2)
         return total
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """
         Validate graduated rates for consistency.
 
@@ -259,14 +329,12 @@ class GraduatedRates:
         results = {}
         results["no_nan"] = bool(not np.any(np.isnan(self.mx)))
         results["all_positive"] = bool(np.all(self.mx > 0))
-        results["smoother_than_raw"] = bool(
-            self.roughness(self.mx) < self.roughness(self.raw_mx)
-        )
+        results["smoother_than_raw"] = bool(self.roughness(self.mx) < self.roughness(self.raw_mx))
         resid = self.residuals()
-        results["residual_mean_near_zero"] = bool(abs(np.mean(resid)) < 0.1)
+        results["residual_mean_near_zero"] = bool(abs(np.mean(resid)) < self.residual_threshold)
         return results
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for quick inspection."""
         resid = self.residuals()
         return {
@@ -338,4 +406,38 @@ class GraduatedRates:
             lambda_param=lambda_param,
             diff_order=diff_order,
             weight_by_exposure=weight_by_exposure,
+        )
+
+    @classmethod
+    def from_inegi(
+        cls,
+        deaths_filepath: str,
+        population_filepath: str,
+        sex: str = "Total",
+        year_start: int = 1990,
+        year_end: int = 2023,
+        age_max: int = 100,
+        lambda_param: float = 1e5,
+        diff_order: int = 2,
+        weight_by_exposure: bool = True,
+        *,
+        residual_threshold: float = 0.1,
+        check_monotonicity: bool = True,
+    ) -> "GraduatedRates":
+        """Convenience: load INEGI/CONAPO data and graduate in one step."""
+        data = MortalityData.from_inegi(
+            deaths_filepath=deaths_filepath,
+            population_filepath=population_filepath,
+            sex=sex,
+            year_start=year_start,
+            year_end=year_end,
+            age_max=age_max,
+        )
+        return cls(
+            mortality_data=data,
+            lambda_param=lambda_param,
+            diff_order=diff_order,
+            weight_by_exposure=weight_by_exposure,
+            residual_threshold=residual_threshold,
+            check_monotonicity=check_monotonicity,
         )

@@ -35,8 +35,13 @@ This keeps values manageable and is mathematically equivalent
 for ratio-based calculations (A_x = M_x/D_x, etc).
 """
 
-from typing import Dict, Optional
+from __future__ import annotations
+
+import warnings
+
 from .a01_life_table import LifeTable
+from .exceptions import ActuarialValidationError
+from .validators import validate_interest_rate
 
 
 class CommutationFunctions:
@@ -53,6 +58,13 @@ class CommutationFunctions:
     values are NOT directly comparable to published commutation tables that
     use the standard v^x convention.
 
+    ZERO INTEREST (i = 0): When ``interest_rate == 0`` we set ``v = 1`` and
+    the commutation functions reduce to undiscounted survivor/death sums:
+
+        D_x = l_x,   N_x = sum_{y>=x} l_y,   C_x = d_x,   M_x = sum_{y>=x} d_y
+
+    All ratios (A_x, a_x, premiums, reserves) remain mathematically correct.
+
     Attributes:
         life_table: Source LifeTable
         i: Interest rate (e.g., 0.05 for 5%)
@@ -68,30 +80,45 @@ class CommutationFunctions:
         Initialize commutation functions from life table.
 
         Args:
-            life_table: LifeTable instance
-            interest_rate: Annual interest rate (e.g., 0.05 for 5%)
+            life_table: LifeTable instance (must be non-empty)
+            interest_rate: Annual interest rate (e.g., 0.05 for 5%).
+                ``0.0`` is explicitly allowed. Rates above ``1`` are allowed
+                with a warning (they may be a misplaced percentage) up to a
+                sanity ceiling.
 
         Raises:
-            TypeError: If interest_rate is not a number
-            ValueError: If interest_rate is negative or > 1
+            ActuarialValidationError: If the life table is empty or the
+                interest rate is invalid (negative, non-finite, or absurd).
         """
-        # Validate interest rate
-        if not isinstance(interest_rate, (int, float)):
-            raise TypeError("Interest rate must be a number")
-        if interest_rate < 0:
-            raise ValueError("Interest rate cannot be negative")
-        if interest_rate > 1:
-            raise ValueError("Interest rate should be decimal (e.g., 0.05 for 5%)")
+        if len(life_table.ages) == 0:
+            raise ActuarialValidationError(
+                "Life table is empty; cannot build commutation functions",
+                field="life_table",
+                constraint="len(life_table.ages) > 0",
+            )
+
+        # Validate interest rate. allow_above_one=True so decimal-form rates
+        # above 1 (e.g. a 120% hyperinflation scenario) are accepted with a
+        # warning rather than rejected outright.
+        validate_interest_rate(interest_rate, allow_above_one=True)
+        if interest_rate > 1.0:
+            warnings.warn(
+                f"Interest rate {interest_rate} > 1; treating as a decimal. "
+                f"Pass 0.05 for 5% if you meant a percentage.",
+                stacklevel=2,
+            )
 
         self.life_table = life_table
-        self.i = interest_rate
-        self.v = 1.0 / (1.0 + interest_rate)  # Discount factor
+        self.i = float(interest_rate)
+        # Explicit zero-interest fast path: v = 1 exactly (avoids any 1/(1+0)
+        # rounding surprise and signals "undiscounted" to readers).
+        self.v = 1.0 if self.i == 0.0 else 1.0 / (1.0 + self.i)
 
         # Storage for commutation values
-        self.D: Dict[int, float] = {}
-        self.N: Dict[int, float] = {}
-        self.C: Dict[int, float] = {}
-        self.M: Dict[int, float] = {}
+        self.D: dict[int, float] = {}
+        self.N: dict[int, float] = {}
+        self.C: dict[int, float] = {}
+        self.M: dict[int, float] = {}
 
         # Compute all values
         self._compute_D()
@@ -112,7 +139,7 @@ class CommutationFunctions:
         for age in self.life_table.ages:
             # Normalized exponent: years from table start
             exponent = age - min_age
-            self.D[age] = (self.v ** exponent) * self.life_table.get_l(age)
+            self.D[age] = (self.v**exponent) * self.life_table.get_l(age)
 
     def _compute_N(self) -> None:
         """
@@ -143,7 +170,7 @@ class CommutationFunctions:
         for age in self.life_table.ages:
             # Exponent is one more than for D (death benefit paid at end of year)
             exponent = age + 1 - min_age
-            self.C[age] = (self.v ** exponent) * self.life_table.get_d(age)
+            self.C[age] = (self.v**exponent) * self.life_table.get_d(age)
 
     def _compute_M(self) -> None:
         """
@@ -165,25 +192,41 @@ class CommutationFunctions:
     def get_D(self, age: int) -> float:
         """Get D_x at specified age."""
         if age not in self.D:
-            raise KeyError(f"Age {age} not in commutation table")
+            raise ActuarialValidationError(
+                f"D_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.D[age]
 
     def get_N(self, age: int) -> float:
         """Get N_x at specified age."""
         if age not in self.N:
-            raise KeyError(f"Age {age} not in commutation table")
+            raise ActuarialValidationError(
+                f"N_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.N[age]
 
     def get_C(self, age: int) -> float:
         """Get C_x at specified age."""
         if age not in self.C:
-            raise KeyError(f"Age {age} not in commutation table")
+            raise ActuarialValidationError(
+                f"C_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.C[age]
 
     def get_M(self, age: int) -> float:
         """Get M_x at specified age."""
         if age not in self.M:
-            raise KeyError(f"Age {age} not in commutation table")
+            raise ActuarialValidationError(
+                f"M_x not available for age {age}; table covers [{self.min_age}, {self.max_age}]",
+                field="age",
+                constraint=f"age in [{self.min_age}, {self.max_age}]",
+            )
         return self.M[age]
 
     @property
@@ -199,14 +242,14 @@ class CommutationFunctions:
     def summary(self) -> str:
         """Generate summary of commutation functions."""
         lines = [
-            f"Commutation Functions Summary",
-            f"=" * 50,
+            "Commutation Functions Summary",
+            "=" * 50,
             f"Interest rate: {self.i:.2%}",
             f"Discount factor (v): {self.v:.6f}",
             f"Age range: {self.min_age} to {self.max_age}",
-            f"",
+            "",
             f"{'Age':>5} {'D_x':>12} {'N_x':>12} {'C_x':>12} {'M_x':>12}",
-            f"-" * 55,
+            "-" * 55,
         ]
 
         for age in self.life_table.ages:
@@ -221,7 +264,4 @@ class CommutationFunctions:
         return "\n".join(lines)
 
     def __repr__(self) -> str:
-        return (
-            f"CommutationFunctions(ages={self.min_age}-{self.max_age}, "
-            f"i={self.i:.2%})"
-        )
+        return f"CommutationFunctions(ages={self.min_age}-{self.max_age}, i={self.i:.2%})"

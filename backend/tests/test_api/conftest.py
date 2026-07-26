@@ -11,6 +11,7 @@ if project_dir not in sys.path:
     sys.path.insert(0, project_dir)
 
 from fastapi.testclient import TestClient
+
 from backend.api.main import app
 
 

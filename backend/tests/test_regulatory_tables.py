@@ -11,16 +11,16 @@ via the recurrence l_{x+1} = l_x * (1 - q_x).
 Each test validates a specific actuarial property.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a02_commutation import CommutationFunctions
-
 
 # =============================================================================
 # Test Data Paths
@@ -32,6 +32,7 @@ MOCK_DIR = str(Path(__file__).parent.parent / "data" / "mock")
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def cnsf_table():
@@ -51,6 +52,7 @@ def emssa_table():
 # Test: Loading CNSF Table
 # =============================================================================
 
+
 def test_from_regulatory_loads_cnsf(cnsf_table):
     """
     THEORY: A regulatory table in CNSF format (age, qx_male, qx_female)
@@ -67,6 +69,7 @@ def test_from_regulatory_loads_cnsf(cnsf_table):
 # =============================================================================
 # Test: Loading EMSSA Table
 # =============================================================================
+
 
 def test_from_regulatory_loads_emssa(emssa_table):
     """
@@ -85,6 +88,7 @@ def test_from_regulatory_loads_emssa(emssa_table):
 # Test: l_x Recurrence from q_x
 # =============================================================================
 
+
 def test_from_regulatory_correct_lx(cnsf_table):
     """
     THEORY: l_{x+1} = l_x * (1 - q_x)
@@ -101,13 +105,14 @@ def test_from_regulatory_correct_lx(cnsf_table):
         q_x = cnsf_table.get_q(age)
         expected = l_x * (1.0 - q_x)
         assert l_x1 == pytest.approx(expected, rel=1e-9), (
-            f"l_{age+1} should equal l_{age} * (1 - q_{age})"
+            f"l_{age + 1} should equal l_{age} * (1 - q_{age})"
         )
 
 
 # =============================================================================
 # Test: Radix
 # =============================================================================
+
 
 def test_from_regulatory_radix():
     """
@@ -137,6 +142,7 @@ def test_from_regulatory_radix():
 # Test: Terminal q_x
 # =============================================================================
 
+
 def test_from_regulatory_terminal_qx(cnsf_table):
     """
     THEORY: q_omega = 1.0 (everyone dies at the terminal age)
@@ -153,6 +159,7 @@ def test_from_regulatory_terminal_qx(cnsf_table):
 # Test: Monotonic l_x
 # =============================================================================
 
+
 def test_from_regulatory_monotonic_lx(cnsf_table):
     """
     THEORY: l_x must be strictly decreasing.
@@ -166,13 +173,14 @@ def test_from_regulatory_monotonic_lx(cnsf_table):
         l_current = cnsf_table.get_l(ages[i])
         l_next = cnsf_table.get_l(ages[i + 1])
         assert l_next < l_current, (
-            f"l_{ages[i+1]} = {l_next} should be less than l_{ages[i]} = {l_current}"
+            f"l_{ages[i + 1]} = {l_next} should be less than l_{ages[i]} = {l_current}"
         )
 
 
 # =============================================================================
 # Test: Sex Selection
 # =============================================================================
+
 
 def test_from_regulatory_sex_selection():
     """
@@ -202,6 +210,7 @@ def test_from_regulatory_sex_selection():
 # Test: Integration with Commutation Functions
 # =============================================================================
 
+
 def test_from_regulatory_feeds_commutation(cnsf_table):
     """
     THEORY: A LifeTable from a regulatory table should be usable as input
@@ -226,6 +235,7 @@ def test_from_regulatory_feeds_commutation(cnsf_table):
 # =============================================================================
 # Test: Invalid File
 # =============================================================================
+
 
 def test_from_regulatory_invalid_file():
     """

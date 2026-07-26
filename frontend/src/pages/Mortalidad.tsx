@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import MetricBlock from '../components/data/MetricBlock';
@@ -47,20 +47,27 @@ export default function Mortalidad() {
   const validationCnsf2013 = useGet<ValidationResponse>('/mortality/validation');
   const validationEmssa = useGet<ValidationResponse>('/mortality/validation');
 
-  const fetchAll = useCallback(() => {
-    lc.execute({ sex });
-    proj.execute({ horizon: 30, projection_year: 2040, sex });
-    validation.execute({ projection_year: 2040, table_type: 'cnsf', sex });
-    validationCnsf2013.execute({ projection_year: 2040, table_type: 'cnsf_2013', sex });
-    graduation.execute({ sex });
-    surface.execute({ sex });
-    diagnostics.execute({ sex });
-    validationEmssa.execute({ projection_year: 2040, table_type: 'emssa', sex });
-  }, [sex]);
+  // useApi returns a stable `execute` (memoized on the endpoint), so we depend
+  // on the destructured refs directly -- the effect re-runs only when `sex` changes.
+  const { execute: runLc } = lc;
+  const { execute: runProj } = proj;
+  const { execute: runValidation } = validation;
+  const { execute: runValidationCnsf2013 } = validationCnsf2013;
+  const { execute: runGraduation } = graduation;
+  const { execute: runSurface } = surface;
+  const { execute: runDiagnostics } = diagnostics;
+  const { execute: runValidationEmssa } = validationEmssa;
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    runLc({ sex });
+    runProj({ horizon: 30, projection_year: 2040, sex });
+    runValidation({ projection_year: 2040, table_type: 'cnsf', sex });
+    runValidationCnsf2013({ projection_year: 2040, table_type: 'cnsf_2013', sex });
+    runGraduation({ sex });
+    runSurface({ sex });
+    runDiagnostics({ sex });
+    runValidationEmssa({ projection_year: 2040, table_type: 'emssa', sex });
+  }, [sex, runLc, runProj, runValidation, runValidationCnsf2013, runGraduation, runSurface, runDiagnostics, runValidationEmssa]);
 
   const activeValidation = validationTab === 'cnsf'
     ? validation

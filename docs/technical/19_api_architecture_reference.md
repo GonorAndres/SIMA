@@ -73,7 +73,7 @@ This prevents silent None-propagation -- a request that arrives before startup c
 
 ---
 
-## 3. Complete Endpoint Table (22 endpoints)
+## 3. Complete Endpoint Table (24 endpoints)
 
 | Router | Method | Path | Description | Params |
 |:-------|:-------|:-----|:------------|:-------|
@@ -90,12 +90,14 @@ This prevents silent None-propagation -- a request that arrives before startup c
 | pricing | POST | `/api/pricing/reserve` | Reserve trajectory | body: product, age, SA, i, term |
 | pricing | GET | `/api/pricing/commutation` | D, N, C, M, A_x, a_due at one age | `age`, `interest_rate` |
 | pricing | POST | `/api/pricing/sensitivity` | Premium at multiple interest rates | body: product, age, SA, rates |
+| pricing | POST | `/api/pricing/cross-country` | Compare premiums across country mortality bases | body: product, age, SA, rate, term |
 | portfolio | GET | `/api/portfolio/summary` | Portfolio policies and counts | -- |
 | portfolio | POST | `/api/portfolio/bel` | Best Estimate Liability computation | body: interest_rate |
 | portfolio | POST | `/api/portfolio/policy` | Add policy to portfolio | body: PolicyCreate |
 | portfolio | POST | `/api/portfolio/reset` | Reset to 12-policy sample | -- |
 | scr | POST | `/api/scr/compute` | Full SCR with configurable shocks | body: SCRRequest (8 params) |
 | scr | POST | `/api/scr/defaults` | SCR with Solvency II defaults | -- |
+| scr | GET | `/api/scr/compliance` | LISF/CUSF implementation and limitation statement | -- |
 | sensitivity | POST | `/api/sensitivity/mortality-shock` | Dynamic mortality shock sweep | body: age, SA, product, factors |
 | sensitivity | GET | `/api/sensitivity/cross-country` | Hardcoded Mexico/USA/Spain comparison | -- |
 | sensitivity | GET | `/api/sensitivity/covid-comparison` | Hardcoded pre-COVID vs full period | -- |

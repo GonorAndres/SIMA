@@ -6,20 +6,20 @@ Validates that RWD projection of k_t produces reasonable mortality
 forecasts and the bridge to LifeTable works correctly.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.engine.a06_mortality_data import MortalityData
-from backend.engine.a08_lee_carter import LeeCarter
-from backend.engine.a09_projection import MortalityProjection
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a02_commutation import CommutationFunctions
 from backend.engine.a04_premiums import PremiumCalculator
-
+from backend.engine.a06_mortality_data import MortalityData
+from backend.engine.a08_lee_carter import LeeCarter
+from backend.engine.a09_projection import MortalityProjection
 
 # =============================================================================
 # Test Fixtures
@@ -52,10 +52,12 @@ def projection(usa_lc):
 # Test: Drift and Sigma Estimation
 # =============================================================================
 
+
 def test_drift_computation_for_linear_kt():
     """
     THEORY: For perfectly linear k_t, drift = slope and sigma = 0.
     """
+
     # Create a mock LeeCarter with perfectly linear k_t
     class MockLC:
         pass
@@ -90,6 +92,7 @@ def test_sigma_is_positive(projection):
 # Test: Central Projection
 # =============================================================================
 
+
 def test_central_projection_extends_trend(projection):
     """
     THEORY: Central k_t should continue the downward trend.
@@ -114,6 +117,7 @@ def test_projected_years_correct(projection, usa_lc):
 # =============================================================================
 # Test: Stochastic Simulation
 # =============================================================================
+
 
 def test_simulated_mean_near_central(projection):
     """
@@ -148,6 +152,7 @@ def test_reproducibility_with_same_seed(usa_lc):
 # =============================================================================
 # Test: Bridge to LifeTable
 # =============================================================================
+
 
 def test_to_life_table_returns_valid(projection):
     """
@@ -194,6 +199,7 @@ def test_to_life_table_with_ci_returns_three(projection):
 # Test: End-to-End Integration
 # =============================================================================
 
+
 def test_projected_life_table_feeds_into_commutations(projection):
     """
     INTEGRATION: Projected LifeTable should work with CommutationFunctions.
@@ -233,6 +239,7 @@ def test_projected_life_table_feeds_into_premiums(projection):
 # =============================================================================
 # Test: Validate and Summary
 # =============================================================================
+
 
 def test_validate_all_pass(projection):
     """All validations should pass for a well-formed projection."""

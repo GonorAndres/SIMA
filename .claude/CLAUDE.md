@@ -96,6 +96,24 @@ HMD data are licensed under **Creative Commons Attribution 4.0 International Lic
 
 **Data stored locally at:** `backend/data/hmd/{COUNTRY_CODE}/`
 
+### ⚠️ HMD Data is SYNTHETIC MOCK — Replace with Real Data
+
+**Every session, be aware:** the HMD files currently under `backend/data/hmd/usa/` and
+`backend/data/hmd/spain/` are **synthetic mock data**, NOT genuine HMD figures. Both known
+sources produce mock data:
+
+- `backend/scripts/generate_mock_hmd.py` (Gompertz-Makeham synthetic generator)
+- `gs://sima-mortality-data/hmd/` (also synthetic — file line 2 says "synthetic mock data
+  for CI testing"; years start 1990, whereas real HMD starts 1933 USA / 1908 Spain)
+
+These pass all 216 tests because the code validates file *format*, not authenticity. They
+are fine for dev/CI, but **NOT valid for any published actuarial result**.
+
+**TODO — replace with real HMD data:** download the USA & Spain `Mx/Deaths/Exposures 1x1`
+files from https://www.mortality.org (free registered account required; data is not
+redistributable, so it cannot live in the repo or the GCS bucket). Drop them into
+`backend/data/hmd/{usa,spain}/` overwriting the mock files, then re-run `pytest backend/tests`.
+
 ---
 
 ## Development Standards
@@ -222,7 +240,7 @@ docs/
 | Phase 4b | Mortalidad page enrichment (graduation, 3D surface, SVD, EMSSA) | `frontend/src/pages/Mortalidad.tsx` |
 | Phase 4b | Sensibilidad page enrichment (dynamic shock, API cross-country, COVID tab) | `frontend/src/pages/Sensibilidad.tsx` |
 | Phase 4b | Inicio COVID teaser + Metodologia resources section | `frontend/src/pages/Inicio.tsx`, `Metodologia.tsx` |
-| All | Tests (238 passing: 205 unit + 33 API) | `backend/tests/` |
+| All | Tests (242 passing: 196 unit + 46 API) | `backend/tests/` |
 | Phase 5 | Sex-differentiated mortality pipelines (male/female/unisex) | `backend/api/services/precomputed.py` |
 | Phase 5 | LISF/CUSF compliance API endpoint | `backend/api/routers/scr.py` (`GET /compliance`) |
 | Phase 5 | InsightCard narrative component (4 variants) | `frontend/src/components/data/InsightCard.tsx` |
@@ -329,7 +347,7 @@ backend/
 │   ├── conapo/                 # Real CONAPO data (gitignored, see DOWNLOAD_GUIDE.md)
 │   └── cnsf/                   # Real CNSF/EMSSA tables (gitignored, see DOWNLOAD_GUIDE.md)
 └── tests/
-    └── test_*.py               # 169 tests
+    └── test_*.py               # 242 tests
 ```
 
 ---
@@ -365,3 +383,53 @@ gcloud compute ssh andtega349@claude-dev-spot --zone=us-central1-c -- -L 5173:lo
 Then open `http://localhost:5173` in your browser.
 
 Note: Raw `ssh` won't work -- GCP uses metadata-based SSH keys managed by `gcloud`.
+
+---
+
+## Known Issues & Future Roadmap (Audit: 2026-04-12)
+
+Full audit report: `subagents_outputs/repo_audit_2026-04-12.md`
+
+### Things to Fix
+
+#### High Priority
+| ID | Issue | File | Fix |
+|----|-------|------|-----|
+| H1 | CNSF 2013 tab returns silent 500 in CI — no mock `cnsf_2013.csv` exists | `backend/api/services/precomputed.py:197` | Add mock CNSF 2013 file mirroring CNSF 2000-I structure |
+| ~~H2~~ ✅ FIXED (2026-07-13) | SCR engine hardcoded to `sex="male"` — female portfolio produced wrong BEL/SCR | `backend/api/services/scr_service.py` | Added `sex` (`Literal["male","female"]`) to `SCRRequest`/`PortfolioBELRequest`, threaded through `run_scr()` and `compute_portfolio_bel()`. Regression test: `test_scr_api.py::test_scr_sex_differentiates_bel` |
+| H3 | Portfolio state is a module-level global — concurrent users corrupt each other's SCR | `backend/api/services/scr_service.py:18-21` | Switch to per-request default portfolio or request-scoped dependency |
+
+#### Medium Priority
+| ID | Issue | File | Fix |
+|----|-------|------|-----|
+| M1 | All `except Exception` handlers swallow errors with no logging | all `backend/api/routers/*.py` | Add `logger.error(exc, exc_info=True)` before re-raising |
+| M2 | Cross-country and COVID sensitivity data is hardcoded static values, diverges from live model | `backend/api/services/sensitivity_service.py:98-165` | Replace with live calls to `get_hmd_lee_carter()` and `get_projection()` |
+| ~~M3~~ ✅ FIXED (2026-07-13) | Metodologia page had hardcoded actuarial numbers (77.7% var, −1.076 drift, $568,700 SCR) that drift if model changes | `frontend/src/pages/Metodologia.tsx` | Now fetches live from `/sensitivity/cross-country` (per-country var/drift), `/sensitivity/covid-comparison` (COVID drift + premium impact), and `/scr/defaults` (total SCR, technical provisions, diversification, IR dominance). NOTE: cross-country/COVID endpoints are still static server-side (see M2) |
+| M4 | `validate_zero_reserve` crashes on `pure_endowment` product type | `backend/engine/a05_reserves.py:297-307` | Add `pure_endowment` branch |
+| M5 | `CORS_ORIGINS` env var never set in Cloud Run deploy — blocks external API callers | `.github/workflows/deploy.yml:68-75` | Add `--set-env-vars CORS_ORIGINS=*` to `gcloud run deploy` |
+| M6 | Age slider capped at 70 but API supports ages up to 100 | `frontend/src/components/forms/PremiumForm.tsx` | Raise slider max to 90 |
+| M7 | `projection_year` default hardcoded to 2040 — breaks if data refresh changes last observed year | `backend/api/routers/mortality.py:39` | Derive default from `proj.projected_years[-1]` at runtime |
+
+#### Low Priority
+| ID | Issue | File |
+|----|-------|------|
+| L1 | `build_shocked_life_table` rebuilds from scratch on every call — bottleneck at scale | `backend/engine/a12_scr.py:82-114` |
+| L2 | `drift_is_negative` validation flag misleads for longevity stress scenarios | `backend/engine/a09_projection.py:377` |
+| L3 | Three identical `useGet` hooks for same `/mortality/validation` endpoint | `frontend/src/pages/Mortalidad.tsx:43-48` |
+| L4 | Hardcoded Mexico k_t profile inconsistent between cross-country and COVID functions | `backend/api/services/sensitivity_service.py:106` |
+| L5 | `pure_endowment` missing from PremiumForm product dropdown | `frontend/src/components/forms/PremiumForm.tsx:47-53` |
+| L6 | Deploy `sleep 30` can race a slow Cloud Run cold start | `.github/workflows/deploy.yml:79` |
+| L7 | Dockerfile `CMD` in shell form — SIGTERM not forwarded to uvicorn | `Dockerfile:38` |
+
+### Future Features
+
+| ID | Feature | Phase | Complexity |
+|----|---------|-------|------------|
+| F1 | Live metric injection in Metodologia page (fetch from API, no more hardcoded numbers) | Phase 5 | Medium |
+| F2 | Sex-differentiated SCR — add `sex` field to `SCRRequest` | Phase 5 | Low |
+| F3 | Replace hardcoded cross-country/COVID sensitivity with live engine calls | Phase 5 | Low |
+| F4 | Term-structure interest rate shock per CUSF Annex 5.1.1 (not flat parallel shift) | Phase 6 | High |
+| F5 | Lapse risk sub-module (persistency assumptions, surrender values) | Phase 6 | High |
+| F6 | Stochastic projection fan chart — wire `to_life_table_with_ci()` into Mortalidad page | Phase 5 | Medium |
+| F7 | Per-policy mortality loading (underwriting adjustment, anti-selection demo) | Phase 6 | Medium |
+| F8 | Pure endowment UI option + reserve trajectory formula in Tarificacion | Phase 5 | Low |

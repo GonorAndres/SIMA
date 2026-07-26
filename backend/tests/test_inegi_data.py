@@ -13,18 +13,18 @@ The mock data covers ages 0-100 and years 2000-2010 with three sex
 categories: Hombres, Mujeres, Total.
 """
 
-import pytest
-import numpy as np
-import tempfile
 import os
-from pathlib import Path
 import sys
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
-
 
 # =============================================================================
 # Test Fixtures
@@ -66,6 +66,7 @@ def inegi_hombres():
 # Test 1: Basic Loading
 # =============================================================================
 
+
 def test_from_inegi_loads_mock_data(inegi_data):
     """
     THEORY: The from_inegi() factory method must produce a valid MortalityData
@@ -80,6 +81,7 @@ def test_from_inegi_loads_mock_data(inegi_data):
 # =============================================================================
 # Test 2: m_x = deaths / population
 # =============================================================================
+
 
 def test_from_inegi_computes_mx_correctly(inegi_data):
     """
@@ -97,7 +99,7 @@ def test_from_inegi_computes_mx_correctly(inegi_data):
     np.testing.assert_allclose(mx_00, expected, rtol=1e-6)
 
     # Also verify via matrix indexing
-    age_idx = 0   # age 0 is first row
+    age_idx = 0  # age 0 is first row
     year_idx = 0  # year 2000 is first column
     np.testing.assert_allclose(inegi_data.mx[age_idx, year_idx], expected, rtol=1e-6)
 
@@ -105,6 +107,7 @@ def test_from_inegi_computes_mx_correctly(inegi_data):
 # =============================================================================
 # Test 3: Matrix Shape
 # =============================================================================
+
 
 def test_from_inegi_matrix_shape(inegi_data):
     """
@@ -123,6 +126,7 @@ def test_from_inegi_matrix_shape(inegi_data):
 # =============================================================================
 # Test 4: Age Capping
 # =============================================================================
+
 
 def test_from_inegi_age_capping():
     """
@@ -152,6 +156,7 @@ def test_from_inegi_age_capping():
 # Test 5: Year Filtering
 # =============================================================================
 
+
 def test_from_inegi_year_filtering():
     """
     THEORY: Lee-Carter estimation quality depends on the observation window.
@@ -175,6 +180,7 @@ def test_from_inegi_year_filtering():
 # Test 6: Sex Filtering
 # =============================================================================
 
+
 def test_from_inegi_sex_filtering(inegi_data, inegi_hombres):
     """
     THEORY: Mortality patterns differ significantly by sex. In Mexico,
@@ -196,6 +202,7 @@ def test_from_inegi_sex_filtering(inegi_data, inegi_hombres):
 # Test 7: Positive Rates
 # =============================================================================
 
+
 def test_from_inegi_positive_rates(inegi_data):
     """
     THEORY: Lee-Carter estimation takes log(m_{x,t}), so ALL death rates
@@ -212,6 +219,7 @@ def test_from_inegi_positive_rates(inegi_data):
 # =============================================================================
 # Test 8: Validation of Bad Data
 # =============================================================================
+
 
 def test_from_inegi_validates_bad_data():
     """
@@ -240,7 +248,9 @@ def test_from_inegi_validates_bad_data():
                     pop = 0 if (age == 2 and year == 2001) else 10000
                     f.write(f"{year},{age},Total,{pop}\n")
 
-        with pytest.raises(ValueError):
+        from backend.engine.exceptions import DataQualityError
+
+        with pytest.raises(DataQualityError, match="population"):
             MortalityData.from_inegi(
                 deaths_filepath=deaths_path,
                 population_filepath=pop_path,
@@ -254,6 +264,7 @@ def test_from_inegi_validates_bad_data():
 # =============================================================================
 # Test 9: Duck Typing Interface
 # =============================================================================
+
 
 def test_from_inegi_duck_typing_interface(inegi_data):
     """
@@ -288,6 +299,7 @@ def test_from_inegi_duck_typing_interface(inegi_data):
 # =============================================================================
 # Test 10: Integration with Graduation
 # =============================================================================
+
 
 def test_from_inegi_feeds_into_graduation():
     """

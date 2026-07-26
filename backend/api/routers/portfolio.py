@@ -1,7 +1,8 @@
 """Portfolio management and BEL computation endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from backend.api.exception_handlers import safe_route
 from backend.api.schemas.portfolio import (
     PolicyCreate,
     PolicyResponse,
@@ -21,18 +22,21 @@ def get_portfolio_summary():
 
     policies = []
     for p in portfolio.policies:
-        policies.append(PolicyResponse(
-            policy_id=p.policy_id,
-            product_type=p.product_type,
-            issue_age=p.issue_age,
-            attained_age=p.attained_age,
-            sum_assured=p.SA,
-            annual_pension=p.annual_pension,
-            term=p.n,
-            duration=p.duration,
-            is_death_product=p.is_death_product,
-            is_annuity=p.is_annuity,
-        ))
+        policies.append(
+            PolicyResponse(
+                policy_id=p.policy_id,
+                product_type=p.product_type,
+                issue_age=p.issue_age,
+                attained_age=p.attained_age,
+                sum_assured=p.SA,
+                annual_pension=p.annual_pension,
+                annual_premium=p.annual_premium,
+                term=p.n,
+                duration=p.duration,
+                is_death_product=p.is_death_product,
+                is_annuity=p.is_annuity,
+            )
+        )
 
     return PortfolioSummaryResponse(
         n_policies=len(portfolio),
@@ -45,39 +49,31 @@ def get_portfolio_summary():
 
 
 @router.post("/bel", response_model=PortfolioBELResponse)
-def compute_bel(request: PortfolioBELRequest):
+@safe_route
+def compute_bel(request: PortfolioBELRequest) -> PortfolioBELResponse:
     """Compute Best Estimate Liability (BEL) for the portfolio."""
-    try:
-        result = scr_service.compute_portfolio_bel(request.interest_rate)
-        return result
-    except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return scr_service.compute_portfolio_bel(request.interest_rate, sex=request.sex)
 
 
 @router.post("/policy")
+@safe_route
 def add_policy(policy: PolicyCreate):
-    """Add a policy to the portfolio."""
-    try:
-        p = scr_service.add_policy(
-            policy_id=policy.policy_id,
-            product_type=policy.product_type,
-            issue_age=policy.issue_age,
-            sum_assured=policy.sum_assured,
-            annual_pension=policy.annual_pension,
-            term=policy.term,
-            duration=policy.duration,
-        )
-        return {
-            "message": f"Policy {p.policy_id} added",
-            "policy_id": p.policy_id,
-            "product_type": p.product_type,
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    """Add a policy to the portfolio (thread-safe)."""
+    p = scr_service.add_policy(
+        policy_id=policy.policy_id,
+        product_type=policy.product_type,
+        issue_age=policy.issue_age,
+        sum_assured=policy.sum_assured,
+        annual_pension=policy.annual_pension,
+        annual_premium=policy.annual_premium,
+        term=policy.term,
+        duration=policy.duration,
+    )
+    return {
+        "message": f"Policy {p.policy_id} added",
+        "policy_id": p.policy_id,
+        "product_type": p.product_type,
+    }
 
 
 @router.post("/reset")

@@ -4,7 +4,6 @@ Mortality service: bridges API requests to engine modules a06-a10.
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 _project_dir = str(Path(__file__).parent.parent.parent.parent)
 if _project_dir not in sys.path:
@@ -12,15 +11,14 @@ if _project_dir not in sys.path:
 
 import numpy as np
 
-from backend.engine.a10_validation import MortalityComparison
 from backend.api.services.precomputed import (
-    get_mortality_data,
     get_graduated,
     get_lee_carter,
+    get_mortality_data,
     get_projection,
     get_regulatory_lt,
-    get_projected_life_table,
 )
+from backend.engine.a10_validation import MortalityComparison
 
 
 def get_data_summary(sex: str = "unisex") -> dict:
@@ -123,7 +121,7 @@ def get_graduation_data(sex: str = "unisex") -> dict:
 
     # Residuals in log-space
     residuals = []
-    for r, g in zip(raw_mx_avg, grad_mx_avg):
+    for r, g in zip(raw_mx_avg, grad_mx_avg, strict=False):
         if r > 0 and g > 0:
             residuals.append(float(np.log(r) - np.log(g)))
         else:
@@ -177,11 +175,13 @@ def get_diagnostics_data(sex: str = "unisex") -> dict:
     residuals_sample = []
     for i in range(0, len(lc.ages), 10):
         for j in range(0, len(lc.years), 5):
-            residuals_sample.append({
-                "age": float(lc.ages[i]),
-                "year": float(lc.years[j]),
-                "residual": float(residuals_matrix[i, j]),
-            })
+            residuals_sample.append(
+                {
+                    "age": float(lc.ages[i]),
+                    "year": float(lc.years[j]),
+                    "residual": float(residuals_matrix[i, j]),
+                }
+            )
 
     return {
         "rmse": float(gof["rmse"]),
@@ -203,9 +203,7 @@ def get_validation(
     first_year = int(proj.projected_years[0])
 
     if not (first_year <= projection_year <= last_year):
-        raise ValueError(
-            f"projection_year must be between {first_year} and {last_year}"
-        )
+        raise ValueError(f"projection_year must be between {first_year} and {last_year}")
 
     projected_lt = proj.to_life_table(year=projection_year, radix=100_000)
     # Regulatory tables have no unisex -- use male for comparison when sex=unisex
@@ -213,8 +211,7 @@ def get_validation(
     regulatory_lt = get_regulatory_lt(table_type, sex=reg_sex)
 
     comp = MortalityComparison(
-        projected_lt, regulatory_lt,
-        name=f"Projected-{projection_year} vs {table_type.upper()}"
+        projected_lt, regulatory_lt, name=f"Projected-{projection_year} vs {table_type.upper()}"
     )
     summary = comp.summary()
     ratios = comp.qx_ratio()

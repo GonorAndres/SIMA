@@ -9,11 +9,12 @@ used when validating projected tables against regulatory benchmarks
 (e.g., Lee-Carter projections vs EMSSA-2009).
 """
 
-import pytest
 import math
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -21,10 +22,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a10_validation import MortalityComparison
 
-
 # =============================================================================
 # Helper: Build LifeTable from q_x pattern
 # =============================================================================
+
 
 def build_life_table(ages, qx_func, radix=100_000):
     """
@@ -50,6 +51,7 @@ def build_life_table(ages, qx_func, radix=100_000):
 # Test Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def ages():
     """Standard age range for tests."""
@@ -63,8 +65,10 @@ def base_qx():
 
     This produces a realistic increasing mortality pattern.
     """
+
     def qx_func(x):
         return min(0.0005 * math.exp(0.07 * x), 0.99)
+
     return qx_func
 
 
@@ -83,14 +87,17 @@ def identical_table(ages, base_qx):
 @pytest.fixture
 def double_mortality_table(ages, base_qx):
     """A LifeTable with 2x the base mortality rates."""
+
     def double_qx(x):
         return min(2.0 * base_qx(x), 0.99)
+
     return build_life_table(ages, double_qx)
 
 
 # =============================================================================
 # Test: Identical Tables
 # =============================================================================
+
 
 def test_identical_tables_ratio_one(base_table, identical_table):
     """
@@ -121,6 +128,7 @@ def test_identical_tables_rmse_zero(base_table, identical_table):
 # Test: Known Differences
 # =============================================================================
 
+
 def test_known_difference_ratio(base_table, double_mortality_table, base_qx):
     """
     THEORY: If projected has 2x the mortality, ratio should be ~2.0.
@@ -139,8 +147,9 @@ def test_known_difference_ratio(base_table, double_mortality_table, base_qx):
     for i, age in enumerate(comp.overlap_ages[:-1]):  # Exclude terminal
         base_q = base_qx(age)
         if 2.0 * base_q < 0.99:
-            assert ratios[i] == pytest.approx(2.0, rel=1e-6), \
+            assert ratios[i] == pytest.approx(2.0, rel=1e-6), (
                 f"Ratio at age {age} should be 2.0, got {ratios[i]}"
+            )
             uncapped_count += 1
 
     assert uncapped_count > 50, "Should have many uncapped ages to verify"
@@ -174,6 +183,7 @@ def test_known_difference_rmse(ages):
 # Test: Difference Sign
 # =============================================================================
 
+
 def test_qx_difference_sign(base_table, double_mortality_table):
     """
     THEORY: Difference should be positive when projected > regulatory.
@@ -195,6 +205,7 @@ def test_qx_difference_sign(base_table, double_mortality_table):
 # Test: Age Range Filtering
 # =============================================================================
 
+
 def test_age_range_filtering(ages):
     """
     THEORY: RMSE computed only over specified ages [age_start, age_end].
@@ -206,6 +217,7 @@ def test_age_range_filtering(ages):
     We verify by using two tables that differ only outside [20, 80].
     Inside [20, 80] they are identical, so RMSE over that range should be 0.
     """
+
     def qx_base(x):
         return 0.001 * math.exp(0.05 * x)
 
@@ -214,11 +226,6 @@ def test_age_range_filtering(ages):
         if x < 20 or x > 80:
             return min(0.002 * math.exp(0.05 * x), 0.99)
         return qx_base(x)
-
-    table_a = build_life_table(ages, qx_base)
-    table_b = build_life_table(ages, qx_modified)
-
-    comp = MortalityComparison(table_a, table_b, name="filtered")
 
     # Over [20, 80] the q_x functions are identical, but l_x differs
     # because l_x depends on cumulative survival from age 0.
@@ -252,6 +259,7 @@ def test_age_range_filtering(ages):
 # Test: Summary Output
 # =============================================================================
 
+
 def test_summary_keys(base_table, identical_table):
     """
     THEORY: summary() returns expected dict keys for regulatory reporting.
@@ -267,12 +275,13 @@ def test_summary_keys(base_table, identical_table):
     comp = MortalityComparison(base_table, identical_table, name="test")
     s = comp.summary()
 
-    expected_keys = {"name", "rmse", "max_ratio", "min_ratio", "mean_ratio", "n_ages"}
+    expected_keys = {"name", "rmse", "bias", "max_ratio", "min_ratio", "mean_ratio", "n_ages"}
     assert set(s.keys()) == expected_keys
 
     assert s["name"] == "test"
     assert s["n_ages"] > 0
     assert isinstance(s["rmse"], float)
+    assert isinstance(s["bias"], float)
     assert isinstance(s["max_ratio"], float)
     assert isinstance(s["min_ratio"], float)
     assert isinstance(s["mean_ratio"], float)
@@ -281,6 +290,7 @@ def test_summary_keys(base_table, identical_table):
 # =============================================================================
 # Test: Error Cases
 # =============================================================================
+
 
 def test_mismatched_ages_error():
     """

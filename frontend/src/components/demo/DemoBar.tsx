@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useDemoContext } from '../../context/DemoContext';
+import { useDemoContext } from '../../context/useDemo';
 import styles from './DemoBar.module.css';
 
 export default function DemoBar() {

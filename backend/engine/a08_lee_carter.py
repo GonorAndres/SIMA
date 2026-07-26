@@ -40,11 +40,19 @@ HMD. Human Mortality Database. Max Planck Institute for Demographic Research
 Demographic Studies (France). Available at www.mortality.org.
 """
 
-from typing import Dict, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy.optimize import brentq
 
 from .a06_mortality_data import MortalityData
+
+if TYPE_CHECKING:
+    # Avoid a runtime import cycle: graduation -> mortality_data, and
+    # Lee-Carter references GraduatedRates only in type annotations.
+    from .a07_graduation import GraduatedRates
 
 
 class LeeCarter:
@@ -76,6 +84,7 @@ class LeeCarter:
         kt: np.ndarray,
         log_mx: np.ndarray,
         explained_variance: float,
+        reestimation_fallback_indices: list[int] | None = None,
     ):
         self.ages = ages.copy()
         self.years = years.copy()
@@ -84,6 +93,7 @@ class LeeCarter:
         self.kt = kt.copy()
         self.log_mx = log_mx.copy()
         self.explained_variance = explained_variance
+        self.reestimation_fallback_indices = list(reestimation_fallback_indices or [])
 
     @property
     def n_ages(self) -> int:
@@ -96,9 +106,9 @@ class LeeCarter:
     @classmethod
     def fit(
         cls,
-        data: Union[MortalityData, "GraduatedRates"],
+        data: MortalityData | GraduatedRates,
         reestimate_kt: bool = True,
-    ) -> "LeeCarter":
+    ) -> LeeCarter:
         """
         Fit Lee-Carter model to mortality data.
 
@@ -130,8 +140,9 @@ class LeeCarter:
         ax = ax + bx * kt_offset
 
         # Step 6: Re-estimate k_t to match observed deaths
+        fallback_indices: list[int] = []
         if reestimate_kt:
-            kt, kt_reest_offset = cls._reestimate_kt(ax, bx, data.dx, data.ex)
+            kt, kt_reest_offset, fallback_indices = cls._reestimate_kt(ax, bx, data.dx, data.ex)
             # Absorb centering offset into a_x for model self-consistency
             ax = ax + bx * kt_reest_offset
 
@@ -143,6 +154,7 @@ class LeeCarter:
             kt=kt,
             log_mx=log_mx,
             explained_variance=explained_var,
+            reestimation_fallback_indices=fallback_indices,
         )
 
     @staticmethod
@@ -180,7 +192,7 @@ class LeeCarter:
         U, S, Vt = np.linalg.svd(residual, full_matrices=False)
 
         # Explained variance: S[0]^2 / sum(S^2)
-        explained_var = S[0] ** 2 / np.sum(S ** 2)
+        explained_var = S[0] ** 2 / np.sum(S**2)
 
         # Raw components
         bx_raw = U[:, 0]
@@ -231,7 +243,7 @@ class LeeCarter:
         bx: np.ndarray,
         dx: np.ndarray,
         ex: np.ndarray,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, float, list[int]]:
         """
         Re-estimate k_t to match observed total deaths per year.
 
@@ -250,16 +262,15 @@ class LeeCarter:
         """
         n_years = dx.shape[1]
         kt_new = np.zeros(n_years)
+        fallback_indices: list[int] = []
 
         for t in range(n_years):
-            observed_deaths = np.sum(dx[:, t])
-            exposures_t = ex[:, t]
 
-            def death_residual(k):
+            def death_residual(k, _ex=ex[:, t], _d=np.sum(dx[:, t])):
                 """Difference between model-implied and observed deaths."""
                 model_rates = np.exp(ax + bx * k)
-                model_deaths = np.sum(exposures_t * model_rates)
-                return model_deaths - observed_deaths
+                model_deaths = np.sum(_ex * model_rates)
+                return model_deaths - _d
 
             try:
                 kt_new[t] = brentq(death_residual, -500, 500)
@@ -274,9 +285,7 @@ class LeeCarter:
 
                 for i in range(len(f_vals) - 1):
                     if f_vals[i] * f_vals[i + 1] < 0:
-                        kt_new[t] = brentq(
-                            death_residual, k_candidates[i], k_candidates[i + 1]
-                        )
+                        kt_new[t] = brentq(death_residual, k_candidates[i], k_candidates[i + 1])
                         found = True
                         break
 
@@ -286,38 +295,33 @@ class LeeCarter:
                     # |residual| as best approximation.
                     best_idx = np.argmin(np.abs(f_vals))
                     kt_new[t] = k_candidates[best_idx]
+                    fallback_indices.append(t)
 
         # Re-center to sum=0, return offset for a_x adjustment
         kt_offset = np.mean(kt_new)
         kt_new = kt_new - kt_offset
 
-        return kt_new, kt_offset
+        return kt_new, float(kt_offset), fallback_indices
 
     def get_ax(self, age: int) -> float:
         """Get a_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})")
         return float(self.ax[idx])
 
     def get_bx(self, age: int) -> float:
         """Get b_x for a specific age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in model (range: {self.ages[0]}-{self.ages[-1]})")
         return float(self.bx[idx])
 
     def get_kt(self, year: int) -> float:
         """Get k_t for a specific year."""
         idx = np.searchsorted(self.years, year)
         if idx >= len(self.years) or self.years[idx] != year:
-            raise ValueError(
-                f"Year {year} not in model (range: {self.years[0]}-{self.years[-1]})"
-            )
+            raise ValueError(f"Year {year} not in model (range: {self.years[0]}-{self.years[-1]})")
         return float(self.kt[idx])
 
     def fitted_rate(self, age: int, year: int) -> float:
@@ -343,7 +347,7 @@ class LeeCarter:
         """
         return np.exp(self.ax[:, np.newaxis] + np.outer(self.bx, self.kt))
 
-    def goodness_of_fit(self) -> Dict:
+    def goodness_of_fit(self) -> dict:
         """
         Compute goodness-of-fit metrics.
 
@@ -357,12 +361,12 @@ class LeeCarter:
 
         return {
             "explained_variance": self.explained_variance,
-            "rmse": float(np.sqrt(np.mean(errors ** 2))),
+            "rmse": float(np.sqrt(np.mean(errors**2))),
             "max_abs_error": float(np.max(np.abs(errors))),
             "mean_abs_error": float(np.mean(np.abs(errors))),
         }
 
-    def validate(self) -> Dict[str, bool]:
+    def validate(self, explained_variance_threshold: float = 0.5) -> dict[str, bool]:
         """
         Validate Lee-Carter parameter constraints.
 
@@ -370,7 +374,12 @@ class LeeCarter:
             bx_sums_to_one: sum(b_x) ≈ 1
             kt_sums_to_zero: sum(k_t) ≈ 0
             no_nan: no NaN in any parameter
-            explained_var_reasonable: explained variance > 50%
+            explained_var_reasonable: explained variance > threshold
+
+        Args:
+            explained_variance_threshold: minimum fraction of variance in
+                log(mx) that the first component must explain. The default 0.5
+                (50%) is a common rule-of-thumb for a one-component model.
         """
         return {
             "bx_sums_to_one": bool(abs(np.sum(self.bx) - 1.0) < 1e-6),
@@ -380,10 +389,12 @@ class LeeCarter:
                 and not np.any(np.isnan(self.bx))
                 and not np.any(np.isnan(self.kt))
             ),
-            "explained_var_reasonable": bool(self.explained_variance > 0.5),
+            "explained_var_reasonable": bool(
+                self.explained_variance > explained_variance_threshold
+            ),
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Summary statistics for the fitted model."""
         gof = self.goodness_of_fit()
         return {
@@ -395,6 +406,7 @@ class LeeCarter:
             "rmse": gof["rmse"],
             "kt_trend": "decreasing" if self.kt[-1] < self.kt[0] else "increasing",
             "kt_range": (float(np.min(self.kt)), float(np.max(self.kt))),
+            "reestimation_fallback_indices": self.reestimation_fallback_indices,
             "validations": self.validate(),
         }
 
@@ -411,7 +423,7 @@ class LeeCarter:
         lambda_param: float = 1e5,
         reestimate_kt: bool = True,
         download_date: str = "",
-    ) -> "LeeCarter":
+    ) -> LeeCarter:
         """
         Convenience: load HMD data, optionally graduate, and fit Lee-Carter.
 
@@ -453,6 +465,7 @@ class LeeCarter:
 
         if graduate:
             from .a07_graduation import GraduatedRates
+
             data = GraduatedRates(data, lambda_param=lambda_param)
 
         return cls.fit(data, reestimate_kt=reestimate_kt)

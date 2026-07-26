@@ -34,13 +34,16 @@ def test_add_policy(client):
     client.post("/api/portfolio/reset")
     initial = client.get("/api/portfolio/summary").json()
 
-    response = client.post("/api/portfolio/policy", json={
-        "policy_id": "TEST-01",
-        "product_type": "whole_life",
-        "issue_age": 30,
-        "sum_assured": 500_000,
-        "duration": 0,
-    })
+    response = client.post(
+        "/api/portfolio/policy",
+        json={
+            "policy_id": "TEST-01",
+            "product_type": "whole_life",
+            "issue_age": 30,
+            "sum_assured": 500_000,
+            "duration": 0,
+        },
+    )
     assert response.status_code == 200
 
     updated = client.get("/api/portfolio/summary").json()

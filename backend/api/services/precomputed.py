@@ -31,6 +31,7 @@ from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a07_graduation import GraduatedRates
 from backend.engine.a08_lee_carter import LeeCarter
 from backend.engine.a09_projection import MortalityProjection
+from backend.engine.exceptions import DataNotAvailableError
 
 # Mapping from API sex values to data column names
 SEX_TO_INEGI = {"male": "Hombres", "female": "Mujeres", "unisex": "Total"}
@@ -89,11 +90,14 @@ def _resolve_paths() -> tuple[str, str, str, str | None, str, str]:
     cnsf_2013 = str(REAL_CNSF_2013) if REAL_CNSF_2013.exists() else None
     emssa = str(REAL_EMSSA) if REAL_EMSSA.exists() else str(MOCK_EMSSA)
 
-    logger.info("Data path resolution: source=%s, deaths=%s, population=%s", source, deaths, population)
+    logger.info(
+        "Data path resolution: source=%s, deaths=%s, population=%s", source, deaths, population
+    )
     if source == "mock":
         logger.warning(
             "REAL DATA NOT FOUND. Expected: %s and %s. Falling back to mock.",
-            REAL_DEATHS, REAL_POPULATION,
+            REAL_DEATHS,
+            REAL_POPULATION,
         )
 
     return deaths, population, cnsf, cnsf_2013, emssa, source
@@ -144,7 +148,9 @@ def _resolve_hmd_dir(country: str) -> str:
         return str(real_dir.parent)
     logger.warning(
         "HMD %s: real data not found at %s (exists=%s, files=%s). Falling back to mock.",
-        country, real_dir, real_dir.exists(),
+        country,
+        real_dir,
+        real_dir.exists(),
         list(real_dir.glob("*")) if real_dir.exists() else "dir_missing",
     )
     return str(mock_dir.parent)
@@ -183,9 +189,7 @@ def load_all() -> None:
             hmd_dir = _resolve_hmd_dir(country)
             for sex_key, hmd_sex in SEX_TO_HMD.items():
                 logger.info("Loading %s %s (%s) pipeline...", country, sex_key, hmd_sex)
-                _hmd_pipelines[(country, sex_key)] = _build_hmd_pipeline(
-                    hmd_dir, country, hmd_sex
-                )
+                _hmd_pipelines[(country, sex_key)] = _build_hmd_pipeline(hmd_dir, country, hmd_sex)
 
         # Load regulatory tables (both sexes)
         _cnsf_lt = LifeTable.from_regulatory_table(cnsf, sex="male")
@@ -215,16 +219,28 @@ def load_all() -> None:
 def _check_loaded(obj, name: str):
     """Check that precomputed data loaded successfully."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=name,
+            constraint="data files present and loadable at startup",
+        )
     if obj is None:
-        raise RuntimeError(f"{name} not loaded. Call load_all() first.")
+        raise DataNotAvailableError(
+            f"{name} not loaded. Call load_all() first.",
+            field=name,
+            constraint="load_all() invoked during application lifespan",
+        )
     return obj
 
 
 def _get_pipeline(sex: str = "unisex") -> dict:
     """Get a sex-specific pipeline, defaulting to unisex (Total)."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=sex,
+            constraint="data files present and loadable at startup",
+        )
     if sex not in _pipelines:
         raise ValueError(f"Unknown sex: {sex}. Valid: {list(_pipelines.keys())}")
     return _pipelines[sex]
@@ -277,12 +293,15 @@ def get_projected_life_table(year: int = PROJECTION_YEAR, sex: str = "unisex") -
 def get_hmd_pipeline(country: str, sex: str = "unisex") -> dict:
     """Get a HMD country pipeline by country and sex."""
     if _load_error is not None:
-        raise RuntimeError(f"Data loading failed at startup: {_load_error}")
+        raise DataNotAvailableError(
+            f"Data loading failed at startup: {_load_error}",
+            field=f"{country}/{sex}",
+            constraint="data files present and loadable at startup",
+        )
     key = (country, sex)
     if key not in _hmd_pipelines:
         raise ValueError(
-            f"Unknown country/sex: {country}/{sex}. "
-            f"Valid: {list(_hmd_pipelines.keys())}"
+            f"Unknown country/sex: {country}/{sex}. Valid: {list(_hmd_pipelines.keys())}"
         )
     return _hmd_pipelines[key]
 

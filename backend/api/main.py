@@ -6,30 +6,40 @@ FastAPI application that exposes the actuarial engine (a01-a12) via REST endpoin
 Serves both the API and the React frontend from a single process.
 
 Local dev:
-    cd /home/andtega349/SIMA
+    cd /home/andtega349/sima
     python -m uvicorn backend.api.main:app --reload
 
 Production (Cloud Run):
     uvicorn backend.api.main:app --host 0.0.0.0 --port $PORT
 """
 
+import logging
 import os
+import secrets
 import sys
-from pathlib import Path
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 # Ensure backend is importable
 _project_dir = str(Path(__file__).parent.parent.parent)
 if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
-from backend.api.services.precomputed import load_all, get_data_source
-from backend.api.routers import mortality, pricing, portfolio, scr, sensitivity
+from backend.api.routers import mortality, portfolio, pricing, scr, sensitivity
+from backend.api.services.precomputed import get_data_source, load_all
+from backend.engine.exceptions import (
+    ActuarialValidationError,
+    DataNotAvailableError,
+    DataQualityError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -44,11 +54,26 @@ app = FastAPI(
     description=(
         "REST API for actuarial calculations: mortality modeling (Lee-Carter), "
         "premium pricing (equivalence principle), reserve valuation (prospective method), "
-        "and solvency capital requirements (SCR) under the Solvency II / CNSF framework."
+        "and solvency capital requirements (SCR) under the Solvency II / CNSF framework.\n\n"
+        "**Note on /portfolio endpoints:** the demo portfolio is module-level state "
+        "shared across all requests; concurrent callers will see each other's mutations. "
+        "Per-user / per-session portfolios are planned for a future phase."
     ),
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+# In production, Cloud Run captures stdout. A simple iso8601 format is good
+# enough for now; structured JSON logging can be added later if needed.
+_logging_configured = logging.getLogger().handlers
+if not _logging_configured:
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
 # CORS -- configurable via environment variable, defaults to permissive for same-origin
 _cors_raw = os.environ.get("CORS_ORIGINS", "")
@@ -61,6 +86,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_proxy_secret = os.environ.get("SIMA_PROXY_SECRET", "")
+
+
+@app.middleware("http")
+async def require_pages_proxy(request: Request, call_next):
+    """Reject direct API calls when a Pages proxy secret is configured."""
+    if _proxy_secret and request.url.path.startswith("/api"):
+        supplied_secret = request.headers.get("X-SIMA-Proxy-Secret", "")
+        if not secrets.compare_digest(supplied_secret, _proxy_secret):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "API access is restricted to the SIMA frontend."},
+            )
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers(request, call_next):
     response = await call_next(request)
@@ -68,6 +109,76 @@ async def security_headers(request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """
+    Request-logging / timing middleware.
+
+    Records one structured log line per request with method, path, status,
+    and duration in milliseconds. SCR / BEL computation endpoints additionally
+    have their key inputs logged in the route handlers themselves
+    (see routers/scr.py and routers/portfolio.py) for auditability.
+    """
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000.0
+    # Skip the static SPA catch-all and assets to keep logs focused on API.
+    path = request.url.path
+    if path.startswith("/api") or path == "/api/health":
+        logger.info(
+            "%s %s -> %s (%.1f ms)",
+            request.method,
+            path,
+            response.status_code,
+            duration_ms,
+        )
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Backstop exception handlers
+# ---------------------------------------------------------------------------
+# These guarantee that engine domain errors never leak as an unstructured
+# 500 even if a route handler omits its own try/except. Routes also catch
+# these explicitly for a richer detail payload; the backstops are a safety
+# net for dependencies (e.g. lifespan, shared services) that run before the
+# route body.
+
+
+@app.exception_handler(ActuarialValidationError)
+async def actuarial_validation_exception_handler(
+    request: Request, exc: ActuarialValidationError
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content=exc.to_dict())
+
+
+@app.exception_handler(DataQualityError)
+async def data_quality_exception_handler(request: Request, exc: DataQualityError) -> JSONResponse:
+    return JSONResponse(status_code=422, content=exc.to_dict())
+
+
+@app.exception_handler(DataNotAvailableError)
+async def data_not_available_exception_handler(
+    request: Request, exc: DataNotAvailableError
+) -> JSONResponse:
+    return JSONResponse(status_code=503, content=exc.to_dict())
+
+
+@app.exception_handler(FileNotFoundError)
+async def file_not_found_exception_handler(
+    request: Request, exc: FileNotFoundError
+) -> JSONResponse:
+    logger.warning("FileNotFoundError serving %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": "FileNotFoundError",
+            "message": "Required data file is unavailable.",
+        },
+    )
+
 
 # Register API routers (must come before static file mounts)
 app.include_router(mortality.router, prefix="/api")

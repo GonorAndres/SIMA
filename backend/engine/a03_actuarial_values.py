@@ -30,8 +30,12 @@ D_x in the denominator normalizes "per person alive at age x".
 This is why all these formulas are simple ratios.
 """
 
-from typing import Optional, Dict
+from __future__ import annotations
+
+import warnings
+
 from .a02_commutation import CommutationFunctions
+from .validators import validate_age_in_table, validate_non_negative_integer
 
 
 class ActuarialValues:
@@ -49,6 +53,11 @@ class ActuarialValues:
             commutation: CommutationFunctions instance
         """
         self.comm = commutation
+
+    # ---- internal helpers ---------------------------------------------------
+    def _check_age(self, x: int) -> None:
+        """Validate that ``x`` lies within the life-table range."""
+        validate_age_in_table(x, self.comm.min_age, self.comm.max_age)
 
     # =========================================================================
     # INSURANCE VALUES (Death Benefits)
@@ -69,6 +78,7 @@ class ActuarialValues:
         Returns:
             APV of whole life insurance (per $1 benefit)
         """
+        self._check_age(x)
         return self.comm.get_M(x) / self.comm.get_D(x)
 
     def A_term(self, x: int, n: int) -> float:
@@ -87,6 +97,8 @@ class ActuarialValues:
         Returns:
             APV of term insurance (per $1 benefit)
         """
+        self._check_age(x)
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, equivalent to whole life from x
@@ -117,6 +129,7 @@ class ActuarialValues:
         Returns:
             APV of whole life annuity-due (per $1/year)
         """
+        self._check_age(x)
         return self.comm.get_N(x) / self.comm.get_D(x)
 
     def a_immediate(self, x: int) -> float:
@@ -135,7 +148,22 @@ class ActuarialValues:
         Returns:
             APV of whole life annuity-immediate (per $1/year)
         """
-        return self.a_due(x) - 1.0
+        self._check_age(x)
+        value = self.a_due(x) - 1.0
+        # Near the terminal age a_due -> 1 (one certain payment), so
+        # a_immediate -> 0. Float noise can push it slightly negative; clamp
+        # with a warning rather than returning a meaningless negative annuity.
+        if value < 0:
+            if value > -1e-9:
+                value = 0.0
+            else:
+                warnings.warn(
+                    f"a_immediate({x}) = {value} is negative; clamping to 0. "
+                    f"This indicates a degenerate life table near omega.",
+                    stacklevel=2,
+                )
+                value = 0.0
+        return value
 
     def a_due_temporary(self, x: int, n: int) -> float:
         """
@@ -153,6 +181,8 @@ class ActuarialValues:
         Returns:
             APV of temporary annuity-due (per $1/year)
         """
+        self._check_age(x)
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, equivalent to whole life from x
@@ -184,6 +214,8 @@ class ActuarialValues:
         Returns:
             APV of pure endowment (per $1 benefit)
         """
+        self._check_age(x)
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Cannot survive beyond omega
@@ -210,6 +242,8 @@ class ActuarialValues:
         Returns:
             APV of endowment insurance (per $1 benefit)
         """
+        self._check_age(x)
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, just whole life
@@ -239,24 +273,24 @@ class ActuarialValues:
         """
         lines = [
             f"Actuarial Present Values at Age {x}",
-            f"=" * 50,
+            "=" * 50,
             f"Interest rate: {self.comm.i:.2%}",
-            f"",
-            f"Insurance (Death Benefits):",
+            "",
+            "Insurance (Death Benefits):",
             f"  A_{x} (whole life)      = {self.A_x(x):.6f}",
             f"  A^1_{x}:{n}| (term {n}y)    = {self.A_term(x, n):.6f}",
-            f"",
-            f"Annuities (Survival Benefits):",
+            "",
+            "Annuities (Survival Benefits):",
             f"  a_due_{x} (annuity-due)  = {self.a_due(x):.6f}",
             f"  a_imm_{x} (ann-immed)    = {self.a_immediate(x):.6f}",
             f"  a_{x}:{n}| (temp {n}y)     = {self.a_due_temporary(x, n):.6f}",
-            f"",
-            f"Endowments:",
+            "",
+            "Endowments:",
             f"  {n}E_{x} (pure endow)    = {self.nE_x(x, n):.6f}",
             f"  A_{x}:{n}| (endow ins)   = {self.A_endowment(x, n):.6f}",
-            f"",
-            f"Verification:",
-            f"  A_x + d*a_due_x = 1?     {self.A_x(x) + (self.comm.i / (1+self.comm.i)) * self.a_due(x):.6f}",
+            "",
+            "Verification:",
+            f"  A_x + d*a_due_x = 1?     {self.A_x(x) + (self.comm.i / (1 + self.comm.i)) * self.a_due(x):.6f}",
         ]
 
         return "\n".join(lines)
