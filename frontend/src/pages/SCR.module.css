@@ -2,43 +2,33 @@
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 24px;
-  margin-bottom: 24px;
-}
-
-.section {
-  padding: 32px 0;
-  border-top: 1px solid var(--color-gray-200);
-}
-
-.sectionTitle {
-  font-size: 1.563rem;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-}
-
-.portfolioHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 24px;
 }
 
 .splitLayout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
   align-items: start;
 }
 
 .computeCenter {
   text-align: center;
-  padding: 24px 0;
+  padding: var(--space-lg) 0 var(--space-xl);
+}
+
+.computeHint {
+  font-size: var(--text-small);
+  color: var(--color-gray-700);
+  max-width: 56ch;
+  margin: 0 auto var(--space-md);
 }
 
 .computeBtn {
   padding: 16px 48px;
+  min-height: var(--tap-target);
   background: var(--color-accent);
   color: var(--color-white);
   border: none;
@@ -62,8 +52,9 @@
 
 .resetBtn {
   padding: 8px 16px;
+  min-height: var(--tap-target);
   background: transparent;
-  color: var(--color-gray-500);
+  color: var(--color-gray-700);
   border: 1px solid var(--color-gray-200);
   border-radius: 0;
   text-transform: uppercase;
@@ -81,6 +72,7 @@
 
 .addPolicyToggle {
   padding: 8px 16px;
+  min-height: var(--tap-target);
   background: transparent;
   color: var(--color-accent);
   border: 1px solid var(--color-accent);
@@ -122,7 +114,7 @@
 /* Regulatory grid */
 .regulatoryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 16px;
   margin: 20px 0;
 }
@@ -135,9 +127,11 @@
 
 .moduleHeader {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 8px;
+  gap: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .moduleName {
@@ -147,7 +141,8 @@
 
 .moduleShock {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  text-align: right;
   color: var(--color-accent);
   font-weight: 600;
 }
@@ -161,7 +156,7 @@
 
 .moduleRef {
   font-size: 0.75rem;
-  color: var(--color-gray-500);
+  color: var(--color-gray-700);
   font-style: italic;
 }
 
@@ -171,8 +166,8 @@
 
 .twoCol {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
 }
 
 .complianceList {
@@ -190,20 +185,18 @@
 }
 
 .complianceList li::before {
-  content: "-- ";
-  color: var(--color-gray-400);
+  content: "\2013\a0";
+  color: var(--color-gray-700);
 }
 
-@media (max-width: 768px) {
+@media (min-width: 860px) {
   .splitLayout {
-    grid-template-columns: 1fr;
-  }
-
-  .regulatoryGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xxl);
   }
 
   .twoCol {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xl);
   }
 }

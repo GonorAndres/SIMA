@@ -8,16 +8,20 @@ export const defaultLayout: Partial<Layout> = {
   },
   paper_bgcolor: 'transparent',
   plot_bgcolor: '#fff',
-  margin: { t: 48, r: 24, b: 48, l: 56 },
+  /* Small right/top gutters; left and bottom are driven by `automargin`
+     below so labels fit at any width without a viewport check. */
+  margin: { t: 32, r: 12, b: 40, l: 48 },
   xaxis: {
     gridcolor: '#E0E0E0',
     linecolor: '#E0E0E0',
     zerolinecolor: '#E0E0E0',
+    automargin: true,
   },
   yaxis: {
     gridcolor: '#E0E0E0',
     linecolor: '#E0E0E0',
     zerolinecolor: '#E0E0E0',
+    automargin: true,
   },
 };
 

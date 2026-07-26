@@ -80,7 +80,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-small);
   letter-spacing: 0.05em;
-  color: var(--color-gray-500);
+  color: var(--color-gray-700);
   min-width: 48px;
   text-align: center;
 }

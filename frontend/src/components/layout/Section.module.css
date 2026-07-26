@@ -1,0 +1,78 @@
+/* Section card — the page's unit of meaning.
+   Cloudflare-style: a bordered container whose header always states what the
+   section shows and why, before any data appears. */
+
+.section {
+  /* Anchor jumps must clear the sticky top bar */
+  scroll-margin-top: calc(var(--nav-height) + var(--space-md));
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-white);
+  margin-bottom: var(--space-lg);
+}
+
+.header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-gray-200);
+  background: var(--color-warm-50);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.headings {
+  /* min-width:0 lets long titles wrap instead of stretching the flex row */
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+/* Step number — gives a long analytical page an explicit reading order. */
+.step {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* One-sentence "what this shows and why it matters". Mandatory. */
+.explainer {
+  color: var(--color-gray-700);
+  font-size: var(--text-small);
+  line-height: 1.6;
+  margin: var(--space-xs) 0 0;
+  max-width: 70ch;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.body {
+  padding: var(--space-lg);
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: var(--space-md);
+  }
+
+  .body {
+    padding: var(--space-md);
+  }
+}

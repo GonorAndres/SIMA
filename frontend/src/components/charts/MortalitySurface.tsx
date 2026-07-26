@@ -41,5 +41,5 @@ export default function MortalitySurface({ ages, years, values, title, height = 
     },
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
 }

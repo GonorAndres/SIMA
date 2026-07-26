@@ -1,26 +1,62 @@
 .main {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: var(--space-xxl);
+  /* Fluid gutter: 16px on a 320px phone, 48px on desktop. */
+  padding: var(--page-gutter);
+  /* Respect notched-device safe areas in landscape */
+  padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--page-gutter), env(safe-area-inset-right));
 }
 
 .header {
-  margin-bottom: var(--space-xxl);
+  margin-bottom: clamp(var(--space-lg), 4vw, var(--space-xxl));
 }
 
 .title {
-  font-size: 2.441rem;
+  font-size: var(--text-h1);
   font-weight: 600;
 }
 
-.subtitle {
-  color: var(--color-gray-400);
-  font-size: var(--text-body);
-  margin-top: var(--space-sm);
+/* Page + rail. Mobile: rail stacked above the content.
+   Desktop: content left, sticky rail right. */
+.withRail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
 }
 
-@media (max-width: 768px) {
-  .main {
-    padding: var(--space-lg);
+.content {
+  /* Without this, wide children (charts, tables) refuse to shrink and
+     blow out the grid column. */
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .withRail {
+    grid-template-columns: minmax(0, 1fr) 200px;
+    gap: var(--space-xl);
+    /* Deliberately NOT `align-items: start`: the rail track must span the
+       full row height, otherwise the sticky nav inside it has no distance
+       to travel and scrolls away with the content. */
+    align-items: stretch;
   }
+
+  .rail {
+    /* Second column, but first in the DOM for mobile reading order. */
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+.subtitle {
+  /* gray-400 on white is 2.1:1 — fails WCAG AA. gray-700 is 10.4:1. */
+  color: var(--color-gray-700);
+  font-size: var(--text-body);
+  margin-top: var(--space-sm);
+  max-width: 65ch;
 }

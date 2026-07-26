@@ -33,5 +33,5 @@ export default function WaterfallChart({ categories, values, title, height = 400
     showlegend: false,
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
 }

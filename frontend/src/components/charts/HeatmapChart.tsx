@@ -39,5 +39,5 @@ export default function HeatmapChart({ x, y, z, title, xTitle, yTitle, height = 
     height,
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
 }

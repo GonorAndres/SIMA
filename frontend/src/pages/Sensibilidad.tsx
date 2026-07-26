@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDemo } from '../context/useDemo';
 import PageLayout from '../components/layout/PageLayout';
+import OptionGroup from '../components/forms/OptionGroup';
 import SliderInput from '../components/forms/SliderInput';
 import MetricBlock from '../components/data/MetricBlock';
 import LineChart from '../components/charts/LineChart';
@@ -156,31 +157,26 @@ export default function Sensibilidad() {
       title={t('sensibilidad.title')}
       subtitle={t('sensibilidad.subtitle')}
     >
-      {/* Global sex selector */}
-      <div className={styles.tabRow} style={{ marginBottom: '1rem' }}>
-        {(['male', 'female', 'unisex'] as SexKey[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => setSex(s)}
-            className={`${styles.tab} ${sex === s ? styles.tabActive : ''}`}
-          >
-            {t(`forms.${s}`)}
-          </button>
-        ))}
-      </div>
+      {/* Page-level controls, labelled so the current state is never ambiguous */}
+      <OptionGroup<SexKey>
+        label={t('sensibilidad.controlSexLabel')}
+        hint={t('sensibilidad.controlSexHint')}
+        value={sex}
+        onChange={setSex}
+        options={[
+          { value: 'unisex', label: t('forms.unisex') },
+          { value: 'male', label: t('forms.male') },
+          { value: 'female', label: t('forms.female') },
+        ]}
+      />
 
-      {/* Tabs */}
-      <div className={styles.tabRow}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <OptionGroup
+        label={t('sensibilidad.controlViewLabel')}
+        hint={t('sensibilidad.controlViewHint')}
+        value={activeTab}
+        onChange={setActiveTab}
+        options={tabs.map((tab) => ({ value: tab.key, label: tab.label }))}
+      />
 
       {/* Tab 1: Interest Rate */}
       {activeTab === 'interest_rate' && (
