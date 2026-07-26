@@ -122,5 +122,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler pages deploy dist --project-name sima --branch main
 
-      - name: Validate production through protected proxy
-        run: python3 scripts/validate_production.py https://sima-7xu.pages.dev
+      - name: Validate protected production backend
+        env:
+          SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
+        run: python3 scripts/validate_production.py "${{ needs.deploy.outputs.service_url }}"
