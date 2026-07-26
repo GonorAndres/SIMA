@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
 import Section from '../components/layout/Section';
+import SectionRail from '../components/layout/SectionRail';
+import type { RailItem } from '../components/layout/SectionRail';
 import MetricBlock from '../components/data/MetricBlock';
 import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
@@ -92,15 +94,26 @@ export default function SCR() {
   const desc = (m: { description_es: string; description_en: string }) =>
     lang === 'es' ? m.description_es : m.description_en;
 
+  const railItems: RailItem[] = useMemo(() => [
+    { id: 'sec-marco', step: '1', label: t('scr.railFramework') },
+    { id: 'sec-portafolio', step: '2', label: t('scr.railPortfolio') },
+    { id: 'sec-bel', step: '3', label: t('scr.railBel') },
+    { id: 'sec-modulos', step: '4', label: t('scr.railModules') },
+    { id: 'sec-agregacion', step: '5', label: t('scr.railAggregation') },
+    { id: 'sec-limitaciones', step: '6', label: t('scr.railLimitations') },
+  ], [t]);
+
   return (
     <PageLayout
       title={t('scr.title')}
       subtitle={t('scr.subtitle')}
+      rail={<SectionRail items={railItems} />}
     >
       {/* LISF Regulatory Context */}
       {compliance.data && (
         <Section
           step="1"
+          id="sec-marco"
           title={t('scr.regulatorySectionTitle')}
           explainer={t('scr.regulatoryExplainer')}
         >
@@ -129,6 +142,7 @@ export default function SCR() {
 
       <Section
         step="2"
+        id="sec-portafolio"
         title={t('scr.portfolio')}
         explainer={t('scr.portfolioExplainer')}
         demoSection="top"
@@ -202,6 +216,7 @@ export default function SCR() {
           {/* BEL Metrics */}
           <Section
             step="3"
+            id="sec-bel"
             title={t('scr.belTitle')}
             explainer={t('scr.belExplainer')}
           >
@@ -231,6 +246,7 @@ export default function SCR() {
           {/* Risk Modules */}
           <Section
             step="4"
+            id="sec-modulos"
             title={t('scr.riskModules')}
             explainer={t('scr.riskModulesExplainer')}
           >
@@ -289,6 +305,7 @@ export default function SCR() {
           {/* Aggregation & Solvency */}
           <Section
             step="5"
+            id="sec-agregacion"
             title={t('scr.aggSolvency')}
             explainer={t('scr.aggExplainer')}
           >
@@ -329,6 +346,7 @@ export default function SCR() {
           {compliance.data && (
             <Section
               step="6"
+              id="sec-limitaciones"
               title={t('scr.coverageLimitations')}
               explainer={t('scr.coverageExplainer')}
             >
