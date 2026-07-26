@@ -15,6 +15,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      service_url: ${{ steps.service.outputs.url }}
 
     permissions:
       contents: read
@@ -81,13 +83,44 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --memory 2Gi \
-            --cpu 2
+            --cpu 2 \
+            --update-env-vars 'APP_ENV=production,CORS_ORIGINS=' \
+            --set-secrets 'SIMA_PROXY_SECRET=sima-pages-proxy:latest'
 
-      - name: Validate production (actuarial + data source)
+      - name: Read backend URL
+        id: service
         run: |
-          sleep 30
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
             --region ${{ env.REGION }} \
             --format 'value(status.url)')
           echo "Service URL: $SERVICE_URL"
-          python3 scripts/validate_production.py "$SERVICE_URL"
+          echo "url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
+
+  frontend:
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy production to Cloudflare Pages
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy dist --project-name sima --branch main
+
+      - name: Validate production through protected proxy
+        run: python3 scripts/validate_production.py https://sima-7xu.pages.dev

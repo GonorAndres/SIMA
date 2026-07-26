@@ -176,7 +176,7 @@ TESTED (191 tests):
   [x] Full HMD pipeline (USA, Spain)
   [x] Full Mexican pipeline (mock INEGI/CONAPO)
   [x] Regulatory table loading (CNSF, EMSSA)
-  [x] 22 API endpoints
+  [x] 24 API endpoints
   [x] Portfolio CRUD operations
   [x] SCR: 4 risk modules + aggregation + solvency ratio
   [x] Error handling (invalid inputs)

@@ -30,6 +30,7 @@ def get_portfolio_summary():
                 attained_age=p.attained_age,
                 sum_assured=p.SA,
                 annual_pension=p.annual_pension,
+                annual_premium=p.annual_premium,
                 term=p.n,
                 duration=p.duration,
                 is_death_product=p.is_death_product,
@@ -64,6 +65,7 @@ def add_policy(policy: PolicyCreate):
         issue_age=policy.issue_age,
         sum_assured=policy.sum_assured,
         annual_pension=policy.annual_pension,
+        annual_premium=policy.annual_premium,
         term=policy.term,
         duration=policy.duration,
     )

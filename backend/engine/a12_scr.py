@@ -54,11 +54,12 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from .a01_life_table import LifeTable
+from .a02_commutation import CommutationFunctions
 from .a11_portfolio import (
     Portfolio,
-    _t_p_x,
     compute_policy_bel,
     portfolio_remaining_duration,
+    resolve_policy_annual_premium,
 )
 from .exceptions import ActuarialComputationError, ActuarialValidationError
 
@@ -101,6 +102,30 @@ DEFAULT_IR_FLOOR = 0.005
 PSD_TOL = 1e-10
 
 
+def _validate_non_negative_finite(value: float, name: str) -> None:
+    """Validate a public SCR numeric input."""
+    if not math.isfinite(value) or value < 0:
+        raise ActuarialValidationError(
+            f"{name} must be finite and non-negative (got {value})",
+            field=name,
+            constraint=f"{name} >= 0 and finite",
+        )
+
+
+def _contractual_premiums(
+    portfolio: Portfolio,
+    base_lt: LifeTable,
+    issue_rate: float,
+) -> dict[str, float]:
+    """Resolve death-policy premiums once from the unstressed issue basis."""
+    comm = CommutationFunctions(base_lt, interest_rate=issue_rate)
+    return {
+        policy.policy_id: premium
+        for policy in portfolio.death_products
+        if (premium := resolve_policy_annual_premium(policy, comm)) is not None
+    }
+
+
 def _validate_psd(corr_matrix: np.ndarray, *, name: str = "correlation matrix") -> None:
     """
     Validate that ``corr_matrix`` is a square, symmetric, positive
@@ -129,6 +154,12 @@ def _validate_psd(corr_matrix: np.ndarray, *, name: str = "correlation matrix") 
             f"{name} must be symmetric",
             field="corr_matrix",
             constraint="corr_matrix == corr_matrix.T",
+        )
+    if np.any(arr < -1.0 - PSD_TOL) or np.any(arr > 1.0 + PSD_TOL):
+        raise ActuarialValidationError(
+            f"{name} entries must lie in [-1,1]",
+            field="corr_matrix",
+            constraint="-1 <= corr_matrix[i,j] <= 1",
         )
     eig = np.linalg.eigvalsh(arr)
     if eig.min() < -PSD_TOL:
@@ -171,6 +202,12 @@ def build_shocked_life_table(
     Returns:
         New LifeTable with shocked mortality
     """
+    if not math.isfinite(shock_factor) or shock_factor < 0:
+        raise ActuarialValidationError(
+            f"shock_factor must be finite and non-negative (got {shock_factor})",
+            field="shock_factor",
+            constraint="shock_factor >= 0 and finite",
+        )
     ages = base_lt.ages
     shocked_qx = []
     for age in ages[:-1]:
@@ -212,17 +249,35 @@ def compute_scr_mortality(
     Returns:
         Dict with bel_base, bel_stressed, scr, shock
     """
+    portfolio.validate_non_empty()
+    _validate_non_negative_finite(shock, "mortality_shock")
     death_policies = portfolio.death_products
 
     if not death_policies:
         return {"bel_base": 0.0, "bel_stressed": 0.0, "scr": 0.0, "shock": shock}
 
-    # Base BEL for death products
-    bel_base = sum(compute_policy_bel(p, base_lt, interest_rate) for p in death_policies)
+    premiums = _contractual_premiums(portfolio, base_lt, interest_rate)
+    bel_base = sum(
+        compute_policy_bel(
+            p,
+            base_lt,
+            interest_rate,
+            annual_premium=premiums[p.policy_id],
+        )
+        for p in death_policies
+    )
 
     # Stressed BEL: mortality increases by shock factor
     stressed_lt = build_shocked_life_table(base_lt, 1.0 + shock)
-    bel_stressed = sum(compute_policy_bel(p, stressed_lt, interest_rate) for p in death_policies)
+    bel_stressed = sum(
+        compute_policy_bel(
+            p,
+            stressed_lt,
+            interest_rate,
+            annual_premium=premiums[p.policy_id],
+        )
+        for p in death_policies
+    )
 
     scr = max(bel_stressed - bel_base, 0.0)
 
@@ -265,6 +320,14 @@ def compute_scr_longevity(
     Returns:
         Dict with bel_base, bel_stressed, scr, shock
     """
+    portfolio.validate_non_empty()
+    _validate_non_negative_finite(shock, "longevity_shock")
+    if shock > 1:
+        raise ActuarialValidationError(
+            f"longevity_shock cannot exceed 1 (got {shock})",
+            field="longevity_shock",
+            constraint="0 <= longevity_shock <= 1",
+        )
     annuity_policies = portfolio.annuity_products
 
     if not annuity_policies:
@@ -327,6 +390,15 @@ def compute_scr_interest_rate(
         Dict with bel_base, bel_up, bel_down, scr, rate_up, rate_down,
         floor_applied
     """
+    portfolio.validate_non_empty()
+    _validate_non_negative_finite(base_rate, "base_rate")
+    _validate_non_negative_finite(rate_floor, "rate_floor")
+    if isinstance(shock_bps, bool) or not isinstance(shock_bps, int) or shock_bps < 0:
+        raise ActuarialValidationError(
+            f"shock_bps must be a non-negative integer (got {shock_bps!r})",
+            field="shock_bps",
+            constraint="shock_bps: int >= 0",
+        )
     shock_decimal = shock_bps / 10_000.0
 
     rate_up = base_rate + shock_decimal
@@ -340,9 +412,24 @@ def compute_scr_interest_rate(
         )
     rate_down = max(raw_down, rate_floor)
 
-    bel_base = portfolio.compute_bel(base_lt, base_rate)
-    bel_up = portfolio.compute_bel(base_lt, rate_up)
-    bel_down = portfolio.compute_bel(base_lt, rate_down)
+    premiums = _contractual_premiums(portfolio, base_lt, base_rate)
+
+    def _bel_at(rate: float) -> float:
+        comm = CommutationFunctions(base_lt, interest_rate=rate)
+        return sum(
+            compute_policy_bel(
+                policy,
+                base_lt,
+                rate,
+                comm=comm,
+                annual_premium=premiums.get(policy.policy_id),
+            )
+            for policy in portfolio.policies
+        )
+
+    bel_base = _bel_at(base_rate)
+    bel_up = _bel_at(rate_up)
+    bel_down = _bel_at(rate_down)
 
     scr = max(bel_up - bel_base, bel_down - bel_base, 0.0)
 
@@ -382,16 +469,15 @@ def compute_scr_catastrophe(
     Only DEATH products are affected.
 
     Convention (one-year shock):
-        The catastrophe is a ONE-YEAR mortality spike applied at the start
-        of the projection year. The policy must be IN-FORCE at the start of
-        that year for any excess claim to be possible, so:
+        The portfolio is an inventory of policies known to be in force at the
+        valuation date. The catastrophe death probability is therefore
+        conditional on survival to attained age:
 
-            expected_extra_claim = t_p_x(issue_age, duration) * SA * delta_q * v
+            expected_extra_claim = SA * delta_q(attained_age) * v
 
-        where ``t_p_x`` is the survival probability from issue age to
-        attained age. The previous implementation implicitly assumed the
-        policy was in-force with certainty, which materially over-stated
-        catastrophe SCR for long-duration in-force portfolios.
+        Historical issue-to-date survival is not applied again. A cohort
+        projection would require survival weighting consistently across BEL
+        and every SCR module, which is a different portfolio convention.
 
         For term/endowment policies past their term (``duration >= n``), the
         policy has expired and contributes ZERO to catastrophe SCR (zero
@@ -407,6 +493,13 @@ def compute_scr_catastrophe(
     Returns:
         Dict with scr, cat_shock_factor, details
     """
+    portfolio.validate_non_empty()
+    if not math.isfinite(cat_shock_factor) or cat_shock_factor < 1:
+        raise ActuarialValidationError(
+            f"cat_shock_factor must be finite and at least 1 (got {cat_shock_factor})",
+            field="cat_shock_factor",
+            constraint="cat_shock_factor >= 1 and finite",
+        )
     death_policies = portfolio.death_products
     v = 1.0 / (1.0 + interest_rate)
 
@@ -419,7 +512,7 @@ def compute_scr_catastrophe(
     details = []
     for p in death_policies:
         # Expired finite-horizon policy: no in-force exposure.
-        if p.is_expired:
+        if p.is_expired or p.is_matured:
             continue
         age = p.attained_age
         if age > base_lt.max_age or age > shocked_lt.max_age:
@@ -431,17 +524,16 @@ def compute_scr_catastrophe(
         q_shocked = shocked_lt.get_q(age)
         delta_q = q_shocked - q_base
 
-        # Probability of survival (i.e. being in-force) to the start of the
-        # shock year at attained_age.
-        t_p_x = _t_p_x(base_lt, p.issue_age, p.duration)
-
-        extra_claim = p.SA * delta_q * v * t_p_x
+        # The portfolio is an inventory of policies known to be in force at
+        # the valuation date. q_x is therefore conditional on survival to the
+        # attained age; applying issue-to-date survival again would double
+        # count historical survival.
+        extra_claim = p.SA * delta_q * v
         total_extra += extra_claim
         details.append(
             {
                 "policy_id": p.policy_id,
                 "attained_age": age,
-                "t_p_x": t_p_x,
                 "q_base": q_base,
                 "q_shocked": q_shocked,
                 "delta_q": delta_q,
@@ -487,6 +579,13 @@ def aggregate_scr_life(
         Dict with scr_life, sum_individual, diversification_benefit,
         diversification_pct
     """
+    for value, name in (
+        (scr_mort, "scr_mort"),
+        (scr_long, "scr_long"),
+        (scr_cat, "scr_cat"),
+    ):
+        _validate_non_negative_finite(value, name)
+
     if corr_matrix is None:
         corr_matrix = LIFE_CORR
     else:
@@ -536,6 +635,14 @@ def aggregate_scr_total(
         Dict with scr_total, scr_life, scr_ir, rho,
         sum_individual, diversification_benefit
     """
+    _validate_non_negative_finite(scr_life, "scr_life")
+    _validate_non_negative_finite(scr_ir, "scr_ir")
+    if not math.isfinite(rho) or not -1.0 <= rho <= 1.0:
+        raise ActuarialValidationError(
+            f"rho must be a finite correlation in [-1,1] (got {rho})",
+            field="rho",
+            constraint="-1 <= rho <= 1 and finite",
+        )
     scr_total_sq = scr_life**2 + scr_ir**2 + 2.0 * rho * scr_life * scr_ir
     scr_total = math.sqrt(max(scr_total_sq, 0.0))
 
@@ -587,7 +694,15 @@ def compute_risk_margin(
     Returns:
         Dict with risk_margin, coc_rate, duration, annuity_factor
     """
-    if duration <= 0 or scr_total <= 0:
+    for value, name in (
+        (scr_total, "scr_total"),
+        (duration, "duration"),
+        (coc_rate, "coc_rate"),
+        (discount_rate, "discount_rate"),
+    ):
+        _validate_non_negative_finite(value, name)
+
+    if duration == 0 or scr_total == 0:
         return {
             "risk_margin": 0.0,
             "coc_rate": coc_rate,
@@ -595,8 +710,11 @@ def compute_risk_margin(
             "annuity_factor": 0.0,
         }
 
-    v = 1.0 / (1.0 + discount_rate)
-    annuity_factor = (1.0 - v**duration) / discount_rate
+    if discount_rate == 0:
+        annuity_factor = duration
+    else:
+        v = 1.0 / (1.0 + discount_rate)
+        annuity_factor = (1.0 - v**duration) / discount_rate
 
     risk_margin = coc_rate * scr_total * annuity_factor
 
@@ -632,7 +750,9 @@ def compute_solvency_ratio(available_capital: float, scr_total: float) -> dict[s
     Returns:
         Dict with ratio, available_capital, scr_total, is_solvent
     """
-    if scr_total <= 0:
+    _validate_non_negative_finite(available_capital, "available_capital")
+    _validate_non_negative_finite(scr_total, "scr_total")
+    if scr_total == 0:
         ratio = float("inf") if available_capital > 0 else 0.0
     else:
         ratio = available_capital / scr_total
@@ -671,9 +791,12 @@ def calibrate_shocks_from_lee_carter(
     representative ``b`` (the mean of positive ``b_x`` over the working-age
     range by default), yielding:
 
-        mortality_shock  = exp(b_rep * sigma * z) - 1   (adverse: worse mortality)
-        longevity_shock  = exp(b_rep * sigma * z) - 1   (adverse: better mortality)
+        mortality_shock  = exp(delta) - 1       (adverse: worse mortality)
+        longevity_shock  = 1 - exp(-delta)      (adverse: better mortality)
         cat_shock_factor = 1 + (exp(b_rep * sigma * z) - 1) = exp(b_rep * sigma * z)
+
+    This inverse mapping keeps the longevity multiplier ``1-shock`` positive
+    and consistent with a symmetric log-mortality displacement.
 
     The defaults remain the Solvency II ``+15% / -20% / +35%`` values -- this
     helper only provides an OPTIONAL, data-driven override when a fitted
@@ -709,18 +832,33 @@ def calibrate_shocks_from_lee_carter(
 
     if representative_b is None:
         bx = np.asarray(lee_carter.bx, dtype=float)
-        positive = bx[bx > 0]
+        ages_attr = getattr(lee_carter, "ages", None)
+        if ages_attr is None:
+            positive = bx[bx > 0]
+        else:
+            ages = np.asarray(ages_attr)
+            working_age = (ages >= 20) & (ages <= 80)
+            positive = bx[(bx > 0) & working_age]
+        if not positive.size:
+            positive = bx[bx > 0]
         b_rep = float(positive.mean()) if positive.size else 1.0
     else:
         b_rep = float(representative_b)
+    if not math.isfinite(b_rep) or b_rep < 0:
+        raise ActuarialValidationError(
+            f"representative_b must be finite and non-negative (got {b_rep})",
+            field="representative_b",
+            constraint="representative_b >= 0 and finite",
+        )
 
     delta_lnq = b_rep * sigma_k * z
-    multiplicative = math.expm1(delta_lnq)  # exp(delta) - 1
+    mortality_increase = math.expm1(delta_lnq)
+    longevity_decrease = -math.expm1(-delta_lnq)  # 1 - exp(-delta)
 
     return {
-        "mortality_shock": multiplicative,
-        "longevity_shock": multiplicative,
-        "cat_shock_factor": 1.0 + multiplicative,
+        "mortality_shock": mortality_increase,
+        "longevity_shock": longevity_decrease,
+        "cat_shock_factor": 1.0 + mortality_increase,
         "sigma_k": sigma_k,
         "z_value": z,
         "representative_b": b_rep,

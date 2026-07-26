@@ -73,10 +73,10 @@ INEGI/CONAPO Data
 | Layer | Technology |
 |-------|-----------|
 | Calculation Engine | Python 3.12, NumPy, SciPy (sparse matrices, SVD, Brent's method), Pandas |
-| API | FastAPI, Pydantic v2, Uvicorn -- 23 REST endpoints across 5 routers |
+| API | FastAPI, Pydantic v2, Uvicorn -- 24 REST endpoints across 5 routers plus health |
 | Frontend | React 19, TypeScript, Vite, Plotly.js (custom bundle), i18n (ES/EN) |
 | Deployment | Docker (multi-stage), Google Cloud Run |
-| Testing | pytest -- 196 unit tests + 46 API tests = 242 total |
+| Testing | pytest, Ruff, mypy -- 367 backend tests |
 
 ---
 
@@ -135,15 +135,17 @@ docker run -p 8080:8080 sima
 
 ## API Endpoints
 
-23 endpoints across 5 routers:
+24 endpoints across 5 routers plus the health endpoint:
 
 | Router | Endpoints | Description |
 |--------|-----------|-------------|
 | `/api/mortality` | 8 | Data summary, Lee-Carter fit, projection, life table, validation, graduation, surface, diagnostics |
-| `/api/pricing` | 4 | Premium calculation, reserve trajectory, commutation functions, pricing sensitivity |
+| `/api/pricing` | 5 | Premium calculation, reserve trajectory, commutation functions, pricing sensitivity, cross-country premium comparison |
 | `/api/sensitivity` | 3 | Mortality shock, cross-country comparison, COVID impact |
 | `/api/portfolio` | 4 | Portfolio summary, BEL computation, policy management, reset |
 | `/api/scr` | 3 | SCR computation, default parameters, LISF compliance |
+
+The remaining route is `GET /api/health`.
 
 All mortality/pricing/sensitivity endpoints accept a `sex` parameter (`male`, `female`, `unisex`).
 

@@ -18,7 +18,7 @@
 | Graduation roughness reduction | ~70% | Lambda = 10^5 |
 | Tests | 242 | 196 unit + 46 API |
 | Engine modules | 12 | a01 (LifeTable) through a12 (SCR) |
-| API endpoints | 23 | Including compliance endpoint |
+| API endpoints | 24 | Including health and compliance endpoints |
 
 ---
 

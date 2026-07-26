@@ -240,6 +240,22 @@ def validate_non_negative_amount(value: float, name: str) -> None:
         )
 
 
+def validate_non_negative_integer(value: object, name: str) -> None:
+    """Ensure a duration/count is a plain non-negative integer."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ActuarialValidationError(
+            f"{name} must be an integer (got {value!r})",
+            field=name,
+            constraint=f"{name}: int",
+        )
+    if value < 0:
+        raise ActuarialValidationError(
+            f"{name} cannot be negative (got {value})",
+            field=name,
+            constraint=f"{name} >= 0",
+        )
+
+
 def validate_positive_amount(value: float, name: str, *, strict: bool = True) -> None:
     """
     Ensure a monetary amount is positive (``> 0``) when ``strict``, else
@@ -310,6 +326,7 @@ __all__ = [
     "validate_interest_rate",
     "validate_lx_monotonic",
     "validate_non_negative_amount",
+    "validate_non_negative_integer",
     "validate_positive_amount",
     "validate_probabilities",
     "validate_product_type",

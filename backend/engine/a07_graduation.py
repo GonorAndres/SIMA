@@ -331,9 +331,7 @@ class GraduatedRates:
         results["all_positive"] = bool(np.all(self.mx > 0))
         results["smoother_than_raw"] = bool(self.roughness(self.mx) < self.roughness(self.raw_mx))
         resid = self.residuals()
-        results["residual_mean_near_zero"] = bool(
-            abs(np.mean(resid)) < self.residual_threshold
-        )
+        results["residual_mean_near_zero"] = bool(abs(np.mean(resid)) < self.residual_threshold)
         return results
 
     def summary(self) -> dict:

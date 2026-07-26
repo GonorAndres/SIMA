@@ -122,6 +122,10 @@ $$\text{SCR}_{\text{mort}} = \text{BEL}(q_x \times 1.15) - \text{BEL}(q_x)$$
 4. Compute `BEL_base` and `BEL_shocked` for each death policy in the portfolio.
 5. $\text{SCR}_{\text{mort}} = \sum_k \text{BEL}_{\text{shocked},k} - \sum_k \text{BEL}_{\text{base},k}$
 
+The contractual premium is fixed at issue and is identical in base and
+stressed BEL. Repricing the premium on the stressed basis would offset the
+adverse shock and understate capital.
+
 **Sign convention:** For death products, higher $q_x$ increases $A_{x+t}$ (more death claims expected) and decreases $\ddot{a}_{x+t}$ (shorter expected premium payment period), so BEL increases. Thus $\text{SCR}_{\text{mort}} > 0$.
 
 ### 3.3 Longevity Risk: SCR_long
@@ -157,6 +161,9 @@ $$\text{SCR}_{\text{ir}} = \max\!\Big(\text{BEL}(i + 1\%) - \text{BEL}(i),\;\; \
 3. Compute $\text{BEL}_{\text{down}}$ at interest rate $i - 0.01$ (rebuild `CommutationFunctions`, same `LifeTable`).
 4. Take the maximum of the two stress increments and zero.
 
+Death-policy contractual premiums remain fixed at their issue/base value in
+both rate scenarios.
+
 **Direction depends on product:**
 - Death products: BEL typically decreases when $i$ increases (higher discount reduces PV of future claims). So the **down** shock is usually adverse.
 - Annuity products: BEL also typically decreases when $i$ increases. So the **down** shock is usually adverse.
@@ -170,12 +177,17 @@ $$\text{SCR}_{\text{ir}} = \max\!\Big(\text{BEL}(i + 1\%) - \text{BEL}(i),\;\; \
 
 **Shock:** Instantaneous one-time spike in mortality, not a permanent level change.
 
-$$\text{SCR}_{\text{cat}} = \sum_{k=1}^{K} SA_k \cdot \Delta q_{x_k} \cdot v^{1}$$
+$$\text{SCR}_{\text{cat}} = \sum_{k=1}^{K} SA_k \cdot \Delta q_{x_k+t_k} \cdot v^{1}$$
 
 where:
 - $SA_k$ is the sum assured for policy $k$
-- $\Delta q_{x_k}$ is the additional probability of death due to the catastrophe
+- $\Delta q_{x_k+t_k}$ is the additional attained-age probability of death
 - $v^1 = 1/(1+i)$ discounts the one-year-ahead payment
+
+Expired term policies (`duration >= term`) are excluded. This is a one-year
+in-force exposure convention, not a permanent catastrophe stress. Policies
+in the portfolio are known to be in force at valuation, so issue-to-date
+survival is not applied a second time.
 
 #### 3.5.1 COVID-19 Calibration for Mexico
 
@@ -333,11 +345,15 @@ where:
 
 ### 6.2 Simplified Approximation
 
-When projecting future SCR is computationally prohibitive, a common simplification assumes SCR declines proportionally with BEL:
+When projecting future SCR is computationally prohibitive, SIMA applies a
+constant-SCR duration approximation:
 
-$$\text{MdR} \approx \text{CoC} \cdot \text{SCR}_{\text{current}} \cdot \ddot{a}_{\bar{x}}$$
+$$\text{MdR} \approx \text{CoC} \cdot \text{SCR}_{\text{current}} \cdot \sum_{t=1}^{\bar{T}}\frac{1}{(1+i)^t}$$
 
-where $\ddot{a}_{\bar{x}}$ is an annuity factor at the portfolio's average attained age $\bar{x}$, serving as a duration proxy.
+where $\bar{T}$ is the portfolio-weighted remaining duration. Term and
+endowment horizons use remaining contractual term; whole-life and annuity
+horizons use life expectancy from the selected table. This replaces the old
+hardcoded 15-year proxy, but it still does not project each future SCR module.
 
 ### 6.3 Rationale for CoC = 6%
 
@@ -396,6 +412,12 @@ A solvency ratio of 120% means the insurer holds 20% more capital than the SCR. 
 | Interest up | Parallel shift | $i + 1\%$ | N/A (rates only) | All | Non-negative |
 | Interest down | Parallel shift | $i - 1\%$ | N/A (rates only) | All | Non-negative |
 | Catastrophe | One-time spike | $+35\% \cdot q_x$ (COVID) | All ages | Death | Positive |
+
+The mortality, longevity, rate, and catastrophe defaults are illustrative
+standard-formula assumptions. `calibrate_shocks_from_lee_carter()` can derive
+mortality/longevity/catastrophe stresses from fitted `k_t` volatility. The
+report records whether Lee–Carter calibration was used; it does not make the
+result an approved CNSF internal model.
 
 ---
 
@@ -480,8 +502,8 @@ class SCRCalculator:
     def scr_total(self) -> float:
         """sqrt(scr_life^2 + scr_ir^2 + 2*0.25*scr_life*scr_ir)."""
 
-    def risk_margin(self, avg_annuity_factor: Optional[float] = None) -> float:
-        """CoC * SCR_total * annuity_factor. Uses simplified approximation."""
+    def risk_margin(self) -> float:
+        """CoC * SCR_total * discounted portfolio-specific remaining duration."""
 
     def technical_provisions(self) -> float:
         """BEL + MdR."""
@@ -502,7 +524,8 @@ class SCRCalculator:
 build_shocked_life_table(base_lt: LifeTable, shock_factor: float, radix: float = 100_000.0) -> LifeTable
 ```
 
-From `backend/analysis/sensitivity_analysis.py`. Applies multiplicative shock to all $q_x$ values, caps at 1.0, rebuilds $l_x$ from radix. Used by `scr_mortality()` (factor=1.15) and `scr_longevity()` (factor=0.80).
+From `backend/engine/a12_scr.py`. It applies a multiplicative shock to all
+$q_x$ values, caps at 1.0, and rebuilds $l_x$ from the radix.
 
 ---
 
@@ -561,7 +584,7 @@ $$\text{SCR}_{\text{total}} = \sqrt{\text{SCR}_{\text{life}}^2 + \text{SCR}_{\te
 
 ### 11.5 Risk Margin and Technical Provisions
 
-$$\text{MdR} = 0.06 \times \text{SCR}_{\text{total}} \times \ddot{a}_{\bar{x}}$$
+$$\text{MdR} = 0.06 \times \text{SCR}_{\text{total}} \times \sum_{t=1}^{\bar{T}}v^t$$
 
 $$\text{PT} = \text{BEL} + \text{MdR}$$
 
@@ -605,7 +628,7 @@ a01_life_table ──> a02_commutation ──> a03_actuarial_values
 | `a03_actuarial_values.ActuarialValues` | $A_x$, $\ddot{a}_x$, ${}_nE_x$ for BEL formulas |
 | `a04_premiums.PremiumCalculator` | Net premiums $P$ needed for prospective reserve BEL |
 | `a05_reserves.ReserveCalculator` | Prospective reserve = BEL for death products |
-| `build_shocked_life_table()` | Mortality and longevity shocks |
+| `a12_scr.build_shocked_life_table()` | Mortality and longevity shocks |
 
 ---
 
@@ -649,6 +672,41 @@ a01_life_table ──> a02_commutation ──> a03_actuarial_values
 |------|---------|
 | `backend/engine/a11_portfolio.py` | Policy and Portfolio classes, BEL computation |
 | `backend/engine/a12_scr.py` | SCRCalculator, correlation matrices, aggregation |
-| `backend/analysis/sensitivity_analysis.py` | `build_shocked_life_table()` helper |
-| `backend/tests/test_scr.py` | SCR unit tests (planned) |
-| `backend/tests/test_portfolio.py` | Portfolio unit tests (planned) |
+| `backend/tests/test_scr.py` | SCR unit tests |
+| `backend/tests/test_portfolio.py` | Portfolio unit tests |
+| `backend/tests/test_phase2_portfolio_scr.py` | Hardening and regression tests |
+
+---
+
+## 16. Scope and Limitations
+
+SIMA's SCR engine is an auditable educational/analytical implementation, not
+a filing-ready reproduction of the complete Mexican RCS calculation.
+
+- It covers mortality, longevity, parallel interest-rate, and catastrophe
+  stresses. It omits lapse, expense, disability/morbidity, credit, spread,
+  concentration, counterparty-default, operational, and tax effects.
+- Interest-rate risk uses one scalar valuation rate and symmetric parallel
+  shifts, not a term structure, prescribed maturity-dependent shocks, or an
+  asset-liability cash-flow model. The down scenario has a configurable 0.5%
+  floor and logs when it is applied.
+- BEL is net-premium based. Expense, lapse, and commission hooks currently
+  default to no-op assumptions; gross-premium cash flows are not modeled.
+- Contractual death-policy premiums remain fixed under stress. If a policy
+  does not supply its actual premium, SIMA derives it once from the base issue
+  basis before applying stressed mortality or discounting.
+- Risk margin assumes current SCR remains constant over a weighted remaining
+  duration. It is not a policy-by-policy run-off projection of future
+  non-hedgeable SCR.
+- Correlations are illustrative. Bundled and custom matrices are checked for
+  symmetry, unit diagonal, and positive semi-definiteness, but users remain
+  responsible for regulatory applicability.
+- The Lee–Carter option converts historical `k_t` volatility into shocks. It
+  is a data-driven sensitivity calibration, not evidence of 99.5% one-year
+  calibration without separate validation and governance.
+- The API's portfolio is shared, in-memory demo state. It is unsuitable for
+  multi-tenant production use or regulatory record retention.
+
+Any regulatory use requires current LISF/CUSF verification, approved source
+data, documented expert judgment, independent model validation, and insurer-
+specific governance.

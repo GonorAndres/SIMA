@@ -15,6 +15,7 @@ Production (Cloud Run):
 
 import logging
 import os
+import secrets
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -84,6 +85,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+_proxy_secret = os.environ.get("SIMA_PROXY_SECRET", "")
+
+
+@app.middleware("http")
+async def require_pages_proxy(request: Request, call_next):
+    """Reject direct API calls when a Pages proxy secret is configured."""
+    if _proxy_secret and request.url.path.startswith("/api"):
+        supplied_secret = request.headers.get("X-SIMA-Proxy-Secret", "")
+        if not secrets.compare_digest(supplied_secret, _proxy_secret):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "API access is restricted to the SIMA frontend."},
+            )
+    return await call_next(request)
 
 
 @app.middleware("http")

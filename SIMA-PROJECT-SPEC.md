@@ -1,303 +1,145 @@
-# SIMA: Sistema Integral de Modelación Actuarial
-## Integrated Actuarial Modeling System
+# SIMA — Sistema Integral de Modelación Actuarial
 
-A full-stack life insurance risk management platform demonstrating end-to-end actuarial modeling from mortality projection through capital requirements.
+SIMA is an end-to-end life-insurance modeling platform for mortality,
+pricing, reserves, portfolio BEL, and solvency-capital analysis under a
+Mexican LISF/CUSF context.
 
----
+## Current status
 
-## Project Overview
+| Capability | Implementation | Status |
+|---|---|---|
+| Mortality data | HMD and INEGI/CONAPO loaders, versioned schema checks, open-age aggregation | Complete |
+| Graduation | Whittaker–Henderson smoothing with diagnostics | Complete |
+| Mortality model | Lee–Carter SVD fit, optional `k_t` re-estimation | Complete |
+| Projection | Random Walk with Drift, stochastic paths, life-table bridge | Complete |
+| Regulatory comparison | CNSF/EMSSA ratios, RMSE, weighted RMSE, bias | Complete |
+| Pricing | Whole life, term, endowment, pure endowment, limited-pay products | Complete |
+| Reserves | Prospective reserves and trajectories with maturity/expiry handling | Complete |
+| Portfolio | Policy validation, BEL breakdown, sex-specific bases, demo state | Complete |
+| SCR | Mortality, longevity, interest-rate, catastrophe, aggregation, risk margin | Complete with documented limitations |
+| API | FastAPI/Pydantic v2, 24 routes, structured errors, audit logging | Complete |
+| Web application | React 19/TypeScript, six bilingual interactive pages | Complete |
+| Deployment | Docker and Google Cloud Run configuration | Complete |
 
-**Purpose**: Build a professional portfolio project that demonstrates:
-- Traditional actuarial methods (commutation functions, reserves, LISF compliance)
-- Modern techniques (Lee-Carter, stochastic modeling, ML where appropriate)
-- Production software engineering (APIs, web interface, documentation)
-
-**Target Audience**: 
-- Hiring managers at insurance companies
-- CNSF reviewers (regulatory alignment)
-- Academic evaluators (methodological rigor)
-
----
+The backend-hardening work is tracked in `docs/plan-25julio.md`. Validation
+rules are documented in `backend/VALIDATION.md`; SCR assumptions and
+limitations are in `docs/technical/18_capital_requirements_reference.md`.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        WEB INTERFACE                            │
-│   Dashboard · Visualizations · Interactive Scenarios · Reports  │
-└─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ API
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      CALCULATION ENGINE                         │
-├───────────────────┬───────────────────┬─────────────────────────┤
-│  PHASE 1          │  PHASE 2          │  PHASE 3                │
-│  Mortality Engine │  Reserve Module   │  Capital Module         │
-│                   │                   │                         │
-│  · Raw data       │  · Commutation    │  · Risk components      │
-│  · Graduation     │  · Life products  │  · Stress scenarios     │
-│  · Lee-Carter     │  · Reserves       │  · Aggregation          │
-│  · Projections    │  · Sensitivity    │  · Solvency metrics     │
-└───────────────────┴───────────────────┴─────────────────────────┘
-                              ▲
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         DATA LAYER                              │
-│          Mortality Tables · Policy Portfolio · Assumptions      │
-└─────────────────────────────────────────────────────────────────┘
+```text
+HMD / INEGI / CONAPO
+        |
+        v
+a06 data -> a07 graduation -> a08 Lee-Carter -> a09 projection
+        |                                      |
+        |                                      v
+        +-------------------------------> a01 life table
+                                                 |
+                              a02 commutation -> a03 values
+                                      |          |
+                                      v          v
+                                a04 premiums  a05 reserves
+                                      \          /
+                                       a11 portfolio
+                                             |
+                                           a12 SCR
+                                             |
+                                      FastAPI services
+                                             |
+                                      React application
 ```
 
----
+The calculation engine is independent of HTTP and UI concerns. API services
+convert engine results to typed response models, while routers handle
+transport, structured error mapping, and audit logging.
 
-## Phase 1: Mortality Engine
-
-**Goal**: From raw mortality data to projected mortality rates
-
-### Milestones
-
-| ID | Milestone | Deliverable | Status |
-|----|-----------|-------------|--------|
-| 1.1 | Data acquisition | INEGI/CONAPO raw mortality data loaded | ⬜ |
-| 1.2 | Graduation | Smooth mortality rates (Whittaker-Henderson) | ⬜ |
-| 1.3 | Lee-Carter fit | Estimated a_x, b_x, k_t parameters | ⬜ |
-| 1.4 | Projection | q_x(t) forecast to 2050 | ⬜ |
-| 1.5 | Validation | Comparison vs EMSSA-2009 | ⬜ |
-
-### Key Formulas
-
-```
-Lee-Carter Model:
-ln(m_{x,t}) = a_x + b_x · k_t + ε_{x,t}
-
-Where:
-- a_x = age-specific average log mortality
-- b_x = age-specific sensitivity to improvement
-- k_t = time-varying mortality index
-```
-
-### Output
-- `mortality_engine.py` module
-- API endpoint: `GET /api/mortality?age={x}&year={t}`
-- Visualization: Mortality surface plot, Lee-Carter diagnostics
-
-### Regulatory Checkpoints
-- [ ] Compare against EMSSA-2009 (CUSF 7.5 requirement)
-- [ ] Document graduation method (CUSF 7.6)
-- [ ] Age range 0-110 minimum
-- [ ] Extrapolation method documented for ages 85+
-
----
-
-## Phase 2: Reserve Valuation
-
-**Goal**: From mortality rates to policy reserves
-
-### Milestones
-
-| ID | Milestone | Deliverable | Status |
-|----|-----------|-------------|--------|
-| 2.1 | Commutation functions | D_x, N_x, C_x, M_x tables | ⬜ |
-| 2.2 | Product definitions | Term, whole life, endowment specs | ⬜ |
-| 2.3 | Premium calculation | Net premiums via equivalence principle | ⬜ |
-| 2.4 | Reserve projection | V_t trajectory for sample policies | ⬜ |
-| 2.5 | Sensitivity analysis | Impact of ±Δi, ±Δq_x on reserves | ⬜ |
-
-### Key Formulas
-
-```
-Commutation Functions:
-D_x = v^x · l_x
-N_x = Σ D_y (from y=x to ω)
-C_x = v^(x+1) · d_x
-M_x = Σ C_y (from y=x to ω)
-
-Prospective Reserve:
-V_t = A_{x+t:n-t} - P · ä_{x+t:n-t}
-
-Net Premium (Equivalence Principle):
-P = A_{x:n} / ä_{x:n}
-```
-
-### Output
-- `reserve_module.py` module
-- API endpoint: `POST /api/reserves` with policy parameters
-- Visualization: Reserve trajectory, sensitivity tornado chart
-
-### Regulatory Checkpoints
-- [ ] Net premium method as primary (LISF 217)
-- [ ] Interest rate ≤ regulatory maximum (CUSF 7.3)
-- [ ] Prospective = Retrospective validation
-- [ ] All reserves ≥ 0
-
----
-
-## Phase 3: Capital Requirements
-
-**Goal**: From reserves to solvency capital
-
-### Milestones
-
-| ID | Milestone | Deliverable | Status |
-|----|-----------|-------------|--------|
-| 3.1 | Risk identification | Mortality, longevity, interest rate risk mapped | ⬜ |
-| 3.2 | Stress scenarios | Shocked mortality/rates per CNSF specs | ⬜ |
-| 3.3 | Individual SCR | Capital for each risk component | ⬜ |
-| 3.4 | Aggregation | Combined SCR with correlation | ⬜ |
-| 3.5 | Solvency dashboard | Ratio, buffer, traffic light status | ⬜ |
-
-### Key Formulas
-
-```
-LISF Standard Formula:
-RCS = √(C1² + C2² + C3²) + C4 + Concentration
-
-Where:
-- C1 = Underwriting risk (mortality/longevity)
-- C2 = Market risk (interest rate)
-- C3 = Credit risk
-- C4 = Operational risk
-
-Stress Scenarios (LISF 236):
-- Mortality shock: +15% for life insurance
-- Longevity shock: -20% for annuities
-- Interest rate: ±100 bps parallel shift
-```
-
-### Output
-- `capital_module.py` module
-- API endpoint: `GET /api/capital`
-- Visualization: Capital waterfall, solvency ratio gauge
-
-### Regulatory Checkpoints
-- [ ] Map to LISF risk categories (Articles 232-236)
-- [ ] Stress scenarios match CNSF specifications
-- [ ] Correlation matrix documented
-- [ ] 99.5% VaR confidence level
-
----
-
-## Phase 4: Web Platform
-
-**Goal**: Professional presentation layer
-
-### Sections
-
-| Section | Purpose | Key Elements |
-|---------|---------|--------------|
-| Landing | Project overview | Hero, value proposition, your profile |
-| Methodology | Technical documentation | Math explained clearly, assumptions listed |
-| Interactive Demo | User exploration | Input assumptions → see outputs in real-time |
-| Visualizations | Data storytelling | Mortality surface, reserve trajectories, capital waterfall |
-| Technical Report | Downloadable documentation | CNSF-style PDF format |
-| Code Repository | GitHub showcase | Clean code, README, docstrings |
-
-### Tech Stack
+## Technology
 
 | Layer | Technology |
-|-------|------------|
-| Backend | Python + FastAPI |
-| Calculation | NumPy, SciPy, Pandas |
-| Frontend | React or Vue |
-| Visualization | Plotly / D3.js |
-| Styling | Tailwind CSS |
-| Hosting | Vercel / Railway / GCP |
+|---|---|
+| Engine | Python 3.12, NumPy, SciPy, Pandas |
+| API | FastAPI, Pydantic v2, Uvicorn |
+| Frontend | React 19, TypeScript 5.9, Vite 7, Plotly.js, i18next |
+| Quality | pytest (367 tests), Ruff, strict mypy on hardened core modules, ESLint, TypeScript |
+| Delivery | Docker, Google Cloud Run, GitHub Actions |
 
----
+## API surface
 
-## Development Workflow
+SIMA defines 24 routes: 23 domain routes across five routers plus health.
 
-### Before Each Phase
-1. Invoke **El Regulador** to validate approach is CNSF-compliant
-2. Invoke **El Vanguardia** to confirm method selection is appropriate
-3. Document assumptions and approach
+| Prefix | Count | Responsibility |
+|---|---:|---|
+| `/api/mortality` | 8 | Data summary, graduation, Lee–Carter, projection, tables, validation |
+| `/api/pricing` | 5 | Premiums, reserves, commutations, rate and country sensitivity |
+| `/api/portfolio` | 4 | Shared demo portfolio, policies, BEL |
+| `/api/scr` | 3 | Custom/default SCR and compliance statement |
+| `/api/sensitivity` | 3 | Mortality, country, and COVID comparisons |
+| `/api/health` | 1 | Process and data-source health |
 
-### During Implementation
-- Write tests alongside code
-- Validate against known results
-- Document as you go
+The portfolio endpoints currently operate on one locked, process-wide demo
+portfolio. They are not per-user persistence.
 
-### After Each Phase
-1. Invoke **El Gran Cuestionador** for understanding check
-2. Complete regulatory checkpoint list
-3. Update this document with status
+## Data contract
 
----
+Real raw data are not required for CI: committed mock INEGI/CONAPO, HMD,
+CNSF, and EMSSA-format data exercise the complete pipeline. For real-data
+analysis, follow:
 
-## Success Criteria
+- `backend/data/hmd/DOWNLOAD_GUIDE.md`
+- `backend/data/inegi/DOWNLOAD_GUIDE.md`
+- `backend/data/conapo/DOWNLOAD_GUIDE.md`
+- `backend/data/cnsf/DOWNLOAD_GUIDE.md`
 
-A reviewer should be able to:
+Loaders reject malformed schemas, missing/non-positive cells, invalid
+age/year ranges, and inconsistent `m_x` versus `d_x/e_x`.
 
-- [ ] Understand the system in 30 seconds (landing page)
-- [ ] Verify traditional methods are correct (commutation functions, reserves)
-- [ ] See modern techniques applied (Lee-Carter, stochastic elements)
-- [ ] Validate calculations independently (worked examples)
-- [ ] Run their own scenarios (interactive demo)
-- [ ] Review production-quality code (GitHub)
-- [ ] Download technical documentation (PDF report)
+## Actuarial and regulatory scope
 
----
+SIMA implements transparent, testable actuarial methods:
 
-## Timeline
+- Net premiums by the equivalence principle.
+- Prospective policy reserves and portfolio BEL.
+- Sex-specific mortality bases.
+- Illustrative mortality (+15%), longevity (-20%), parallel interest-rate
+  (±100 bps), and catastrophe (+35% of base mortality) stresses.
+- Positive-semi-definite correlation aggregation.
+- Optional Lee–Carter volatility-based shock calibration.
+- Portfolio-specific remaining duration for the simplified risk margin.
 
-| Week | Focus | Checkpoint |
-|------|-------|------------|
-| 1-2 | Phase 1: Mortality | Lee-Carter working, validated vs EMSSA |
-| 3-4 | Phase 2: Reserves | Reserve calculations for 3 products |
-| 5-6 | Phase 3: Capital | SCR aggregation complete |
-| 7-8 | Phase 4: Web | Full platform deployed |
-| 9 | Polish | Documentation, edge cases, presentation |
+It is not a complete production RCS/internal model. Missing modules include
+credit, spread, lapse, expense, morbidity, operational, concentration, tax,
+and full asset-liability/yield-curve modeling. Regulatory use requires
+current LISF/CUSF verification, approved data, independent validation, and
+insurer governance.
 
----
+## Development
 
-## File Structure (Target)
+```bash
+# Backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+pytest backend/tests/
+ruff check .
+mypy
+uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
 
-```
-sima/
-├── backend/
-│   ├── api/
-│   │   ├── routes/
-│   │   │   ├── mortality.py
-│   │   │   ├── reserves.py
-│   │   │   └── capital.py
-│   │   └── main.py
-│   ├── engine/
-│   │   ├── mortality_engine.py
-│   │   ├── reserve_module.py
-│   │   └── capital_module.py
-│   ├── data/
-│   │   ├── raw/
-│   │   ├── processed/
-│   │   └── tables/
-│   └── tests/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── utils/
-│   └── public/
-├── docs/
-│   ├── technical_note.tex
-│   ├── methodology.md
-│   └── api_reference.md
-├── notebooks/
-│   ├── 01_mortality_exploration.ipynb
-│   ├── 02_reserve_validation.ipynb
-│   └── 03_capital_scenarios.ipynb
-└── README.md
+# Frontend
+cd frontend
+npm ci
+npm run lint
+npm run build
+npm run dev
 ```
 
----
+## Success criteria
 
-## Progress Log
-
-| Date | Milestone | Notes |
-|------|-----------|-------|
-| | | |
-
----
-
-## Notes
-
-*Use this section for ongoing observations, questions, and learnings.*
+- Domain-invalid inputs fail at explicit boundaries with structured errors.
+- Numerical edge cases (`i=0`, terminal ages, expired/matured policies) are
+  deterministic and tested.
+- BEL/SCR calculations are reproducible and carry documented assumptions.
+- CI enforces linting, typing, frontend build, tests, and at least 80% backend
+  coverage.
+- Documentation distinguishes implemented analytics from filing-ready
+  regulatory calculations.

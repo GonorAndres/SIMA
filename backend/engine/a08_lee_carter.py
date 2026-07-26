@@ -84,6 +84,7 @@ class LeeCarter:
         kt: np.ndarray,
         log_mx: np.ndarray,
         explained_variance: float,
+        reestimation_fallback_indices: list[int] | None = None,
     ):
         self.ages = ages.copy()
         self.years = years.copy()
@@ -92,6 +93,7 @@ class LeeCarter:
         self.kt = kt.copy()
         self.log_mx = log_mx.copy()
         self.explained_variance = explained_variance
+        self.reestimation_fallback_indices = list(reestimation_fallback_indices or [])
 
     @property
     def n_ages(self) -> int:
@@ -138,8 +140,9 @@ class LeeCarter:
         ax = ax + bx * kt_offset
 
         # Step 6: Re-estimate k_t to match observed deaths
+        fallback_indices: list[int] = []
         if reestimate_kt:
-            kt, kt_reest_offset = cls._reestimate_kt(ax, bx, data.dx, data.ex)
+            kt, kt_reest_offset, fallback_indices = cls._reestimate_kt(ax, bx, data.dx, data.ex)
             # Absorb centering offset into a_x for model self-consistency
             ax = ax + bx * kt_reest_offset
 
@@ -151,6 +154,7 @@ class LeeCarter:
             kt=kt,
             log_mx=log_mx,
             explained_variance=explained_var,
+            reestimation_fallback_indices=fallback_indices,
         )
 
     @staticmethod
@@ -239,7 +243,7 @@ class LeeCarter:
         bx: np.ndarray,
         dx: np.ndarray,
         ex: np.ndarray,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, float, list[int]]:
         """
         Re-estimate k_t to match observed total deaths per year.
 
@@ -258,6 +262,7 @@ class LeeCarter:
         """
         n_years = dx.shape[1]
         kt_new = np.zeros(n_years)
+        fallback_indices: list[int] = []
 
         for t in range(n_years):
 
@@ -290,12 +295,13 @@ class LeeCarter:
                     # |residual| as best approximation.
                     best_idx = np.argmin(np.abs(f_vals))
                     kt_new[t] = k_candidates[best_idx]
+                    fallback_indices.append(t)
 
         # Re-center to sum=0, return offset for a_x adjustment
         kt_offset = np.mean(kt_new)
         kt_new = kt_new - kt_offset
 
-        return kt_new, kt_offset
+        return kt_new, float(kt_offset), fallback_indices
 
     def get_ax(self, age: int) -> float:
         """Get a_x for a specific age."""
@@ -360,9 +366,7 @@ class LeeCarter:
             "mean_abs_error": float(np.mean(np.abs(errors))),
         }
 
-    def validate(
-        self, explained_variance_threshold: float = 0.5
-    ) -> dict[str, bool]:
+    def validate(self, explained_variance_threshold: float = 0.5) -> dict[str, bool]:
         """
         Validate Lee-Carter parameter constraints.
 
@@ -402,6 +406,7 @@ class LeeCarter:
             "rmse": gof["rmse"],
             "kt_trend": "decreasing" if self.kt[-1] < self.kt[0] else "increasing",
             "kt_range": (float(np.min(self.kt)), float(np.max(self.kt))),
+            "reestimation_fallback_indices": self.reestimation_fallback_indices,
             "validations": self.validate(),
         }
 

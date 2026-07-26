@@ -154,22 +154,21 @@ def test_expired_term_zero_cat_scr(life_table, interest_rate):
     port_if = Portfolio([inforce])
     res_if = compute_scr_catastrophe(port_if, life_table, interest_rate)
     assert res_if["scr"] > 0.0
-    # The survival probability must be recorded in the detail entry.
-    assert res_if["details"][0]["t_p_x"] > 0.0
-    assert res_if["details"][0]["t_p_x"] < 1.0
+    # The portfolio is an in-force inventory, so historical survival is not
+    # applied a second time.
+    assert "t_p_x" not in res_if["details"][0]
 
 
-def test_cat_scr_applies_survival_probability(life_table, interest_rate):
-    """The catastrophe extra claim equals SA * delta_q * v * t_p_x, NOT
-    SA * delta_q * v. With t_p_x < 1 the survival-aware SCR is strictly
-    smaller than the naive (certain-in-force) figure."""
+def test_cat_scr_is_conditional_on_current_in_force_status(life_table, interest_rate):
+    """The catastrophe claim is conditional on a policy known to be in force
+    at attained age, so issue-to-date survival is not applied again."""
     p = Policy("TM", "term", issue_age=40, SA=1_000_000, n=20, duration=5)
     port = Portfolio([p])
     res = compute_scr_catastrophe(port, life_table, interest_rate)
     cat = res["scr"]
     assert cat > 0.0
 
-    # Naive recomputation (assumes in-force with certainty) must be larger.
+    # Direct attained-age conditional recomputation must match.
     v = 1.0 / (1.0 + interest_rate)
     # build_shocked equivalent
     from backend.engine.a12_scr import build_shocked_life_table
@@ -177,9 +176,8 @@ def test_cat_scr_applies_survival_probability(life_table, interest_rate):
     shocked_lt = build_shocked_life_table(life_table, 1.35)
     age = p.attained_age
     delta_q = shocked_lt.get_q(age) - life_table.get_q(age)
-    naive = p.SA * delta_q * v
-    assert cat < naive
-    assert cat == pytest.approx(naive * res["details"][0]["t_p_x"], rel=1e-9)
+    conditional = p.SA * delta_q * v
+    assert cat == pytest.approx(conditional, rel=1e-9)
 
 
 # =============================================================================

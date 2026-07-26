@@ -25,6 +25,12 @@ class PolicyCreate(BaseModel):
     issue_age: int = Field(ge=0, le=100)
     sum_assured: float = Field(default=0.0, ge=0)
     annual_pension: float = Field(default=0.0, ge=0)
+    annual_premium: float | None = Field(
+        default=None,
+        ge=0,
+        description="Contractual annual premium fixed at issue. If omitted, "
+        "the engine derives it from the base issue basis.",
+    )
     term: int | None = Field(default=None, ge=1, le=110)
     duration: int = Field(default=0, ge=0, le=110)
 
@@ -62,6 +68,7 @@ class PolicyResponse(BaseModel):
     attained_age: int
     sum_assured: float
     annual_pension: float
+    annual_premium: float | None
     term: int | None
     duration: int
     is_death_product: bool

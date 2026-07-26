@@ -146,18 +146,14 @@ class MortalityData:
         """Validate and return array index for an age."""
         idx = np.searchsorted(self.ages, age)
         if idx >= len(self.ages) or self.ages[idx] != age:
-            raise ValueError(
-                f"Age {age} not in data (range: {self.ages[0]}-{self.ages[-1]})"
-            )
+            raise ValueError(f"Age {age} not in data (range: {self.ages[0]}-{self.ages[-1]})")
         return idx
 
     def _validate_year(self, year: int) -> int:
         """Validate and return array index for a year."""
         idx = np.searchsorted(self.years, year)
         if idx >= len(self.years) or self.years[idx] != year:
-            raise ValueError(
-                f"Year {year} not in data (range: {self.years[0]}-{self.years[-1]})"
-            )
+            raise ValueError(f"Year {year} not in data (range: {self.years[0]}-{self.years[-1]})")
         return idx
 
     def get_mx(self, age: int, year: int) -> float:
@@ -296,9 +292,9 @@ class MortalityData:
                     constraint=f"{HMD_SCHEMA['filename_patterns'][name]} must exist",
                 )
 
-        mx_raw = _load_hmd_file(mx_file, sex)
-        dx_raw = _load_hmd_file(dx_file, sex)
-        ex_raw = _load_hmd_file(ex_file, sex)
+        mx_raw = _load_hmd_file(mx_file, sex, allow_missing_values=impute_missing)
+        dx_raw = _load_hmd_file(dx_file, sex, allow_missing_values=impute_missing)
+        ex_raw = _load_hmd_file(ex_file, sex, allow_missing_values=impute_missing)
 
         # --- Filter years ---
         mx_raw = mx_raw[(mx_raw["Year"] >= year_min) & (mx_raw["Year"] <= year_max)]
@@ -315,8 +311,16 @@ class MortalityData:
         dx_matrix = dx_raw.pivot(index="Age", columns="Year", values="Value")
         ex_matrix = ex_raw.pivot(index="Age", columns="Year", values="Value")
 
-        ages = mx_matrix.index.values.astype(int)
-        years = mx_matrix.columns.values.astype(int)
+        all_ages = mx_matrix.index.union(dx_matrix.index).union(ex_matrix.index).sort_values()
+        all_years = (
+            mx_matrix.columns.union(dx_matrix.columns).union(ex_matrix.columns).sort_values()
+        )
+        mx_matrix = mx_matrix.reindex(index=all_ages, columns=all_years)
+        dx_matrix = dx_matrix.reindex(index=all_ages, columns=all_years)
+        ex_matrix = ex_matrix.reindex(index=all_ages, columns=all_years)
+
+        ages = all_ages.values.astype(int)
+        years = all_years.values.astype(int)
 
         mx_np = mx_matrix.values.astype(float)
         dx_np = dx_matrix.values.astype(float)
@@ -325,9 +329,8 @@ class MortalityData:
         # --- Optional missing-value imputation (by age within each year) ---
         n_imputed = 0
         if impute_missing:
-            mx_np, dx_np, ex_np, n_imputed = _impute_missing_hmd(
-                mx_np, dx_np, ex_np, ages, years
-            )
+            mx_np, dx_np, ex_np, n_imputed = _impute_missing_hmd(mx_np, dx_np, ex_np, ages, years)
+            mx_np = dx_np / ex_np
 
         # --- Validation ---
         _validate(mx_np, dx_np, ex_np, ages, years, country, sex)
@@ -435,8 +438,20 @@ class MortalityData:
             )
 
         # --- Load and validate schemas ---
-        dx_raw = _load_inegi_deaths(deaths_filepath, sex, year_start, year_end)
-        ex_raw = _load_conapo_population(population_filepath, sex, year_start, year_end)
+        dx_raw = _load_inegi_deaths(
+            deaths_filepath,
+            sex,
+            year_start,
+            year_end,
+            allow_missing_values=impute_missing,
+        )
+        ex_raw = _load_conapo_population(
+            population_filepath,
+            sex,
+            year_start,
+            year_end,
+            allow_missing_values=impute_missing,
+        )
 
         # --- Cap ages: aggregate everything above age_max ---
         dx_capped = _cap_ages_sum(dx_raw, age_max)
@@ -472,8 +487,16 @@ class MortalityData:
         dx_matrix = dx_capped.pivot(index="Age", columns="Year", values="Value")
         ex_matrix = ex_capped.pivot(index="Age", columns="Year", values="Value")
 
-        ages = mx_matrix.index.values.astype(int)
-        years = mx_matrix.columns.values.astype(int)
+        all_ages = mx_matrix.index.union(dx_matrix.index).union(ex_matrix.index).sort_values()
+        all_years = (
+            mx_matrix.columns.union(dx_matrix.columns).union(ex_matrix.columns).sort_values()
+        )
+        mx_matrix = mx_matrix.reindex(index=all_ages, columns=all_years)
+        dx_matrix = dx_matrix.reindex(index=all_ages, columns=all_years)
+        ex_matrix = ex_matrix.reindex(index=all_ages, columns=all_years)
+
+        ages = all_ages.values.astype(int)
+        years = all_years.values.astype(int)
 
         mx_np = mx_matrix.values.astype(float)
         dx_np = dx_matrix.values.astype(float)
@@ -482,9 +505,8 @@ class MortalityData:
         # --- Optional missing-value imputation (by age within each year) ---
         n_imputed = 0
         if impute_missing:
-            mx_np, dx_np, ex_np, n_imputed = _impute_missing_hmd(
-                mx_np, dx_np, ex_np, ages, years
-            )
+            mx_np, dx_np, ex_np, n_imputed = _impute_missing_hmd(mx_np, dx_np, ex_np, ages, years)
+            mx_np = dx_np / ex_np
 
         # --- Validation ---
         _validate(mx_np, dx_np, ex_np, ages, years, "Mexico", sex)
@@ -512,7 +534,12 @@ class MortalityData:
         )
 
 
-def _load_hmd_file(filepath: Path, sex: str) -> pd.DataFrame:
+def _load_hmd_file(
+    filepath: Path,
+    sex: str,
+    *,
+    allow_missing_values: bool = False,
+) -> pd.DataFrame:
     """
     Load a single HMD text file and extract one sex column.
 
@@ -540,7 +567,9 @@ def _load_hmd_file(filepath: Path, sex: str) -> pd.DataFrame:
 
     required = [HMD_SCHEMA["year_column"], HMD_SCHEMA["age_column"], sex]
     validate_required_columns(df, required, filepath=filepath, source="HMD")
-    validate_no_missing_cells(df, required, filepath=filepath, source="HMD")
+    validate_no_missing_cells(df, ["Year", "Age"], filepath=filepath, source="HMD")
+    if not allow_missing_values:
+        validate_no_missing_cells(df, [sex], filepath=filepath, source="HMD")
 
     # Handle '110+' in Age column
     df["Age"] = df["Age"].astype(str).str.replace("+", "", regex=False)
@@ -577,7 +606,7 @@ def _cap_ages_sum(df: pd.DataFrame, age_max: int) -> pd.DataFrame:
     """
     df = df.copy()
     df.loc[df["Age"] > age_max, "Age"] = age_max
-    return df.groupby(["Year", "Age"], as_index=False)["Value"].sum()
+    return df.groupby(["Year", "Age"], as_index=False)["Value"].sum(min_count=1)
 
 
 def _cap_ages(
@@ -598,8 +627,8 @@ def _cap_ages(
     keep = keep[keep["Age"] < age_max]  # Exclude age_max (will be recomputed)
 
     # Aggregate d and L for ages >= age_max
-    dx_agg = dx_df[dx_df["Age"] >= age_max].groupby("Year")["Value"].sum()
-    ex_agg = ex_df[ex_df["Age"] >= age_max].groupby("Year")["Value"].sum()
+    dx_agg = dx_df[dx_df["Age"] >= age_max].groupby("Year")["Value"].sum(min_count=1)
+    ex_agg = ex_df[ex_df["Age"] >= age_max].groupby("Year")["Value"].sum(min_count=1)
     mx_agg = (dx_agg / ex_agg).reset_index()
     mx_agg.columns = ["Year", "Value"]
     mx_agg["Age"] = age_max
@@ -629,10 +658,11 @@ def _impute_missing_hmd(
     if n_missing == 0:
         return mx, dx, ex, 0
 
-    if n_missing / n_cells > max_ratio:
+    total_values = 3 * n_cells
+    if n_missing / total_values > max_ratio:
         raise DataQualityError(
-            f"Too many missing values: {n_missing}/{n_cells} "
-            f"({100 * n_missing / n_cells:.1f}%, limit {100 * max_ratio:.1f}%)",
+            f"Too many missing values: {n_missing}/{total_values} "
+            f"({100 * n_missing / total_values:.1f}%, limit {100 * max_ratio:.1f}%)",
             field="missing_values",
             constraint=f"missing ratio <= {max_ratio}",
         )
@@ -643,10 +673,14 @@ def _impute_missing_hmd(
             col = arr[:, j]
             nan_mask = np.isnan(col)
             if nan_mask.any():
+                if nan_mask.all():
+                    raise DataQualityError(
+                        f"Cannot impute year {int(years[j])}: all age cells are missing",
+                        field="missing_values",
+                        constraint="each year/matrix has at least one observed age",
+                    )
                 n_imputed += int(nan_mask.sum())
-                col[nan_mask] = np.interp(
-                    ages[nan_mask], ages[~nan_mask], col[~nan_mask]
-                )
+                col[nan_mask] = np.interp(ages[nan_mask], ages[~nan_mask], col[~nan_mask])
     return mx, dx, ex, n_imputed
 
 
@@ -725,7 +759,14 @@ def _validate(
         )
 
 
-def _load_inegi_deaths(filepath: str, sex: str, year_start: int, year_end: int) -> pd.DataFrame:
+def _load_inegi_deaths(
+    filepath: str,
+    sex: str,
+    year_start: int,
+    year_end: int,
+    *,
+    allow_missing_values: bool = False,
+) -> pd.DataFrame:
     """
     Load INEGI deaths file and filter by sex and year range.
 
@@ -744,10 +785,17 @@ def _load_inegi_deaths(filepath: str, sex: str, year_start: int, year_end: int) 
     )
     validate_no_missing_cells(
         df,
-        [schema["year_column"], schema["age_column"], "Sexo", schema["value_column"]],
+        [schema["year_column"], schema["age_column"], "Sexo"],
         filepath=filepath,
         source="INEGI deaths",
     )
+    if not allow_missing_values:
+        validate_no_missing_cells(
+            df,
+            [schema["value_column"]],
+            filepath=filepath,
+            source="INEGI deaths",
+        )
     validate_integer_columns(
         df,
         [schema["year_column"], schema["age_column"]],
@@ -763,7 +811,12 @@ def _load_inegi_deaths(filepath: str, sex: str, year_start: int, year_end: int) 
 
 
 def _load_conapo_population(
-    filepath: str, sex: str, year_start: int, year_end: int
+    filepath: str,
+    sex: str,
+    year_start: int,
+    year_end: int,
+    *,
+    allow_missing_values: bool = False,
 ) -> pd.DataFrame:
     """
     Load CONAPO population file and filter by sex and year range.
@@ -783,10 +836,17 @@ def _load_conapo_population(
     )
     validate_no_missing_cells(
         df,
-        [schema["year_column"], schema["age_column"], "Sexo", schema["value_column"]],
+        [schema["year_column"], schema["age_column"], "Sexo"],
         filepath=filepath,
         source="CONAPO population",
     )
+    if not allow_missing_values:
+        validate_no_missing_cells(
+            df,
+            [schema["value_column"]],
+            filepath=filepath,
+            source="CONAPO population",
+        )
     validate_integer_columns(
         df,
         [schema["year_column"], schema["age_column"]],

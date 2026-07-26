@@ -59,6 +59,7 @@ def add_policy(
     issue_age: int,
     sum_assured: float = 0.0,
     annual_pension: float = 0.0,
+    annual_premium: float | None = None,
     term: int | None = None,
     duration: int = 0,
 ) -> Policy:
@@ -71,6 +72,7 @@ def add_policy(
             issue_age=issue_age,
             SA=sum_assured,
             annual_pension=annual_pension,
+            annual_premium=annual_premium,
             n=term,
             duration=duration,
         )

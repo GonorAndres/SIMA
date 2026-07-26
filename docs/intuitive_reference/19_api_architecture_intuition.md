@@ -137,23 +137,26 @@ INTUITION
 
 ## Endpoint Organization
 
-The 22 endpoints are organized into 5 functional groups:
+The 24 endpoints are organized into 5 functional groups plus health:
 
 ```
 /api/mortality/    (8 GET endpoints)
   Data loading, Lee-Carter, projection, graduation, surface, diagnostics, validation
 
-/api/pricing/      (2 POST + 2 GET endpoints)
-  Premium calculation, reserve trajectory, commutation lookup, interest rate sensitivity
+/api/pricing/      (4 POST + 1 GET endpoints)
+  Premium calculation, reserve trajectory, commutation lookup, sensitivity, cross-country pricing
 
 /api/portfolio/    (2 POST + 1 GET endpoints + 1 POST)
   Portfolio summary, BEL computation, add policy, reset
 
-/api/scr/          (2 POST endpoints)
-  Full SCR pipeline with custom or default parameters
+/api/scr/          (2 POST + 1 GET endpoints)
+  Full SCR pipeline with custom/default parameters and LISF compliance statement
 
 /api/sensitivity/  (1 POST + 2 GET endpoints)
   Mortality shock sweep (dynamic), cross-country and COVID (hardcoded)
+
+/api/health        (1 GET endpoint)
+  Process health, version, engine-module count, and active data source
 ```
 
 ---

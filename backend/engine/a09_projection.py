@@ -100,8 +100,7 @@ class MortalityProjection:
             )
         if n_simulations > 1_000_000:
             raise ActuarialValidationError(
-                f"n_simulations {n_simulations} exceeds the supported limit "
-                "(1,000,000)",
+                f"n_simulations {n_simulations} exceeds the supported limit (1,000,000)",
                 field="n_simulations",
                 constraint="n_simulations <= 1_000_000",
             )
@@ -207,7 +206,11 @@ class MortalityProjection:
         year_idx = self._validate_projection_year(year)
         kt = self.kt_central[year_idx]
         age_idx = np.searchsorted(self.lee_carter.ages, age)
-        if age_idx < 0 or age_idx >= len(self.lee_carter.ages) or self.lee_carter.ages[age_idx] != age:
+        if (
+            age_idx < 0
+            or age_idx >= len(self.lee_carter.ages)
+            or self.lee_carter.ages[age_idx] != age
+        ):
             raise ActuarialValidationError(
                 f"Age {age} not in Lee-Carter model "
                 f"(range {self.lee_carter.ages[0]}-{self.lee_carter.ages[-1]})",
@@ -261,7 +264,11 @@ class MortalityProjection:
         """
         year_idx = self._validate_projection_year(year)
         age_idx = np.searchsorted(self.lee_carter.ages, age)
-        if age_idx < 0 or age_idx >= len(self.lee_carter.ages) or self.lee_carter.ages[age_idx] != age:
+        if (
+            age_idx < 0
+            or age_idx >= len(self.lee_carter.ages)
+            or self.lee_carter.ages[age_idx] != age
+        ):
             raise ActuarialValidationError(
                 f"Age {age} not in Lee-Carter model "
                 f"(range {self.lee_carter.ages[0]}-{self.lee_carter.ages[-1]})",

@@ -103,7 +103,9 @@ class ReserveCalculator:
                     constraint="n >= 0",
                 )
 
-    def reserve_whole_life(self, SA: float, x: int, t: int) -> float:
+    def reserve_whole_life(
+        self, SA: float, x: int, t: int, annual_premium: float | None = None
+    ) -> float:
         """
         Reserve at duration t for whole life policy issued at age x.
 
@@ -137,7 +139,7 @@ class ReserveCalculator:
 
         # Step 1: Get the premium that was set at issue
         # This P was calculated to satisfy equivalence at age x
-        P = self.pc.whole_life(SA, x)
+        P = self.pc.whole_life(SA, x) if annual_premium is None else annual_premium
 
         # Step 2: Get actuarial values at CURRENT age (x+t)
         # These reflect the remaining lifetime from now
@@ -150,7 +152,14 @@ class ReserveCalculator:
 
         return reserve
 
-    def reserve_term(self, SA: float, x: int, n: int, t: int) -> float:
+    def reserve_term(
+        self,
+        SA: float,
+        x: int,
+        n: int,
+        t: int,
+        annual_premium: float | None = None,
+    ) -> float:
         """
         Reserve at duration t for n-year term policy issued at age x.
 
@@ -186,7 +195,7 @@ class ReserveCalculator:
             return 0.0
 
         # Premium set at issue (for full n-year term)
-        P = self.pc.term(SA, x, n)
+        P = self.pc.term(SA, x, n) if annual_premium is None else annual_premium
 
         # Future values for REMAINING term
         A_term_remaining = self.av.A_term(attained_age, remaining_term)
@@ -197,7 +206,14 @@ class ReserveCalculator:
 
         return reserve
 
-    def reserve_endowment(self, SA: float, x: int, n: int, t: int) -> float:
+    def reserve_endowment(
+        self,
+        SA: float,
+        x: int,
+        n: int,
+        t: int,
+        annual_premium: float | None = None,
+    ) -> float:
         """
         Reserve at duration t for n-year endowment issued at age x.
 
@@ -228,7 +244,7 @@ class ReserveCalculator:
             return SA
 
         # Premium set at issue
-        P = self.pc.endowment(SA, x, n)
+        P = self.pc.endowment(SA, x, n) if annual_premium is None else annual_premium
 
         # Future values for remaining period
         A_endow_remaining = self.av.A_endowment(attained_age, remaining_term)
@@ -239,7 +255,14 @@ class ReserveCalculator:
 
         return reserve
 
-    def reserve_pure_endowment(self, SA: float, x: int, n: int, t: int) -> float:
+    def reserve_pure_endowment(
+        self,
+        SA: float,
+        x: int,
+        n: int,
+        t: int,
+        annual_premium: float | None = None,
+    ) -> float:
         """
         Reserve at duration t for n-year pure endowment issued at age x.
 
@@ -269,7 +292,7 @@ class ReserveCalculator:
             return 0.0
 
         # Premium set at issue
-        P = self.pc.pure_endowment(SA, x, n)
+        P = self.pc.pure_endowment(SA, x, n) if annual_premium is None else annual_premium
 
         # Future values for remaining period
         nE_remaining = self.av.nE_x(attained_age, remaining_term)
@@ -431,6 +454,15 @@ class ReserveCalculator:
         elif product == "endowment":
             assert n is not None
             P = self.pc.endowment(SA, x, n)
+        elif product == "pure_endowment":
+            assert n is not None
+            P = self.pc.pure_endowment(SA, x, n)
+        else:
+            raise ActuarialValidationError(
+                f"Unknown product: {product!r}",
+                field="product",
+                constraint="product in {whole_life, term, endowment, pure_endowment}",
+            )
 
         lines.append(f"Annual Premium: ${P:,.2f}")
         lines.append("")

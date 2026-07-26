@@ -35,7 +35,7 @@ from __future__ import annotations
 import warnings
 
 from .a02_commutation import CommutationFunctions
-from .validators import validate_age_in_table, validate_non_negative_amount
+from .validators import validate_age_in_table, validate_non_negative_integer
 
 
 class ActuarialValues:
@@ -98,7 +98,7 @@ class ActuarialValues:
             APV of term insurance (per $1 benefit)
         """
         self._check_age(x)
-        validate_non_negative_amount(float(n), "n")
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, equivalent to whole life from x
@@ -182,7 +182,7 @@ class ActuarialValues:
             APV of temporary annuity-due (per $1/year)
         """
         self._check_age(x)
-        validate_non_negative_amount(float(n), "n")
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, equivalent to whole life from x
@@ -215,7 +215,7 @@ class ActuarialValues:
             APV of pure endowment (per $1 benefit)
         """
         self._check_age(x)
-        validate_non_negative_amount(float(n), "n")
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Cannot survive beyond omega
@@ -243,7 +243,7 @@ class ActuarialValues:
             APV of endowment insurance (per $1 benefit)
         """
         self._check_age(x)
-        validate_non_negative_amount(float(n), "n")
+        validate_non_negative_integer(n, "n")
         x_plus_n = x + n
         if x_plus_n > self.comm.max_age:
             # Term extends beyond omega, just whole life

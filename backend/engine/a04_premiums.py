@@ -42,6 +42,7 @@ from .exceptions import ActuarialComputationError
 from .validators import (
     validate_age_in_table,
     validate_non_negative_amount,
+    validate_non_negative_integer,
 )
 
 
@@ -70,7 +71,7 @@ class PremiumCalculator:
         validate_non_negative_amount(SA, "sum_assured")
         validate_age_in_table(x, self.comm.min_age, self.comm.max_age)
         if n is not None:
-            validate_non_negative_amount(float(n), "n")
+            validate_non_negative_integer(n, "n")
 
     def whole_life(self, SA: float, x: int) -> float:
         """
@@ -261,7 +262,7 @@ class PremiumCalculator:
             Since fewer premiums are collected, each premium is larger.
         """
         self._check_common(SA, x)
-        validate_non_negative_amount(float(m), "m")
+        validate_non_negative_integer(m, "m")
         if m == 0:
             # Zero pay period: the single premium is just the whole-life APV.
             return SA * self.av.A_x(x)
