@@ -7,10 +7,8 @@ import i18n from '../i18n';
 /**
  * Render helper wiring the two providers every page needs: i18n (all copy goes
  * through `t()`) and a router (nav links and `useLocation`).
- *
- * Language is reset to Spanish before each render so a test that switches to
- * English cannot leak into the next one -- i18n is a module-level singleton.
  */
+
 export async function setLanguage(lng: 'es' | 'en') {
   // Wrapped in act(): changeLanguage re-renders every mounted component that
   // uses useTranslation, and React warns about state updates outside act.
@@ -19,18 +17,26 @@ export async function setLanguage(lng: 'es' | 'en') {
   });
 }
 
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <I18nextProvider i18n={i18n}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </I18nextProvider>
-  );
+interface RenderOptions {
+  /**
+   * Starting path. Passed to MemoryRouter as `initialEntries` -- MemoryRouter
+   * keeps its own in-memory history and ignores window.history entirely, so
+   * pushState here would silently do nothing and every test would start at '/'.
+   */
+  route?: string;
 }
 
-export function renderWithProviders(ui: ReactElement, options?: { route?: string }) {
-  if (options?.route) {
-    window.history.pushState({}, '', options.route);
+export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
+  const initialEntries = [options?.route ?? '/'];
+
+  function Providers({ children }: { children: ReactNode }) {
+    return (
+      <I18nextProvider i18n={i18n}>
+        <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+      </I18nextProvider>
+    );
   }
+
   return render(ui, { wrapper: Providers });
 }
 

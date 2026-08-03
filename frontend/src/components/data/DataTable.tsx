@@ -55,16 +55,39 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
         <thead>
           <tr>
             {columns.map((col) => (
+              // aria-sort tells a screen reader which column orders the table
+              // and in which direction; the arrow glyph alone conveys that to
+              // sighted users only.
               <th
                 key={col.key}
                 className={col.align === 'right' ? styles.alignRight : ''}
-                onClick={() => handleSort(col.key)}
+                aria-sort={
+                  !sortable || sortKey !== col.key
+                    ? undefined
+                    : sortAsc
+                      ? 'ascending'
+                      : 'descending'
+                }
               >
-                {col.label}
-                {sortable && (
-                  <span className={`${styles.sortArrow} ${sortKey === col.key ? styles.sortArrowActive : ''}`}>
-                    {sortKey === col.key ? (sortAsc ? '\u25B2' : '\u25BC') : '\u25B2'}
-                  </span>
+                {sortable ? (
+                  // A real button, not an onClick on the <th>. The header was
+                  // clickable but not focusable, so sorting was unreachable by
+                  // keyboard and had no focus ring.
+                  <button
+                    type="button"
+                    className={styles.sortButton}
+                    onClick={() => handleSort(col.key)}
+                  >
+                    {col.label}
+                    <span
+                      aria-hidden="true"
+                      className={`${styles.sortArrow} ${sortKey === col.key ? styles.sortArrowActive : ''}`}
+                    >
+                      {sortKey === col.key ? (sortAsc ? '\u25B2' : '\u25BC') : '\u25B2'}
+                    </span>
+                  </button>
+                ) : (
+                  col.label
                 )}
               </th>
             ))}
