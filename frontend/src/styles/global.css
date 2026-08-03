@@ -187,6 +187,18 @@ img {
   flex: 1;
 }
 
+/* === Plotly modebar ===
+   Plotly ships 24x22px icons, which miss the WCAG 2.2 AA 24x24 target. The
+   bar is hidden outright below --bp-md (see chartDefaults.ts); this is for
+   the pointer-driven sizes where it still appears. */
+.modebar-btn {
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
 /* === Utility: monospace numbers === */
 .mono {
   font-family: var(--font-mono);

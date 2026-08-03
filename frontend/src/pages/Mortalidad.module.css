@@ -4,10 +4,17 @@
 
 .metricsRow {
   display: grid;
-  /* min() guard: a bare 200px minimum overflows below a 200px column */
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: var(--space-lg);
+  /* min() guard: a bare 140px minimum overflows below a 140px column.
+     140px so figures pair up on a phone rather than one per screen. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
   margin: 0 0 var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .metricsRow {
+    gap: var(--space-lg);
+  }
 }
 
 .chartGrid {

@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8000'
+      // Port 8000 is the documented default; override when the backend is
+      // already occupying another port locally.
+      '/api': process.env.VITE_API_PROXY || 'http://localhost:8000'
     }
   },
   build: {

@@ -18,7 +18,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
+  /* Tight by default: at 320px the bar carries brand, DEMO, both language
+     buttons and the hamburger, and every one of them is a 44px target.
+     The gap is the only give left, so it starts small and relaxes at 480px. */
+  gap: var(--space-sm);
   min-height: 56px;
 }
 
@@ -41,7 +44,9 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
+  /* The bar may not push the page sideways; the brand yields first. */
+  flex-shrink: 0;
 }
 
 /* --- Drawer (mobile) --- */
@@ -108,8 +113,9 @@
   font-weight: 700;
   color: var(--color-accent);
   border: 1px solid var(--color-accent);
-  padding: 0 var(--space-md);
+  padding: 0 var(--space-sm);
   min-height: var(--tap-target);
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   background: none;
@@ -132,6 +138,21 @@
   line-height: 1;
   cursor: pointer;
   color: var(--color-black);
+}
+
+/* Past the smallest phones there is room to breathe again. */
+@media (min-width: 480px) {
+  .inner {
+    gap: var(--space-md);
+  }
+
+  .actions {
+    gap: var(--space-sm);
+  }
+
+  .demoBtn {
+    padding: 0 var(--space-md);
+  }
 }
 
 /* --- Desktop ---

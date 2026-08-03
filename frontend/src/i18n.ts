@@ -380,6 +380,8 @@ const resources = {
         year: 'Año',
         age: 'Edad',
         lnMx: 'ln(m_x)',
+        // La superficie 3D no se explica sola en una pantalla tactil.
+        rotateHint: 'Arrastra para girar la superficie; pellizca para acercar',
       },
       tables: {
         age: 'Edad',
@@ -531,6 +533,10 @@ const resources = {
       },
       demo: {
         stop: 'SALIR',
+        // Las flechas solas no tienen nombre accesible.
+        prev: 'Paso anterior',
+        next: 'Paso siguiente',
+        progress: 'Paso {{step}} de {{total}}',
         step1: 'Esta es la página de inicio de SIMA. A la derecha se calculan métricas en tiempo real directamente desde el motor actuarial: la varianza explicada del modelo Lee-Carter, la velocidad de mejora en mortalidad y el requerimiento de capital. Todo lo que ves aquí viene del mismo código que corre la suite de pruebas del proyecto.',
         step2: 'Aquí empezamos con los datos crudos de mortalidad del INEGI, esas son las líneas grises. La curva roja es el resultado de la graduación Whittaker-Henderson, un método que suaviza el ruido estadístico sin perder la forma biológica de la mortalidad. Fíjate como la curva graduada elimina los picos aleatorios pero conserva el crecimiento exponencial típico de Gompertz.',
         step3: 'Esta superficie tridimensional muestra la mortalidad a través del tiempo y la edad. Los tonos más oscuros son mortalidad más alta. Lo que se observa es que, en general, la mortalidad ha ido bajando a lo largo de las décadas en todas las edades, pero el ritmo de mejora no es uniforme.',
@@ -558,6 +564,12 @@ const resources = {
         retry: 'Reintentar',
         languageEs: 'Español',
         languageEn: 'English',
+      },
+      table: {
+        // Solo se muestran cuando la tabla realmente se desborda. "Desplaza",
+        // no "desliza": la tabla tambien se desborda en pantallas con raton.
+        scrollHint: 'Desplaza para ver todas las columnas',
+        ariaScrollable: 'Tabla con desplazamiento horizontal',
       },
       footer: {
         // La ventana de años NO se escribe a mano: se lee de
@@ -1055,6 +1067,8 @@ const resources = {
         year: 'Year',
         age: 'Age',
         lnMx: 'ln(m_x)',
+        // A 3D surface does not explain itself on a touch screen.
+        rotateHint: 'Drag to rotate the surface; pinch to zoom',
       },
       tables: {
         age: 'Age',
@@ -1098,6 +1112,10 @@ const resources = {
       },
       demo: {
         stop: 'EXIT',
+        // Bare arrow glyphs carry no accessible name.
+        prev: 'Previous step',
+        next: 'Next step',
+        progress: 'Step {{step}} of {{total}}',
         step1: 'This is the SIMA landing page. On the right, metrics are computed in real time directly from the actuarial engine: Lee-Carter explained variance, mortality improvement speed, and capital requirements. Everything you see here comes from the same codebase the project test suite runs against.',
         step2: 'We start with raw INEGI mortality data -- those are the gray lines. The red curve is the result of Whittaker-Henderson graduation, a method that smooths statistical noise without destroying the biological shape of mortality. Notice how the graduated curve eliminates random spikes while preserving the exponential Gompertz growth pattern.',
         step3: 'This three-dimensional surface shows mortality across time and age. Darker tones mean higher mortality. What you can observe is that mortality has been declining over the decades at all ages, but the pace of improvement is not uniform.',
@@ -1125,6 +1143,12 @@ const resources = {
         retry: 'Retry',
         languageEs: 'Spanish',
         languageEn: 'English',
+      },
+      table: {
+        // Shown only when the table actually overflows. "Scroll", not
+        // "swipe": it overflows on pointer screens too.
+        scrollHint: 'Scroll to see all columns',
+        ariaScrollable: 'Horizontally scrollable table',
       },
       footer: {
         // The year window is NOT hardcoded: it is read from

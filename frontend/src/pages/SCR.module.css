@@ -2,9 +2,21 @@
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: 24px;
+  /* 140px, not 200px: at 200px a 375px phone fits one metric per row, so four
+     figures cost four screens of scrolling and can no longer be compared.
+     140px + a 16px gutter pairs them up (296px of the 309px available) and
+     still holds a compact "$13.50M" on one line. At 320px it falls back to a
+     single column, which is the right answer there. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
   margin-bottom: 24px;
+}
+
+/* Once the row is not fighting for width, give the figures room again. */
+@media (min-width: 768px) {
+  .metricsRow {
+    gap: var(--space-lg);
+  }
 }
 
 .splitLayout {

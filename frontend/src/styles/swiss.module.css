@@ -114,6 +114,14 @@
 
 .metricGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
+  /* The min() guard is what stops the track staying 200px wide — and so
+     overflowing — on a viewport narrower than 200px plus its gutters. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .metricGrid {
+    gap: var(--space-lg);
+  }
 }

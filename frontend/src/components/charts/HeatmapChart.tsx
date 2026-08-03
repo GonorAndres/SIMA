@@ -1,5 +1,6 @@
 import Plot from './Plot';
-import { defaultLayout, defaultConfig } from './chartDefaults';
+import { defaultLayout, chartConfig, chartLayout, chartHeight } from './chartDefaults';
+import { useIsCompact } from '../../hooks/useMediaQuery';
 
 interface HeatmapChartProps {
   x: number[] | string[];
@@ -12,6 +13,7 @@ interface HeatmapChartProps {
 }
 
 export default function HeatmapChart({ x, y, z, title, xTitle, yTitle, height = 400 }: HeatmapChartProps) {
+  const isCompact = useIsCompact();
   const data = [
     {
       type: 'heatmap' as const,
@@ -32,12 +34,20 @@ export default function HeatmapChart({ x, y, z, title, xTitle, yTitle, height = 
   ];
 
   const layout = {
-    ...defaultLayout,
+    ...chartLayout(isCompact),
     title: title ? { text: title, font: { size: 14, color: '#000' } } : undefined,
     xaxis: { ...defaultLayout.xaxis, title: xTitle ? { text: xTitle } : undefined },
     yaxis: { ...defaultLayout.yaxis, title: yTitle ? { text: yTitle } : undefined },
-    height,
+    height: chartHeight(height, isCompact),
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} useResizeHandler />;
+  return (
+    <Plot
+      data={data}
+      layout={layout}
+      config={chartConfig(isCompact)}
+      style={{ width: '100%' }}
+      useResizeHandler
+    />
+  );
 }

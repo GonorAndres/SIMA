@@ -1,3 +1,5 @@
+/* A standalone call to action, not a link inside prose — so it carries the
+   full touch target rather than the WCAG inline-link exception. */
 .link {
   color: var(--color-accent);
   font-size: 0.875rem;
@@ -5,6 +7,7 @@
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  min-height: var(--tap-target);
   gap: 4px;
 }
 

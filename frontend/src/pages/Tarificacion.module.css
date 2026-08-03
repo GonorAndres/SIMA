@@ -28,9 +28,16 @@
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: var(--space-lg);
+  /* 140px pairs the figures up on a phone; 200px stacked them one per row. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
   margin-bottom: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .metricsRow {
+    gap: var(--space-lg);
+  }
 }
 
 /* Form and result sit side by side only when both keep a usable width. */
