@@ -23,12 +23,14 @@ const formulaSrcMap: Record<string, string> = {
   whole_life: '/formulas/whole_life_premium.png',
   term: '/formulas/term_premium.png',
   endowment: '/formulas/endowment_premium.png',
+  pure_endowment: '/formulas/pure_endowment_premium.png',
 };
 
 const formulaAltMap: Record<string, string> = {
   whole_life: 'P = SA * M_x / N_x',
   term: 'P = SA * (M_x - M_{x+n}) / (N_x - N_{x+n})',
   endowment: 'P = SA * (M_x - M_{x+n} + D_{x+n}) / (N_x - N_{x+n})',
+  pure_endowment: 'P = SA * D_{x+n} / (N_x - N_{x+n})',
 };
 
 export default function Tarificacion() {
@@ -43,6 +45,7 @@ export default function Tarificacion() {
     whole_life: t('forms.wholeLife'),
     term: t('forms.termLife'),
     endowment: t('forms.endowment'),
+    pure_endowment: t('forms.pureEndowment'),
   }), [t]);
 
   const handleSubmit = (req: PremiumFormData) => {

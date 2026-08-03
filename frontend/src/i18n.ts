@@ -360,6 +360,7 @@ const resources = {
         wholeLife: 'Vida Entera',
         termLife: 'Temporal',
         endowment: 'Dotal',
+        pureEndowment: 'Dotal Puro',
         lifeAnnuity: 'Renta Vitalicia',
         netPremium: 'Prima Neta',
         years: 'años',
@@ -544,7 +545,7 @@ const resources = {
         step12: 'Toda la metodología está documentada aquí: desde las fórmulas exactas hasta las métricas de bondad de ajuste. El proyecto incluye 6 documentos LaTeX compilados que cubren los fundamentos matemáticos completos de cada módulo del sistema.',
       },
       hints: {
-        product: 'Vitalicio: paga al fallecer. Temporal: solo dentro de n años. Dotal: al fallecer o al sobrevivir.',
+        product: 'Vitalicio: paga al fallecer. Temporal: solo dentro de n años. Dotal: al fallecer o al sobrevivir. Dotal puro: solo si sobrevive al plazo.',
         sex: 'Modelo Lee-Carter ajustado por separado para cada sexo.',
         sumAssured: 'Monto pagado a beneficiarios. Típico: $100K-$5M.',
         interestRate: 'Tasa técnica de descuento. Menor tasa = primas más altas.',
@@ -1034,6 +1035,7 @@ const resources = {
         wholeLife: 'Whole Life',
         termLife: 'Term',
         endowment: 'Endowment',
+        pureEndowment: 'Pure Endowment',
         lifeAnnuity: 'Life Annuity',
         netPremium: 'Net Premium',
         years: 'years',
@@ -1110,7 +1112,7 @@ const resources = {
         step12: 'The complete methodology is documented here: from exact formulas to goodness-of-fit metrics. The project includes 6 compiled LaTeX documents covering the complete mathematical foundations of every system module.',
       },
       hints: {
-        product: 'Whole life: pays on death at any age. Term: only within n years. Endowment: on death or survival.',
+        product: 'Whole life: pays on death at any age. Term: only within n years. Endowment: on death or survival. Pure endowment: only on survival to the end of the term.',
         sex: 'Lee-Carter model fitted separately for each sex.',
         sumAssured: 'Benefit amount paid to beneficiaries. Typical: $100K-$5M.',
         interestRate: 'Technical discount rate. Lower rate = higher premiums.',

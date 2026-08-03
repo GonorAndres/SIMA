@@ -413,3 +413,46 @@ def test_pure_endowment_reserve_trajectory(rc):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestPureEndowmentReserves:
+    """Pure endowment is a supported product; these lock its reserve behaviour.
+
+    It was listed in an audit as crashing `validate_zero_reserve`, which is no
+    longer true -- the branch exists and passes. These tests keep it that way,
+    since the product had no reserve coverage of its own.
+    """
+
+    def test_zero_reserve_at_issue(self, rc):
+        """THEORY: equivalence principle holds for pure endowment too: 0V = 0."""
+        result = rc.validate_zero_reserve(
+            SA=1_000_000, x=60, product="pure_endowment", n=3
+        )
+        assert result["is_zero"], result
+
+    def test_reserve_reaches_the_sum_assured_at_maturity(self, rc):
+        """THEORY: the only benefit is survival to n, so nV must equal SA.
+
+        This is what separates it from a term policy, whose reserve goes to
+        zero at expiry because nothing is owed to a survivor.
+        """
+        SA, x, n = 1_000_000, 60, 3
+        assert rc.reserve_pure_endowment(SA, x, n, t=n) == pytest.approx(SA)
+
+    def test_reserve_increases_monotonically(self, rc):
+        """THEORY: a pure savings product accumulates; it cannot give back."""
+        trajectory = rc.reserve_trajectory(
+            SA=1_000_000, x=60, product="pure_endowment", n=3
+        )
+        values = [v for _, v in trajectory]
+        assert all(b > a for a, b in zip(values, values[1:])), values
+
+    def test_reserve_exceeds_endowment_reserve_is_false(self, rc):
+        """THEORY: a pure endowment costs less than an endowment on the same
+        terms, because it drops the death benefit. Its reserve must sit below
+        the endowment's at every duration before maturity."""
+        SA, x, n = 1_000_000, 60, 3
+        for t in range(n):
+            pure = rc.reserve_pure_endowment(SA, x, n, t)
+            full = rc.reserve_endowment(SA, x, n, t)
+            assert pure < full, f"t={t}: pure={pure}, endowment={full}"
