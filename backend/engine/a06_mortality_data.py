@@ -84,6 +84,21 @@ INEGI_SCHEMA = {
     "sex_values": ("Hombres", "Mujeres", "Total"),
 }
 
+# Date the HMD extracts committed under backend/data/hmd/ were retrieved from
+# www.mortality.org. HMD's CC BY 4.0 terms require noting the download date next
+# to the citation, and MortalityData.download_date exists exactly for that -- but
+# until 2026-08-02 no caller ever passed one, so every production object carried
+# "". Defaulting here fixes that without touching a single call site. Anyone who
+# loads a different extract should pass download_date explicitly.
+HMD_DOWNLOAD_DATE = "2026-08-02"
+
+# Relative tolerance used when matching a published open-interval aggregate
+# against the single ages it should reproduce. INEGI's "85 y mas" row equals the
+# sum of ages 85..120 EXACTLY for all 105 (year, sex) keys of the 1990-2024 file,
+# so this only has to absorb rounding if a future vintage publishes a rounded
+# aggregate.
+_OPEN_INTERVAL_RTOL = 5e-3
+
 
 class MortalityData:
     """
@@ -218,7 +233,10 @@ class MortalityData:
         age_max : int
             Maximum age. Ages above this are aggregated into age_max+ group.
         download_date : str
-            Date of download for citation compliance.
+            Date of download, recorded for HMD CC BY 4.0 citation compliance.
+            Left empty it resolves to HMD_DOWNLOAD_DATE, the retrieval date of
+            the extracts committed under backend/data/hmd/ -- except for
+            synthetic fixtures, which were generated and never downloaded.
         impute_missing : bool
             If True, apply age-direction linear interpolation to a small
             number of missing cells before raising a DataQualityError.
@@ -238,7 +256,10 @@ class MortalityData:
             download_date=download_date,
             impute_missing=impute_missing,
         )
-        return cls(**report.to_mortality_data_kwargs(download_date))
+        # _load_hmd_report() has already proved the files exist, so the
+        # provenance sniff below cannot fail on a missing path.
+        resolved_date = _resolve_hmd_download_date(Path(data_dir) / country, country, download_date)
+        return cls(**report.to_mortality_data_kwargs(resolved_date))
 
     @classmethod
     def _load_hmd_report(
@@ -302,11 +323,14 @@ class MortalityData:
         ex_raw = ex_raw[(ex_raw["Year"] >= year_min) & (ex_raw["Year"] <= year_max)]
 
         # --- Cap ages: aggregate everything above age_max ---
-        mx_raw = _cap_ages(mx_raw, dx_raw, ex_raw, age_max)
-        dx_raw = _cap_ages_sum(dx_raw, age_max)
-        ex_raw = _cap_ages_sum(ex_raw, age_max)
+        src = f"{country}/{sex}"
+        mx_raw = _cap_ages(mx_raw, dx_raw, ex_raw, age_max, source=f"{src} mx")
+        dx_raw = _cap_ages_sum(dx_raw, age_max, source=f"{src} deaths")
+        ex_raw = _cap_ages_sum(ex_raw, age_max, source=f"{src} exposures")
 
         # --- Pivot to matrices (ages x years) ---
+        for frame, name in ((mx_raw, "mx"), (dx_raw, "deaths"), (ex_raw, "exposures")):
+            _validate_no_duplicate_keys(frame, source=f"{src} {name}")
         mx_matrix = mx_raw.pivot(index="Age", columns="Year", values="Value")
         dx_matrix = dx_raw.pivot(index="Age", columns="Year", values="Value")
         ex_matrix = ex_raw.pivot(index="Age", columns="Year", values="Value")
@@ -454,8 +478,10 @@ class MortalityData:
         )
 
         # --- Cap ages: aggregate everything above age_max ---
-        dx_capped = _cap_ages_sum(dx_raw, age_max)
-        ex_capped = _cap_ages_sum(ex_raw, age_max)
+        # This is where INEGI's "85 y mas" open group used to be summed into the
+        # genuine single age 85. _cap_ages_sum() now drops it first.
+        dx_capped = _cap_ages_sum(dx_raw, age_max, source=f"Mexico/{sex} deaths")
+        ex_capped = _cap_ages_sum(ex_raw, age_max, source=f"Mexico/{sex} population")
 
         # --- Compute m_x = deaths / population ---
         # Merge on (Year, Age) to ensure alignment
@@ -483,6 +509,12 @@ class MortalityData:
         mx_long = merged[["Year", "Age", "mx"]].rename(columns={"mx": "Value"})
 
         # --- Pivot to matrices (ages x years) ---
+        for frame, name in (
+            (mx_long, "mx"),
+            (dx_capped, "deaths"),
+            (ex_capped, "population"),
+        ):
+            _validate_no_duplicate_keys(frame, source=f"Mexico/{sex} {name}")
         mx_matrix = mx_long.pivot(index="Age", columns="Year", values="Value")
         dx_matrix = dx_capped.pivot(index="Age", columns="Year", values="Value")
         ex_matrix = ex_capped.pivot(index="Age", columns="Year", values="Value")
@@ -599,14 +631,143 @@ def _load_hmd_file(
     return df[["Year", "Age", sex]].rename(columns={sex: "Value"})
 
 
-def _cap_ages_sum(df: pd.DataFrame, age_max: int) -> pd.DataFrame:
+def _resolve_hmd_download_date(base: Path, country: str, download_date: str) -> str:
+    """
+    Resolve the download date recorded on a MortalityData built from HMD files.
+
+    An explicit date always wins. Otherwise we stamp HMD_DOWNLOAD_DATE -- unless
+    the file announces itself as generated, in which case the honest answer is
+    "no download date", because it was never downloaded from anywhere. The
+    synthetic fixtures under backend/data/mock/hmd/ take that branch.
+    """
+    if download_date:
+        return download_date
+    mx_file = base / HMD_SCHEMA["filename_patterns"]["mx"].format(country=country)
+    try:
+        with mx_file.open("r", encoding="utf-8", errors="replace") as fh:
+            header = "".join(next(fh, "") for _ in range(2)).lower()
+    except OSError:
+        return ""
+    if "synthetic" in header or "mock" in header:
+        return ""
+    return HMD_DOWNLOAD_DATE
+
+
+def _is_open_interval_row(candidate: float, single: float, tail: float) -> bool:
+    """
+    True if ``candidate`` is consistent with being an open-interval aggregate.
+
+    The open group at age a covers age a *and everything above it*, so it must
+    be at least as large as the genuine single age a, and it must reproduce
+    that single age plus the sum of the single ages above it.
+
+    Identifying the aggregate by this identity rather than by "whichever of the
+    two values is larger" is deliberate: picking the maximum and then asserting
+    that the maximum is the maximum proves nothing, and would happily delete
+    the wrong row for a data shape we have not seen.
+    """
+    expected = single + tail
+    if candidate < single:
+        return False
+    return abs(candidate - expected) <= _OPEN_INTERVAL_RTOL * max(1.0, abs(expected))
+
+
+def _drop_open_interval_duplicates(df: pd.DataFrame, source: str = "") -> pd.DataFrame:
+    """
+    Remove a published open-interval aggregate that duplicates a single age.
+
+    INEGI's "Defunciones registradas" file publishes the open group "85 y mas"
+    as a row whose Edad is the bare integer 85, sitting next to the genuine
+    single age 85. Nothing in the file distinguishes them -- same Anio, same
+    Sexo, same Edad -- so the groupby in _cap_ages_sum() silently *summed* them.
+    Measured on the 1990-2019 unisex window that inflated d_85 about sixfold,
+    drove m_85 to 1.071 in 1990 against m_84 = 0.091, and left 18 cells with
+    m_x > 1: 11 at age 85 plus the 7 at the age-100 open group, which are a
+    source artifact and survive the fix. See DATA.md.
+
+    Raises DataQualityError when a duplicated key cannot be explained as an
+    open interval, so a different data shape fails loudly instead of being
+    quietly folded together.
+
+    Must run BEFORE ages above the cap are reassigned to age_max: after that
+    reassignment every genuine age above the cap looks like a duplicate of
+    age_max and the two cases are no longer distinguishable.
+    """
+    dup_mask = df.duplicated(subset=["Year", "Age"], keep=False)
+    if not dup_mask.any():
+        return df
+
+    label = f"{source}: " if source else ""
+    to_drop: list = []
+    for (year, age), group in df[dup_mask].groupby(["Year", "Age"], sort=False):
+        if len(group) != 2:
+            raise DataQualityError(
+                f"{label}{len(group)} rows share (Year={year}, Age={age}). "
+                "An open-interval aggregate duplicates its single age exactly once; "
+                "three or more rows is an unrecognised data shape.",
+                field="Age",
+                constraint="at most one duplicate row per (Year, Age)",
+            )
+        idx_a, idx_b = group.index
+        val_a = float(df.at[idx_a, "Value"])
+        val_b = float(df.at[idx_b, "Value"])
+        tail = float(df.loc[(df["Year"] == year) & (df["Age"] > age), "Value"].sum())
+
+        candidates = [
+            idx
+            for idx, candidate, single in ((idx_a, val_a, val_b), (idx_b, val_b, val_a))
+            if _is_open_interval_row(candidate, single, tail)
+        ]
+        if len(candidates) != 1:
+            raise DataQualityError(
+                f"{label}duplicate rows at (Year={year}, Age={age}) with values "
+                f"{val_a} and {val_b} are not an open-interval aggregate plus its "
+                f"single age (ages above {age} sum to {tail}). "
+                f"{len(candidates)} of the 2 rows match the open-group identity, "
+                "so neither can be dropped safely.",
+                field="Age",
+                constraint="duplicate age equals single age + sum of ages above it",
+            )
+        to_drop.append(candidates[0])
+
+    return df.drop(index=to_drop)
+
+
+def _validate_no_duplicate_keys(df: pd.DataFrame, source: str) -> None:
+    """
+    Reject any duplicate (Year, Age) key in a long frame about to be pivoted.
+
+    pandas would raise on the pivot anyway, but only with a generic reshape
+    error, and only for the frames that actually reach a pivot -- the frames
+    that pass through a groupby first (deaths, exposures) get their duplicates
+    summed away with no error at all. That is precisely how the INEGI "85 y mas"
+    row survived. This makes the invariant explicit and named.
+    """
+    dup = df[df.duplicated(subset=["Year", "Age"], keep=False)]
+    if dup.empty:
+        return
+    sample = [(int(r.Year), int(r.Age)) for r in dup.head(5).itertuples()]
+    raise DataQualityError(
+        f"{source}: {len(dup)} rows share a (Year, Age) key. "
+        f"Sample: {sample}. Duplicated keys would be summed or would collide on "
+        "the pivot; the loader refuses to guess which row is authoritative.",
+        field="Age",
+        constraint="one row per (Year, Age)",
+    )
+
+
+def _cap_ages_sum(df: pd.DataFrame, age_max: int, source: str = "") -> pd.DataFrame:
     """
     For death counts and exposures: sum all ages > age_max into age_max.
 
     Example with age_max=100:
         Ages 100, 101, 102, ..., 110 all collapse into age 100.
         Their death counts (or exposures) are summed.
+
+    Any published open-interval aggregate duplicating a single age is removed
+    first -- see _drop_open_interval_duplicates() for why the order matters.
     """
+    df = _drop_open_interval_duplicates(df, source)
     df = df.copy()
     df.loc[df["Age"] > age_max, "Age"] = age_max
     return df.groupby(["Year", "Age"], as_index=False)["Value"].sum(min_count=1)
@@ -617,6 +778,7 @@ def _cap_ages(
     dx_df: pd.DataFrame,
     ex_df: pd.DataFrame,
     age_max: int,
+    source: str = "",
 ) -> pd.DataFrame:
     """
     For death rates: recompute m_x for the capped age group as d/L.
@@ -625,6 +787,12 @@ def _cap_ages(
     population weights. Instead: sum deaths, sum exposure, divide.
     This gives the correct exposure-weighted rate for the group.
     """
+    # The open-group aggregate has to go before the sums below, for the same
+    # reason as in _cap_ages_sum(): otherwise it is counted twice inside the
+    # d/L of the capped group.
+    dx_df = _drop_open_interval_duplicates(dx_df, source)
+    ex_df = _drop_open_interval_duplicates(ex_df, source)
+
     # Separate: ages within range vs ages to aggregate
     keep = mx_df[mx_df["Age"] <= age_max].copy()
     keep = keep[keep["Age"] < age_max]  # Exclude age_max (will be recomputed)
@@ -737,6 +905,47 @@ def _validate(
             "Graduation (a07) may be needed, or adjust age/year range.",
             field="mx",
             constraint="mx > 0",
+        )
+
+    # Plausible rates. A central death rate m_x = d_x / L_x above 1 below the
+    # open group does not mean "extreme mortality", it means the numerator and
+    # the denominator describe different populations. That is exactly what
+    # INEGI's duplicated "85 y mas" row produced on the 1990-2019 window: 11
+    # cells above 1, all at age 85, peaking at 1.153 -> see
+    # _drop_open_interval_duplicates().
+    #
+    # Do NOT delete this as redundant with validate_mx_consistency(). That check
+    # compares m against d/L, and it structurally CANNOT catch a doubled death
+    # count: m was computed from the very same doubled d, so both sides move
+    # together and the ratio stays 1.000. It validates arithmetic, not the data.
+    # Same reasoning applies to _validate_no_duplicate_keys(), which runs on the
+    # long frames before they are pivoted -- by the time the data reaches these
+    # matrices a duplicated key has already been summed away without trace.
+    # The last age is the open group produced by the capping step, and there a
+    # central rate legitimately can exceed 1: m = 2q/(2 - q) under a uniform
+    # distribution of deaths, so m -> 2 as q -> 1. Mexico's 100+ group really does
+    # sit above 1 in the early 1990s (m_100 = 1.78 in 1990) because INEGI
+    # registers more centenarian deaths than CONAPO projects centenarians alive --
+    # age heaping at 100, a documented artifact of the sources, not a loader bug.
+    # So: hard limit of 1 everywhere below the open group, and the theoretical
+    # ceiling of 2 at the open group itself.
+    closed_mx = mx[:-1, :] if len(ages) > 1 else mx
+    limits = ((closed_mx, 1.0, ages[:-1] if len(ages) > 1 else ages, "closed ages"),)
+    if len(ages) > 1:
+        limits = (*limits, (mx[-1:, :], 2.0, ages[-1:], f"open group {int(ages[-1])}+"))
+    for block, limit, block_ages, where in limits:
+        n_implausible = int(np.sum(block > limit))
+        if n_implausible == 0:
+            continue
+        locs = np.argwhere(block > limit)[:5]
+        detail = [(int(block_ages[r]), int(years[c]), float(block[r, c])) for r, c in locs]
+        raise DataQualityError(
+            f"{country}/{sex}: {n_implausible} m_x values above {limit} at {where}. "
+            f"Sample (age, year, m_x): {detail}. "
+            "Deaths and exposure are not describing the same population -- check "
+            "for a duplicated open-age-group row in the source file.",
+            field="mx",
+            constraint=f"mx <= {limit}",
         )
 
     # Positive exposures

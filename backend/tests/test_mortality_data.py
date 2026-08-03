@@ -17,7 +17,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.engine.a06_mortality_data import MortalityData
+from backend.engine.a06_mortality_data import HMD_DOWNLOAD_DATE, MortalityData
 
 # =============================================================================
 # Test Fixtures
@@ -206,6 +206,67 @@ def test_summary_returns_dict(usa_data):
     assert s["sex"] == "Male"
     assert s["shape"] == (101, 31)
     assert s["any_zeros"] is False
+
+
+# =============================================================================
+# Download date (HMD CC BY 4.0 citation compliance)
+# =============================================================================
+#
+# MortalityData.download_date exists so published work can cite HMD with the
+# retrieval date its licence asks for. No caller ever passed one, so it was ""
+# on every production object until 2026-08-02. from_hmd() now fills it in.
+
+MOCK_HMD_DIR = str(Path(__file__).parent.parent / "data" / "mock" / "hmd")
+
+
+def test_download_date_is_recorded_for_hmd_data(usa_data):
+    """
+    THEORY: HMD's CC BY 4.0 terms ask that the download date be noted alongside
+    the citation. An empty string in the field that exists to carry it is a
+    compliance gap, not a cosmetic one.
+
+    ci.yml stages the synthetic fixtures at DATA_DIR, and those correctly get no
+    download date -- so the expected value depends on what is actually on disk.
+    """
+    with Path(DATA_DIR, "usa", "Mx_1x1_usa.txt").open(errors="replace") as fh:
+        header = "".join(next(fh, "") for _ in range(2)).lower()
+    expected = "" if ("synthetic" in header or "mock" in header) else HMD_DOWNLOAD_DATE
+
+    assert usa_data.download_date == expected
+    assert usa_data.summary()["download_date"] == expected
+
+
+def test_explicit_download_date_wins():
+    """THEORY: a caller loading a different extract must be able to say so."""
+    data = MortalityData.from_hmd(
+        data_dir=DATA_DIR,
+        country="usa",
+        sex="Male",
+        year_min=1990,
+        year_max=2000,
+        age_max=100,
+        download_date="1999-01-01",
+    )
+    assert data.download_date == "1999-01-01"
+
+
+def test_synthetic_fixtures_get_no_download_date():
+    """
+    THEORY: the honest answer for a generated file is "no download date" -- it
+    was never downloaded from anywhere. Stamping the real retrieval date onto a
+    fixture would be a small, quiet lie of exactly the kind this audit was about.
+    """
+    if not Path(MOCK_HMD_DIR, "usa", "Mx_1x1_usa.txt").exists():
+        pytest.skip("no committed mock HMD fixtures")
+    data = MortalityData.from_hmd(
+        data_dir=MOCK_HMD_DIR,
+        country="usa",
+        sex="Male",
+        year_min=1990,
+        year_max=2000,
+        age_max=100,
+    )
+    assert data.download_date == ""
 
 
 # =============================================================================
