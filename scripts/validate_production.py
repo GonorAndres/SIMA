@@ -61,8 +61,18 @@ def check(test_id: str, condition: bool, msg: str):
 
 print("\n=== A: Health ===")
 health = get("/health")
+# data_source collapses to "real" only when EVERY dataset is real; it reads
+# "mixed" if any one of them fell back to a mock fixture.
 check("A1", health["data_source"] == "real", f"data_source={health['data_source']}")
 check("A2", health["engine_modules"] == 12, f"engine_modules={health['engine_modules']}")
+# A1 is a summary and can be satisfied in ways that hide the specific lie this
+# check exists to catch: synthetic HMD files sitting in the real-data directory
+# and being served as genuine USA/Spain mortality. Assert those two by name.
+sources = health.get("data_sources", {})
+for _ds in ("usa", "spain", "mexico"):
+    check(f"A3-{_ds}", sources.get(_ds) == "real", f"data_sources[{_ds}]={sources.get(_ds)}")
+check("A4", health.get("pipelines_loaded") == 9,
+      f"pipelines_loaded={health.get('pipelines_loaded')} (expect 9: 3 Mexico + 3 USA + 3 Spain)")
 
 # ── B: Mortality Engine ────────────────────────────────────
 

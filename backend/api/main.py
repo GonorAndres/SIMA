@@ -32,7 +32,14 @@ if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
 from backend.api.routers import mortality, portfolio, pricing, scr, sensitivity
-from backend.api.services.precomputed import get_data_source, load_all
+from backend.api.services.precomputed import (
+    count_loaded_pipelines,
+    get_data_source,
+    get_data_source_label,
+    get_fitted_year_range,
+    get_load_error,
+    load_all,
+)
 from backend.engine.exceptions import (
     ActuarialValidationError,
     DataNotAvailableError,
@@ -40,6 +47,11 @@ from backend.engine.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Engine modules present on disk (a01_life_table.py ... a12_scr.py), counted
+# once at import so /api/health reports a fact rather than a literal that
+# silently goes stale when a module is added or removed.
+ENGINE_MODULE_COUNT = len(list((Path(__file__).parent.parent / "engine").glob("a[0-9][0-9]_*.py")))
 
 
 @asynccontextmanager
@@ -68,12 +80,23 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # In production, Cloud Run captures stdout. A simple iso8601 format is good
 # enough for now; structured JSON logging can be added later if needed.
+#
+# stream=sys.stdout is load-bearing: logging.basicConfig defaults to stderr,
+# and Cloud Run tags everything written to stderr as severity=ERROR. Without
+# it every INFO line (request log, data-path resolution) shows up in Cloud
+# Logging as an error and real failures become impossible to spot.
 _logging_configured = logging.getLogger().handlers
 if not _logging_configured:
     logging.basicConfig(
         level=os.environ.get("LOG_LEVEL", "INFO"),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        stream=sys.stdout,
     )
+
+# Route warnings.warn() through logging (py.warnings logger) instead of stderr,
+# so engine warnings (e.g. Whittaker-Henderson graduation diagnostics) inherit
+# the handler above and land at WARNING severity rather than ERROR.
+logging.captureWarnings(True)
 
 # CORS -- configurable via environment variable, defaults to permissive for same-origin
 _cors_raw = os.environ.get("CORS_ORIGINS", "")
@@ -87,6 +110,13 @@ app.add_middleware(
 )
 
 _proxy_secret = os.environ.get("SIMA_PROXY_SECRET", "")
+# Compare as bytes: secrets.compare_digest() raises TypeError on str operands
+# holding non-ASCII characters, and that TypeError would escape the middleware
+# stack (outside every exception handler) as an unhandled 500 reachable with a
+# single curl carrying one non-ASCII byte in the header. Starlette decodes raw
+# header bytes with latin-1, so re-encoding with latin-1 recovers exactly the
+# bytes the client sent; the environment secret is real text, hence utf-8.
+_proxy_secret_bytes = _proxy_secret.encode("utf-8", "surrogateescape")
 
 
 @app.middleware("http")
@@ -94,7 +124,8 @@ async def require_pages_proxy(request: Request, call_next):
     """Reject direct API calls when a Pages proxy secret is configured."""
     if _proxy_secret and request.url.path.startswith("/api"):
         supplied_secret = request.headers.get("X-SIMA-Proxy-Secret", "")
-        if not secrets.compare_digest(supplied_secret, _proxy_secret):
+        supplied_bytes = supplied_secret.encode("latin-1", "surrogateescape")
+        if not secrets.compare_digest(supplied_bytes, _proxy_secret_bytes):
             return JSONResponse(
                 status_code=403,
                 content={"detail": "API access is restricted to the SIMA frontend."},
@@ -190,13 +221,40 @@ app.include_router(sensitivity.router, prefix="/api")
 
 @app.get("/api/health")
 def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "ok",
-        "engine_modules": 12,
+    """Health check endpoint.
+
+    Reports 503 when startup data loading failed. Previously this returned
+    {"status": "ok"} unconditionally -- load_all() swallows its exception into
+    _load_error, so a container where every pipeline failed to load still
+    passed the Cloud Run health probe and served 503s on every real endpoint.
+
+    `data_source` keeps its legacy single-string shape (frontend footer,
+    scripts/validate_production.py); `data_sources` carries the per-dataset
+    provenance that the collapsed label cannot express.
+
+    `year_range` is the window the pipelines were actually fitted on, read off
+    the loaded data rather than written down. It is here so the footer can
+    render its provenance badge from this one call: it previously had to fire a
+    second request at /mortality/data/summary just to learn the year range, and
+    if that second call failed the attribution paragraph still rendered while
+    pointing at a badge that was not on the page.
+    """
+    load_error = get_load_error()
+    payload = {
+        "status": "error" if load_error else "ok",
+        # Count of engine modules actually importable (a01..a12), not a literal.
+        "engine_modules": ENGINE_MODULE_COUNT,
+        # Fitted Lee-Carter pipelines currently cached: 3 Mexico + 3 per HMD country.
+        "pipelines_loaded": count_loaded_pipelines(),
         "version": "1.0.0",
-        "data_source": get_data_source(),
+        "data_source": get_data_source_label(),
+        "data_sources": get_data_source(),
+        "year_range": get_fitted_year_range(),
     }
+    if load_error:
+        payload["error"] = load_error
+        return JSONResponse(status_code=503, content=payload)
+    return payload
 
 
 # --- Static frontend serving (production) ---

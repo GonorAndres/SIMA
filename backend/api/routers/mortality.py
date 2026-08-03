@@ -19,6 +19,7 @@ router = APIRouter(prefix="/mortality", tags=["mortality"])
 
 
 @router.get("/data/summary", response_model=MortalityDataSummary)
+@safe_route
 def get_data_summary(
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ):
@@ -27,6 +28,7 @@ def get_data_summary(
 
 
 @router.get("/lee-carter", response_model=LeeCarterFitResponse)
+@safe_route
 def get_lee_carter(
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ):
@@ -52,10 +54,10 @@ def get_projection(
 @router.get("/life-table", response_model=LifeTableResponse)
 @safe_route
 def get_life_table(
-    table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa)$"),
+    table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa_97)$"),
     sex: str = Query(default="male", pattern="^(male|female)$"),
 ) -> LifeTableResponse:
-    """Get a regulatory life table (CNSF 2000-I, CNSF 2013, or EMSSA 2009)."""
+    """Get a regulatory life table (CNSF 2000-I, CNSF M 2013 mixta, or EMSSAH/M-97)."""
     return mortality_service.get_life_table_data(table_type, sex)
 
 
@@ -63,7 +65,7 @@ def get_life_table(
 @safe_route
 def get_validation(
     projection_year: int = Query(default=2040),
-    table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa)$"),
+    table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa_97)$"),
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ) -> ValidationResponse:
     """Compare projected mortality against regulatory benchmark."""
@@ -75,6 +77,7 @@ def get_validation(
 
 
 @router.get("/graduation", response_model=GraduationResponse)
+@safe_route
 def get_graduation(
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ):
@@ -83,6 +86,7 @@ def get_graduation(
 
 
 @router.get("/surface", response_model=MortalitySurfaceResponse)
+@safe_route
 def get_surface(
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ):
@@ -91,6 +95,7 @@ def get_surface(
 
 
 @router.get("/diagnostics", response_model=LCDiagnosticsResponse)
+@safe_route
 def get_diagnostics(
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ):

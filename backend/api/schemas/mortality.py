@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 class LifeTableRequest(BaseModel):
     """Request to generate a life table from regulatory data."""
 
-    table_type: str = Field(default="cnsf", description="Regulatory table type: 'cnsf' or 'emssa'")
+    table_type: str = Field(
+        default="cnsf", description="Regulatory table: 'cnsf', 'cnsf_2013' or 'emssa_97'"
+    )
     sex: str = Field(default="male", description="'male' or 'female'")
     interest_rate: float = Field(default=0.05, ge=0.0, le=1.0)
 

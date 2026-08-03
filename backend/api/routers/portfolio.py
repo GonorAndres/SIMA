@@ -16,6 +16,7 @@ router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
 @router.get("/summary", response_model=PortfolioSummaryResponse)
+@safe_route
 def get_portfolio_summary():
     """Get portfolio summary (policies, counts, totals)."""
     portfolio = scr_service.get_portfolio()
@@ -77,6 +78,7 @@ def add_policy(policy: PolicyCreate):
 
 
 @router.post("/reset")
+@safe_route
 def reset_portfolio():
     """Reset portfolio to the default sample portfolio."""
     portfolio = scr_service.reset_portfolio()

@@ -53,7 +53,7 @@ def test_life_table_cnsf(client):
 
 def test_life_table_emssa(client):
     """THEORY: EMSSA regulatory table should also be loadable."""
-    response = client.get("/api/mortality/life-table?table_type=emssa&sex=male")
+    response = client.get("/api/mortality/life-table?table_type=emssa_97&sex=male")
     assert response.status_code == 200
     data = response.json()
     assert data["min_age"] >= 0

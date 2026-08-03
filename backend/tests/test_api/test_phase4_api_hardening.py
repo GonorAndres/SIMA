@@ -184,6 +184,46 @@ def test_duplicate_policy_id_at_add_time_returns_422(client):
     assert r.status_code == 422
 
 
+def test_portfolio_rejects_policies_past_the_cap(client):
+    """
+    THEORY: the demo portfolio is module-level state shared by every caller, so
+    an unbounded /portfolio/policy endpoint is an unauthenticated memory-growth
+    primitive. scr_service.MAX_PORTFOLIO_POLICIES caps it, and the refusal must
+    be a 422 (a validation failure the caller can act on), not a 500.
+    """
+    from backend.api.services.scr_service import MAX_PORTFOLIO_POLICIES
+
+    client.post("/api/portfolio/reset")
+    existing = client.get("/api/portfolio/summary").json()["n_policies"]
+
+    for i in range(MAX_PORTFOLIO_POLICIES - existing):
+        r = client.post(
+            "/api/portfolio/policy",
+            json={
+                "policy_id": f"FILL-{i:04d}",
+                "product_type": "whole_life",
+                "issue_age": 40,
+                "sum_assured": 1_000_000,
+            },
+        )
+        assert r.status_code == 200, (i, r.status_code, r.text)
+
+    r = client.post(
+        "/api/portfolio/policy",
+        json={
+            "policy_id": "OVERFLOW-01",
+            "product_type": "whole_life",
+            "issue_age": 40,
+            "sum_assured": 1_000_000,
+        },
+    )
+    assert r.status_code == 422, r.text
+    assert client.get("/api/portfolio/summary").json()["n_policies"] == MAX_PORTFOLIO_POLICIES
+
+    # Leave the shared portfolio as the next test expects to find it.
+    client.post("/api/portfolio/reset")
+
+
 # =============================================================================
 # 200: valid request still succeeds
 # =============================================================================

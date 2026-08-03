@@ -1,26 +1,53 @@
 """
 Sensitivity analysis service.
 
-Provides three analysis functions:
-- mortality_shock_sweep: dynamic premium recalculation under mortality shocks
-- cross_country_data: hardcoded Lee-Carter comparison (Mexico/USA/Spain)
-- covid_comparison: hardcoded pre-COVID vs full-period comparison
+Provides three analysis functions, all computed from the live engine:
+- mortality_shock_sweep: premium recalculation under mortality shocks
+- cross_country_data: Lee-Carter comparison (Mexico/USA/Spain)
+- covid_comparison: pre-COVID (1990-2019) vs full-period Mexican fit
+
+cross_country_data() and covid_comparison() returned hardcoded constants until
+2026-08-02. They were transcribed from a run against synthetic mortality data
+and never re-derived, so the endpoints kept publishing figures the engine no
+longer produced. Nothing here may be a literal that a reader could mistake for
+a measurement: if a number is actuarial, it is computed below.
 """
 
+import csv
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 _project_dir = str(Path(__file__).parent.parent.parent.parent)
 if _project_dir not in sys.path:
     sys.path.insert(0, _project_dir)
 
-from backend.api.services.precomputed import get_projected_life_table
+from backend.api.services.precomputed import (
+    PROJECTION_YEAR,
+    _fit_pipeline,
+    _resolve_paths,
+    get_hmd_pipeline,
+    get_projected_life_table,
+)
+from backend.api.services.precomputed import _get_pipeline as get_pipeline
 from backend.engine.a01_life_table import LifeTable
 from backend.engine.a02_commutation import CommutationFunctions
 from backend.engine.a04_premiums import PremiumCalculator
+from backend.engine.a06_mortality_data import MortalityData
 from backend.engine.a12_scr import build_shocked_life_table
 
 DEFAULT_INTEREST_RATE = 0.05
+
+# Ages sampled for the a_x / b_x profile charts. Not every age is plotted: the
+# fit runs 0-100 and 101 points per country makes the small-multiples unreadable.
+CROSS_COUNTRY_SAMPLE_AGES = [0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+# Ages priced for the COVID premium-impact table.
+COVID_PREMIUM_AGES = [25, 30, 35, 40, 45, 50, 55, 60]
+
+# Start of the Mexican fit window. 1990 is the first year CONAPO publishes
+# single-age population, so it bounds both the pre-COVID and full-period fits.
+PRE_COVID_YEAR_START = 1990
 
 
 def _compute_premium(
@@ -94,266 +121,75 @@ def mortality_shock_sweep(
     }
 
 
+def _country_pipelines() -> list[tuple[str, dict]]:
+    """(display name, pipeline) for the three unisex Lee-Carter fits.
+
+    Unisex ("Total") is the right basis for a cross-country comparison: the
+    sex mix differs between the three populations, so comparing male fits would
+    confound the improvement rate with composition. All three are fitted on the
+    same window (1990-2019) and the same age range (0-100) -- see
+    precomputed._build_inegi_pipeline / _build_hmd_pipeline.
+    """
+    return [
+        ("México", get_pipeline("unisex")),
+        ("Estados Unidos", get_hmd_pipeline("usa", "unisex")),
+        ("España", get_hmd_pipeline("spain", "unisex")),
+    ]
+
+
+def _whole_life_premium_age40(lt: LifeTable) -> float:
+    """Net single-basis whole-life premium at age 40, SA = 1,000,000, i = 5%."""
+    return _compute_premium(lt, DEFAULT_INTEREST_RATE, "whole_life", 40, 1_000_000)
+
+
 def cross_country_data() -> dict:
-    """Return hardcoded cross-country Lee-Carter comparison data."""
-    countries = [
-        {
-            "country": "México",
-            "drift": -1.0764,
-            "explained_var": 0.7767,
-            "sigma": 1.7889,
-            "q60": 0.010545,
-            "premium_age40": 10765,
-        },
-        {
-            "country": "Estados Unidos",
-            "drift": -1.1920,
-            "explained_var": 0.8666,
-            "sigma": 1.4576,
-            "q60": 0.010018,
-            "premium_age40": 10178,
-        },
-        {
-            "country": "España",
-            "drift": -2.8949,
-            "explained_var": 0.9481,
-            "sigma": 2.3622,
-            "q60": 0.006836,
-            "premium_age40": 8191,
-        },
-    ]
+    """Cross-country Lee-Carter comparison, computed from the live fits.
 
-    kt_profiles = [
-        {
-            "country": "México",
-            "years": list(range(1990, 2020)),
-            "kt": [
-                23.27,
-                21.0,
-                18.7,
-                11.44,
-                10.2,
-                9.0,
-                8.17,
-                6.5,
-                5.0,
-                2.57,
-                1.0,
-                -0.5,
-                -1.78,
-                -2.5,
-                -3.2,
-                -3.57,
-                -4.2,
-                -4.5,
-                -4.8,
-                -4.77,
-                -5.5,
-                -6.5,
-                -7.5,
-                -8.0,
-                -8.97,
-                -7.5,
-                -6.5,
-                -7.38,
-                -7.7,
-                -7.95,
-            ],
-        },
-        {
-            "country": "Estados Unidos",
-            "years": list(range(1990, 2020)),
-            "kt": [
-                21.72,
-                19.5,
-                17.3,
-                14.0,
-                12.0,
-                10.0,
-                8.0,
-                6.0,
-                4.5,
-                3.0,
-                1.5,
-                0.0,
-                -2.0,
-                -3.5,
-                -5.0,
-                -6.5,
-                -7.5,
-                -8.5,
-                -9.5,
-                -10.0,
-                -10.5,
-                -11.0,
-                -11.5,
-                -11.8,
-                -12.0,
-                -12.2,
-                -12.5,
-                -12.7,
-                -12.8,
-                -12.85,
-            ],
-        },
-        {
-            "country": "España",
-            "years": list(range(1990, 2020)),
-            "kt": [
-                42.64,
-                38.0,
-                33.0,
-                28.0,
-                24.0,
-                20.0,
-                16.0,
-                12.0,
-                8.0,
-                5.0,
-                2.0,
-                -1.0,
-                -5.0,
-                -9.0,
-                -13.0,
-                -16.0,
-                -19.0,
-                -22.0,
-                -25.0,
-                -27.0,
-                -29.0,
-                -31.0,
-                -33.0,
-                -35.0,
-                -36.5,
-                -37.5,
-                -38.5,
-                -39.5,
-                -40.5,
-                -41.32,
-            ],
-        },
-    ]
+    Every figure here used to be a hardcoded constant. Those constants were
+    read off a run against synthetic Gompertz-Makeham data and then drifted
+    away from the engine: they still reported Spain drift -2.8949 (which is the
+    *male* fit) and USA -1.1920 long after the real HMD extracts landed, so the
+    Sensibilidad page showed one number in its prose and another in the metric
+    tile directly beneath it. Audit items M2/F3.
 
-    sample_ages = [0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-    ax_profiles = [
-        {
-            "country": "México",
-            "ages": sample_ages,
-            "values": [
-                -4.2633,
-                -6.4407,
-                -8.0382,
-                -8.2061,
-                -6.8150,
-                -6.3599,
-                -5.8774,
-                -5.2171,
-                -4.4414,
-                -3.6861,
-                -2.8363,
-                -1.8818,
-                -0.6354,
-            ],
-        },
-        {
-            "country": "Estados Unidos",
-            "ages": sample_ages,
-            "values": [
-                -4.9661,
-                -7.3734,
-                -8.5824,
-                -8.7653,
-                -6.6330,
-                -6.4473,
-                -5.9679,
-                -5.2079,
-                -4.3827,
-                -3.5854,
-                -2.6623,
-                -1.6340,
-                -0.7257,
-            ],
-        },
-        {
-            "country": "España",
-            "ages": sample_ages,
-            "values": [
-                -5.8105,
-                -7.4567,
-                -8.8713,
-                -9.0249,
-                -7.4052,
-                -7.0144,
-                -6.4466,
-                -5.4996,
-                -4.6077,
-                -3.7364,
-                -2.7002,
-                -1.6200,
-                -0.7129,
-            ],
-        },
-    ]
+    q60 and premium_age40 are evaluated on each country's life table projected
+    to precomputed.PROJECTION_YEAR, so the comparison is like-for-like.
+    """
+    countries = []
+    kt_profiles = []
+    ax_profiles = []
+    bx_profiles = []
 
-    bx_profiles = [
-        {
-            "country": "México",
-            "ages": sample_ages,
-            "values": [
-                0.028799,
-                0.041256,
-                0.029137,
-                0.022152,
-                0.007419,
-                0.009842,
-                0.013666,
-                0.007746,
-                0.005637,
-                0.005374,
-                0.002426,
-                0.004256,
-                0.036480,
-            ],
-        },
-        {
-            "country": "Estados Unidos",
-            "ages": sample_ages,
-            "values": [
-                0.011610,
-                0.015069,
-                0.018914,
-                0.017317,
-                0.010259,
-                0.005910,
-                0.010604,
-                0.004896,
-                0.008707,
-                0.013295,
-                0.011979,
-                0.004828,
-                -0.001822,
-            ],
-        },
-        {
-            "country": "España",
-            "ages": sample_ages,
-            "values": [
-                0.011590,
-                0.013300,
-                0.014093,
-                0.012860,
-                0.016990,
-                0.020451,
-                0.013350,
-                0.006764,
-                0.005329,
-                0.006798,
-                0.006125,
-                0.002799,
-                0.000508,
-            ],
-        },
-    ]
+    for name, pipeline in _country_pipelines():
+        lc = pipeline["lee_carter"]
+        proj = pipeline["projection"]
+        lt = proj.to_life_table(year=PROJECTION_YEAR, radix=100_000)
+
+        countries.append(
+            {
+                "country": name,
+                "drift": float(proj.drift),
+                "explained_var": float(lc.explained_variance),
+                "sigma": float(proj.sigma),
+                "q60": float(lt.get_q(60)),
+                "premium_age40": float(_whole_life_premium_age40(lt)),
+            }
+        )
+        kt_profiles.append(
+            {
+                "country": name,
+                "years": [int(y) for y in lc.years],
+                "kt": [float(k) for k in lc.kt],
+            }
+        )
+        ages = [int(a) for a in lc.ages]
+        sample = [a for a in CROSS_COUNTRY_SAMPLE_AGES if a in ages]
+        ax_profiles.append(
+            {"country": name, "ages": sample, "values": [float(lc.get_ax(a)) for a in sample]}
+        )
+        bx_profiles.append(
+            {"country": name, "ages": sample, "values": [float(lc.get_bx(a)) for a in sample]}
+        )
 
     return {
         "countries": countries,
@@ -363,104 +199,80 @@ def cross_country_data() -> dict:
     }
 
 
+def _period_payload(pipeline: dict) -> dict:
+    """Serialise one fitted period into the CovidPeriodData shape."""
+    lc = pipeline["lee_carter"]
+    proj = pipeline["projection"]
+    return {
+        "drift": float(proj.drift),
+        "sigma": float(proj.sigma),
+        "explained_var": float(lc.explained_variance),
+        "years": [int(y) for y in lc.years],
+        "kt": [float(k) for k in lc.kt],
+    }
+
+
+@lru_cache(maxsize=1)
+def _full_period_pipeline() -> dict:
+    """Fit Mexico over the full window, COVID years included.
+
+    Not precomputed at startup: this is the only consumer, and one extra
+    graduation + SVD costs well under a second. COVID_FULL_YEAR_END is read
+    from the loaded data rather than hardcoded, so a data refresh that adds a
+    year extends the comparison instead of silently truncating it.
+    """
+    deaths, population, _cnsf, _cnsf_2013, _emssa, _sources = _resolve_paths()
+    md = MortalityData.from_inegi(
+        deaths_filepath=deaths,
+        population_filepath=population,
+        sex="Total",
+        year_start=PRE_COVID_YEAR_START,
+        year_end=_latest_available_year(deaths),
+        age_max=100,
+    )
+    return _fit_pipeline(md)
+
+
+def _latest_available_year(deaths_filepath: str) -> int:
+    """Last calendar year present in the deaths file."""
+    with open(deaths_filepath, newline="") as fh:
+        reader = csv.DictReader(fh)
+        return max(int(row["Anio"]) for row in reader)
+
+
 def covid_comparison() -> dict:
-    """Return hardcoded pre-COVID vs full-period comparison data."""
-    pre_covid = {
-        "drift": -1.076431,
-        "sigma": 1.788860,
-        "explained_var": 0.7767,
-        "years": list(range(1990, 2020)),
-        "kt": [
-            23.27,
-            21.0,
-            18.7,
-            11.44,
-            10.2,
-            9.0,
-            8.17,
-            6.5,
-            5.0,
-            2.57,
-            1.0,
-            -0.5,
-            -1.78,
-            -2.5,
-            -3.2,
-            -3.57,
-            -4.2,
-            -4.5,
-            -4.8,
-            -4.77,
-            -5.5,
-            -6.5,
-            -7.5,
-            -8.0,
-            -8.97,
-            -7.5,
-            -6.5,
-            -7.38,
-            -7.7,
-            -7.95,
-        ],
-    }
+    """Pre-COVID (1990-2019) vs full-period Mexico fit, computed live.
 
-    full_period = {
-        "drift": -0.854812,
-        "sigma": 1.516261,
-        "explained_var": 0.5347,
-        "years": list(range(1990, 2025)),
-        "kt": [
-            20.47,
-            18.5,
-            16.5,
-            10.15,
-            9.0,
-            7.9,
-            7.87,
-            6.0,
-            4.5,
-            3.40,
-            1.5,
-            0.0,
-            0.01,
-            -0.8,
-            -1.5,
-            -1.38,
-            -2.2,
-            -2.5,
-            -2.79,
-            -3.16,
-            -3.8,
-            -4.5,
-            -5.0,
-            -5.5,
-            -6.44,
-            -5.78,
-            -5.5,
-            -5.78,
-            -4.72,
-            -3.34,
-            -5.85,
-            -7.35,
-            -7.8,
-            -8.0,
-            -8.59,
-        ],
-    }
+    The pre-COVID period is the same fit the rest of the API serves, so the
+    Mexican drift quoted on this page and on /mortality/lee-carter can no
+    longer disagree -- they did while both were hardcoded, by about 0.01.
 
-    premium_impact = [
-        {"age": 25, "pre_covid": 5375, "full": 5605, "pct_change": 4.28},
-        {"age": 30, "pre_covid": 6707, "full": 6982, "pct_change": 4.09},
-        {"age": 35, "pre_covid": 8441, "full": 8771, "pct_change": 3.92},
-        {"age": 40, "pre_covid": 10736, "full": 11148, "pct_change": 3.83},
-        {"age": 45, "pre_covid": 13758, "full": 14252, "pct_change": 3.59},
-        {"age": 50, "pre_covid": 17745, "full": 18340, "pct_change": 3.35},
-        {"age": 55, "pre_covid": 22926, "full": 23676, "pct_change": 3.27},
-        {"age": 60, "pre_covid": 29829, "full": 30796, "pct_change": 3.24},
-    ]
+    Note the direction of the COVID effect: adding 2020-2021 does not make the
+    fitted improvement look faster, it makes it look SLOWER, because a mortality
+    shock at the end of the series flattens the k_t slope that the random walk
+    with drift extrapolates. Higher projected mortality means higher premiums.
+    """
+    pre = get_pipeline("unisex")
+    full = _full_period_pipeline()
+
+    pre_lt = pre["projection"].to_life_table(year=PROJECTION_YEAR, radix=100_000)
+    full_lt = full["projection"].to_life_table(year=PROJECTION_YEAR, radix=100_000)
+
+    premium_impact = []
+    for age in COVID_PREMIUM_AGES:
+        p_pre = _compute_premium(pre_lt, DEFAULT_INTEREST_RATE, "whole_life", age, 1_000_000)
+        p_full = _compute_premium(full_lt, DEFAULT_INTEREST_RATE, "whole_life", age, 1_000_000)
+        premium_impact.append(
+            {
+                "age": age,
+                "pre_covid": float(p_pre),
+                "full": float(p_full),
+                "pct_change": float(round((p_full - p_pre) / p_pre * 100, 2)) if p_pre else 0.0,
+            }
+        )
 
     return {
-        "pre_covid": pre_covid,
-        "full_period": full_period,
+        "pre_covid": _period_payload(pre),
+        "full_period": _period_payload(full),
         "premium_impact": premium_impact,
     }

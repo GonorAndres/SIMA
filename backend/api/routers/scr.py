@@ -54,6 +54,7 @@ def compute_scr(request: SCRRequest) -> SCRResponse:
 
 
 @router.get("/compliance", response_model=LISFComplianceResponse)
+@safe_route
 def get_lisf_compliance():
     """Return LISF/CUSF regulatory compliance mapping for the SCR framework."""
     return scr_service.get_lisf_compliance()

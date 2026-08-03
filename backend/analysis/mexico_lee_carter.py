@@ -51,9 +51,15 @@ REGULATORY_TABLES = {
     "CNSF 2000-I (F)": (str(DATA_DIR / "cnsf" / "cnsf_2000_i.csv"), "female"),
     "CNSF 2000-G (M)": (str(DATA_DIR / "cnsf" / "cnsf_2000_g.csv"), "male"),
     "CNSF 2000-G (F)": (str(DATA_DIR / "cnsf" / "cnsf_2000_g.csv"), "female"),
-    "CNSFM 2013":      (str(DATA_DIR / "cnsf" / "cnsf_2013.csv"), "male"),
-    "EMSSA 2009 (M)":  (str(DATA_DIR / "cnsf" / "emssa_2009.csv"), "male"),
-    "EMSSA 2009 (F)":  (str(DATA_DIR / "cnsf" / "emssa_2009.csv"), "female"),
+    # CNSF M 2013 is published MIXTA (unisex) in CUSF Anexo 5.3.3-a: one q_x
+    # column, no official sex split.
+    "CNSFM 2013":      (str(DATA_DIR / "cnsf" / "cnsf_2013.csv"), "unisex"),
+    # CUSF Anexo 14.2.4-a. Covers ages 15-110 only -- it prices working-life and
+    # pension obligations, so the overlap with a projected table starting at 0
+    # is the 15+ range. There is no "EMSSA 2009" annex; the file that used to be
+    # loaded here was a fabrication and was deleted on 2026-08-02.
+    "EMSSAH-97":       (str(DATA_DIR / "cnsf" / "emssah_emssam_97.csv"), "male"),
+    "EMSSAM-97":       (str(DATA_DIR / "cnsf" / "emssah_emssam_97.csv"), "female"),
 }
 
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -252,8 +258,8 @@ def format_report(analysis_name, mortality_data, lc, projection, projected_lt,
         )
     lines.append("")
 
-    # Detailed ratios for EMSSA 2009 (M) -- the primary benchmark
-    emssa_key = "EMSSA 2009 (M)"
+    # Detailed ratios for EMSSAH-97 -- the primary benchmark
+    emssa_key = "EMSSAH-97"
     if emssa_key in comparisons and not isinstance(comparisons[emssa_key], str):
         comp = comparisons[emssa_key]
         lines.append(f"  Detailed q_x ratios vs {emssa_key} (projected/regulatory):")

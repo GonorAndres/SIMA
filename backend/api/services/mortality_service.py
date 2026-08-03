@@ -20,6 +20,15 @@ from backend.api.services.precomputed import (
 )
 from backend.engine.a10_validation import MortalityComparison
 
+# Display names for the regulatory benchmarks, as published in the CUSF annexes.
+# Kept out of table_type.upper() because "EMSSA_97" is not what the regulator
+# calls that table, and the comparison name is surfaced to the client.
+REGULATORY_TABLE_LABELS = {
+    "cnsf": "CNSF 2000-I",
+    "cnsf_2013": "CNSF M 2013 (mixta)",
+    "emssa_97": "EMSSAH-97 / EMSSAM-97",
+}
+
 
 def get_data_summary(sex: str = "unisex") -> dict:
     """Return summary of the loaded mortality data."""
@@ -206,12 +215,16 @@ def get_validation(
         raise ValueError(f"projection_year must be between {first_year} and {last_year}")
 
     projected_lt = proj.to_life_table(year=projection_year, radix=100_000)
-    # Regulatory tables have no unisex -- use male for comparison when sex=unisex
+    # CNSF 2000-I and EMSSAH/M-97 are sex-differentiated and publish no unisex
+    # column, so a unisex projection is compared against the male table. CNSF M
+    # 2013 is published MIXTA and resolves to the same table for every sex.
     reg_sex = "male" if sex == "unisex" else sex
     regulatory_lt = get_regulatory_lt(table_type, sex=reg_sex)
 
     comp = MortalityComparison(
-        projected_lt, regulatory_lt, name=f"Projected-{projection_year} vs {table_type.upper()}"
+        projected_lt,
+        regulatory_lt,
+        name=f"Projected-{projection_year} vs {REGULATORY_TABLE_LABELS.get(table_type, table_type)}",
     )
     summary = comp.summary()
     ratios = comp.qx_ratio()

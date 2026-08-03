@@ -14,8 +14,18 @@ if _project_dir not in sys.path:
 from backend.api.services.precomputed import get_lee_carter, get_regulatory_lt
 from backend.engine.a11_portfolio import Policy, Portfolio, create_sample_portfolio
 from backend.engine.a12_scr import run_full_scr
+from backend.engine.exceptions import ActuarialValidationError
 
 logger = logging.getLogger(__name__)
+
+# Hard cap on the shared demo portfolio. POST /portfolio/policy is anonymous
+# and the portfolio is module-level state, so without a cap any caller can grow
+# it without bound. Every SCR run holds _portfolio_lock for the whole
+# computation and its cost grows with the policy count, so an inflated
+# portfolio degrades the endpoint for every other user until the process
+# restarts. 100 is far above what the demo UI ever creates (the sample
+# portfolio has a handful of policies).
+MAX_PORTFOLIO_POLICIES = 100
 
 # Module-level portfolio (can be modified via API).
 # NOTE: This is global mutable state shared across all requests -- intentional
@@ -66,6 +76,14 @@ def add_policy(
     """Add a policy to the portfolio (thread-safe)."""
     with _portfolio_lock:
         portfolio = _ensure_portfolio()
+        # Checked inside the lock so concurrent adds cannot both pass the cap.
+        if len(portfolio.policies) >= MAX_PORTFOLIO_POLICIES:
+            raise ActuarialValidationError(
+                f"Portfolio is full: {MAX_PORTFOLIO_POLICIES} policies is the maximum "
+                f"for the shared demo portfolio. POST /api/portfolio/reset to start over.",
+                field="portfolio_size",
+                constraint=f"len(portfolio) < {MAX_PORTFOLIO_POLICIES}",
+            )
         policy = Policy(
             policy_id=policy_id,
             product_type=product_type,
@@ -80,8 +98,6 @@ def add_policy(
         # duplicate would only surface the conflict on the next BEL read,
         # so re-check here for an immediate, actionable 422.
         if any(p.policy_id == policy_id for p in portfolio.policies):
-            from backend.engine.exceptions import ActuarialValidationError
-
             raise ActuarialValidationError(
                 f"policy_id {policy_id!r} already exists in the portfolio",
                 field="policy_id",
