@@ -42,8 +42,12 @@ backend/data/inegi/*
 !backend/data/inegi/DOWNLOAD_GUIDE.md
 backend/data/conapo/*
 !backend/data/conapo/DOWNLOAD_GUIDE.md
-# NOTE: CNSF/EMSSA tables are PUBLIC regulatory data (published in CUSF/DOF).
-# They are tracked in git with sex-differentiated qx_male/qx_female columns.
+# NOTE: the CNSF / EMSSA tables under backend/data/cnsf/ are PUBLIC regulatory
+# data (published in the CUSF and the DOF), so they ARE tracked here. Their
+# shape follows whatever the annex publishes, not a fixed convention:
+# CNSF M 2013 (Anexo 5.3.3-a) is unisex -- "experiencia demografica de
+# mortalidad MIXTA (hombres y mujeres)" -- while EMSSAH-97 / EMSSAM-97
+# (Anexo 14.2.4-a) is sex-differentiated and starts at age 15. See DATA.md.
 
 # Frontend build artifacts and dependencies
 frontend/node_modules/
