@@ -14,6 +14,7 @@ import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
 import MortalitySurface from '../components/charts/MortalitySurface';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { useGet } from '../hooks/useApi';
 import type {
   LeeCarterFitResponse,
@@ -26,7 +27,7 @@ import type {
 import styles from './Mortalidad.module.css';
 
 type SexKey = 'male' | 'female' | 'unisex';
-type TableKey = 'cnsf' | 'cnsf_2013' | 'emssa';
+type TableKey = 'cnsf' | 'cnsf_2013' | 'emssa_97';
 
 function getValidationColumns(t: (key: string) => string): Column[] {
   return [
@@ -81,7 +82,7 @@ export default function Mortalidad() {
     runGraduation({ sex });
     runSurface({ sex });
     runDiagnostics({ sex });
-    runValidationEmssa({ projection_year: 2040, table_type: 'emssa', sex });
+    runValidationEmssa({ projection_year: 2040, table_type: 'emssa_97', sex });
   }, [sex, runLc, runProj, runValidation, runValidationCnsf2013, runGraduation, runSurface, runDiagnostics, runValidationEmssa]);
 
   const activeValidation = validationTab === 'cnsf'
@@ -89,6 +90,18 @@ export default function Mortalidad() {
     : validationTab === 'cnsf_2013'
       ? validationCnsf2013
       : validationEmssa;
+
+  // Cada tabla regulatoria se pide por separado, asi que una puede fallar sola
+  // (p.ej. si la tabla CNSF 2013 no esta disponible en el entorno desplegado).
+  // El reintento tiene que volver a pedir solo la pestaña activa.
+  const retryActiveValidation = () => {
+    const runActive = validationTab === 'cnsf'
+      ? runValidation
+      : validationTab === 'cnsf_2013'
+        ? runValidationCnsf2013
+        : runValidationEmssa;
+    runActive({ projection_year: 2040, table_type: validationTab, sex });
+  };
 
   return (
     <PageLayout
@@ -111,6 +124,13 @@ export default function Mortalidad() {
 
       {/* 1. Graduation: raw vs graduated */}
       {graduation.loading && <LoadingState message={t('mortalidad.loadingGraduation')} />}
+      {/* Cada seccion se pinta con {x.data && ...}: si la peticion falla, la
+          seccion simplemente desaparece y el lector no sabe si el modelo no
+          tiene ese resultado o si el backend no respondio. El aviso con
+          reintento es por seccion porque cada endpoint puede fallar solo. */}
+      {graduation.error && !graduation.loading && (
+        <ErrorState message={graduation.error} onRetry={() => runGraduation({ sex })} />
+      )}
 
       {graduation.data && (
         <Section
@@ -172,6 +192,9 @@ export default function Mortalidad() {
 
       {/* 2. Mortality Surface (3D) */}
       {surface.loading && <LoadingState message={t('mortalidad.loadingSurface')} />}
+      {surface.error && !surface.loading && (
+        <ErrorState message={surface.error} onRetry={() => runSurface({ sex })} />
+      )}
 
       {surface.data && (
         <Section
@@ -197,7 +220,9 @@ export default function Mortalidad() {
 
       {/* 3. Lee-Carter formula + fit */}
       {lc.loading && <LoadingState message={t('mortalidad.fitting')} />}
-      {lc.error && <p className={styles.errorText}>Error: {lc.error}</p>}
+      {lc.error && !lc.loading && (
+        <ErrorState message={lc.error} onRetry={() => runLc({ sex })} />
+      )}
 
       {lc.data && (
         <>
@@ -290,6 +315,9 @@ export default function Mortalidad() {
 
       {/* 5. SVD Diagnostics */}
       {diagnostics.loading && <LoadingState message={t('mortalidad.loadingDiagnostics')} />}
+      {diagnostics.error && !diagnostics.loading && (
+        <ErrorState message={diagnostics.error} onRetry={() => runDiagnostics({ sex })} />
+      )}
 
       {diagnostics.data && (
         <Section
@@ -313,6 +341,12 @@ export default function Mortalidad() {
 
       {/* 6. Projection */}
       {proj.loading && <LoadingState message={t('mortalidad.projecting')} />}
+      {proj.error && !proj.loading && (
+        <ErrorState
+          message={proj.error}
+          onRetry={() => runProj({ horizon: 30, projection_year: 2040, sex })}
+        />
+      )}
 
       {proj.data && (
         <Section
@@ -346,7 +380,10 @@ export default function Mortalidad() {
         <LoadingState message={t('mortalidad.loadingValidation')} />
       )}
 
-      {(validation.data || validationCnsf2013.data || validationEmssa.data) && (
+      {/* La seccion tambien se muestra en error: si se ocultara, las tres tablas
+          caidas dejarian desaparecer el paso 7 completo del recorrido. */}
+      {(validation.data || validationCnsf2013.data || validationEmssa.data
+        || activeValidation.error) && (
         <Section
           step="7"
           id="sec-validacion"
@@ -369,9 +406,13 @@ export default function Mortalidad() {
             options={[
               { value: 'cnsf', label: t('mortalidad.validationCnsf') },
               { value: 'cnsf_2013', label: t('mortalidad.validationCnsf2013') },
-              { value: 'emssa', label: t('mortalidad.validationEmssa') },
+              { value: 'emssa_97', label: t('mortalidad.validationEmssa') },
             ]}
           />
+
+          {activeValidation.error && !activeValidation.loading && (
+            <ErrorState message={activeValidation.error} onRetry={retryActiveValidation} />
+          )}
 
           {activeValidation.data && (
             <>

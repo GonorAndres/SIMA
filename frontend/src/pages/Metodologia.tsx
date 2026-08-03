@@ -4,6 +4,7 @@ import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
 import DeepDiveLink from '../components/data/DeepDiveLink';
+import ErrorState from '../components/common/ErrorState';
 import { useGet, usePost } from '../hooks/useApi';
 import PageLayout from '../components/layout/PageLayout';
 import type {
@@ -80,12 +81,27 @@ export default function Metodologia() {
   const premiumMin = premiumPcts?.length ? Math.min(...premiumPcts) : undefined;
   const premiumMax = premiumPcts?.length ? Math.max(...premiumPcts) : undefined;
 
+  // Toda la pagina se degrada a guiones (DASH) si la API falla, lo cual es
+  // silencioso: el lector no distingue "no hay dato" de "el backend no
+  // respondio". Un solo aviso con reintento cubre las tres peticiones.
+  const loadError = cross.error ?? scr.error ?? covid.error;
+  const anyLoading = cross.loading || scr.loading || covid.loading;
+  const retryAll = () => {
+    runCross();
+    runScr({});
+    runCovid();
+  };
+
   return (
     <PageLayout title={t('metodologia.title')} subtitle={t('metodologia.subtitle')}>
       <div data-demo-section="top" />
       <InsightCard variant="insight" title={t('metodologia.portfolioFramingTitle')}>
         <p>{t('metodologia.portfolioFraming')}</p>
       </InsightCard>
+
+      {loadError && !anyLoading && (
+        <ErrorState message={loadError} onRetry={retryAll} />
+      )}
 
       {/* SECTION 1: DATOS */}
       <Section number="01" title={t('metodologia.sections.datos')}>

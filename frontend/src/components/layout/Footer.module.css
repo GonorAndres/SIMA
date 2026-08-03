@@ -4,13 +4,23 @@
   text-align: center;
   color: var(--color-gray-700);
   font-size: var(--text-xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Linea de identidad + insignia de fuente de datos. Conserva el mayusculas
+   espaciado del pie original; el bloque de atribucion de abajo no lo hereda
+   porque una cita bibliografica en mayusculas es ilegible. */
+.topRow {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .dataSource {
@@ -18,4 +28,20 @@
   border: 1px solid var(--color-gray-200);
   font-size: 0.65rem;
   color: var(--color-gray-700);
+}
+
+.attribution {
+  max-width: 68ch;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.citation {
+  margin: 0;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  color: var(--color-gray-500);
+  text-wrap: pretty;
 }

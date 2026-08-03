@@ -3,8 +3,15 @@ import { useEffect } from 'react';
 /** Brand tail. Always last so it is what gets clipped first in a narrow tab. */
 const BRAND = 'SIMA';
 
-/** Shown when no page-specific title is set (home, fallback). */
-export const DEFAULT_TITLE = `${BRAND} | Modelacion Actuarial`;
+/**
+ * Shown when no page-specific title is set (home, fallback).
+ *
+ * Must stay in sync with the <title> in frontend/index.html. React overwrites
+ * document.title on mount, so a mismatch means crawlers see the index.html
+ * title while a human on "/" sees this one -- which is exactly what happened
+ * when index.html was corrected and this constant was not.
+ */
+export const DEFAULT_TITLE = 'SIMA · Mortalidad Lee-Carter y solvencia en México';
 
 /**
  * Sets the browser tab title as `<page> | SIMA`.

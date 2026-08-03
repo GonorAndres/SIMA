@@ -13,6 +13,7 @@ import LineChart from '../components/charts/LineChart';
 import Plot from '../components/charts/Plot';
 import { defaultLayout, defaultConfig } from '../components/charts/chartDefaults';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { usePost } from '../hooks/useApi';
 import type { PremiumResponse, ReserveResponse, SensitivityResponse, CrossCountryPremiumResponse } from '../types';
 import styles from './Tarificacion.module.css';
@@ -59,6 +60,15 @@ export default function Tarificacion() {
 
   const loading = premium.loading || reserve.loading || sensitivity.loading || crossCountry.loading;
 
+  // El envio dispara cuatro peticiones independientes. La prima ya tenia rama de
+  // error, pero reserva, sensibilidad y comparacion internacional se pintaban
+  // solo con {x.data && ...}: si una fallaba, su seccion desaparecia en silencio
+  // y el usuario veia una prima sin el resto del analisis, sin saber por que.
+  const downstreamError = reserve.error ?? sensitivity.error ?? crossCountry.error;
+  const retryLastRequest = () => {
+    if (lastRequest) handleSubmit(lastRequest);
+  };
+
   const countryColors: Record<string, string> = useMemo(() => ({
     'Mexico': '#C41E3A',
     'Estados Unidos': '#1A365D',
@@ -93,7 +103,9 @@ export default function Tarificacion() {
 
           <div>
             {premium.loading && <LoadingState />}
-            {premium.error && <p className={styles.errorText}>Error: {premium.error}</p>}
+            {premium.error && !premium.loading && (
+              <ErrorState message={premium.error} onRetry={retryLastRequest} />
+            )}
 
             {!premium.data && !premium.loading && !premium.error && (
               <EmptyState
@@ -129,6 +141,10 @@ export default function Tarificacion() {
           </div>
         </div>
       </Section>
+
+      {downstreamError && !loading && premium.data && (
+        <ErrorState message={downstreamError} onRetry={retryLastRequest} />
+      )}
 
       {reserve.data && (
         <Section

@@ -11,6 +11,7 @@ import DataTable from '../components/data/DataTable';
 import type { Column } from '../components/data/DataTable';
 import InsightCard from '../components/data/InsightCard';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { usePost, useGet } from '../hooks/useApi';
 import api from '../api/client';
 import type {
@@ -143,7 +144,20 @@ export default function Sensibilidad() {
     }
   };
 
+  // El choque de mortalidad se lanza desde el boton y desde el reintento del
+  // aviso de error, asi que la peticion vive en un solo lugar.
+  const handleRunShock = () => {
+    shockApi.execute({
+      age: shockAge,
+      sum_assured: sumAssured,
+      product_type: shockProduct,
+      factors: [-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30],
+      sex,
+    });
+  };
+
   const loading = wl.loading || term.loading || endow.loading || heatmapLoading;
+  const interestError = wl.error ?? term.error ?? endow.error;
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'interest_rate', label: t('sensibilidad.tabInterest') },
@@ -211,6 +225,11 @@ export default function Sensibilidad() {
           </div>
 
           {loading && <LoadingState />}
+          {/* Las tres curvas se piden a la vez; si alguna falla no se dibuja
+              nada y el panel queda vacio sin decir por que. */}
+          {interestError && !loading && (
+            <ErrorState message={interestError} onRetry={handleRunInterestRate} />
+          )}
 
           {wl.data && term.data && endow.data && (
             <>
@@ -293,7 +312,7 @@ export default function Sensibilidad() {
               </select>
             </div>
             <button
-              onClick={() => shockApi.execute({ age: shockAge, sum_assured: sumAssured, product_type: shockProduct, factors: [-0.30, -0.20, -0.10, 0, 0.10, 0.20, 0.30], sex })}
+              onClick={handleRunShock}
               disabled={shockApi.loading}
               className={styles.runBtn}
             >
@@ -302,6 +321,9 @@ export default function Sensibilidad() {
           </div>
 
           {shockApi.loading && <LoadingState message={t('sensibilidad.loadingShock')} />}
+          {shockApi.error && !shockApi.loading && (
+            <ErrorState message={shockApi.error} onRetry={handleRunShock} />
+          )}
 
           {shockApi.data && (
             <>
@@ -344,6 +366,9 @@ export default function Sensibilidad() {
           </p>
 
           {crossCountry.loading && <LoadingState message={t('sensibilidad.loadingCrossCountry')} />}
+          {crossCountry.error && !crossCountry.loading && (
+            <ErrorState message={crossCountry.error} onRetry={() => crossExecute()} />
+          )}
 
           {crossCountry.data && (
             <>
@@ -431,6 +456,9 @@ export default function Sensibilidad() {
           </p>
 
           {covid.loading && <LoadingState message={t('sensibilidad.loadingCovid')} />}
+          {covid.error && !covid.loading && (
+            <ErrorState message={covid.error} onRetry={() => covidExecute()} />
+          )}
 
           {covid.data && (
             <>

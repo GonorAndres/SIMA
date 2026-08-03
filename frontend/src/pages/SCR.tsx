@@ -14,6 +14,7 @@ import SolvencyGauge from '../components/charts/SolvencyGauge';
 import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { usePost, useGet } from '../hooks/useApi';
 import type { SCRResponse, PortfolioSummaryResponse, PortfolioBELResponse, LISFComplianceResponse } from '../types';
 import api from '../api/client';
@@ -110,6 +111,11 @@ export default function SCR() {
       rail={<SectionRail items={railItems} />}
     >
       {/* LISF Regulatory Context */}
+      {/* Toda la seccion regulatoria cuelga de compliance.data: si la peticion
+          falla, el paso 1 del recorrido desaparece sin dejar rastro. */}
+      {compliance.error && !compliance.loading && (
+        <ErrorState message={compliance.error} onRetry={() => complianceExecute()} />
+      )}
       {compliance.data && (
         <Section
           step="1"
@@ -175,6 +181,9 @@ export default function SCR() {
         )}
 
         {portfolio.loading && <LoadingState message={t('scr.loadingPortfolio')} />}
+        {portfolio.error && !portfolio.loading && (
+          <ErrorState message={portfolio.error} onRetry={() => portfolioExecute()} />
+        )}
         {portfolio.data && (
           <>
             <div className={styles.metricsRow}>
@@ -209,7 +218,9 @@ export default function SCR() {
       )}
 
       {scr.loading && <LoadingState message={t('scr.running')} />}
-      {scr.error && <p className={styles.errorText}>Error: {scr.error}</p>}
+      {(scr.error || bel.error) && !scr.loading && (
+        <ErrorState message={scr.error ?? bel.error ?? undefined} onRetry={handleCompute} />
+      )}
 
       {scr.data && (
         <>
