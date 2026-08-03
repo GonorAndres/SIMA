@@ -33,6 +33,16 @@ export interface LifeTableResponse {
   max_age: number;
 }
 
+export interface HealthResponse {
+  status: string;
+  /** Derived by main.py from a glob over engine/aNN_*.py -- never a literal. */
+  engine_modules: number;
+  pipelines_loaded: number;
+  version: string;
+  data_source: string;
+  year_range?: number[];
+}
+
 export interface ProjectionResponse {
   projected_years: number[];
   kt_central: number[];

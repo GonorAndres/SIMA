@@ -8,7 +8,12 @@ import LineChart from '../components/charts/LineChart';
 import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import { useGet, usePost } from '../hooks/useApi';
-import type { CovidComparisonResponse, LeeCarterFitResponse, SCRResponse } from '../types';
+import type {
+  CovidComparisonResponse,
+  HealthResponse,
+  LeeCarterFitResponse,
+  SCRResponse,
+} from '../types';
 import styles from './Inicio.module.css';
 
 export default function Inicio() {
@@ -16,17 +21,23 @@ export default function Inicio() {
   const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const scr = usePost<object, SCRResponse>('/scr/compute');
   const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
+  // El conteo de modulos se leia como "12" fijo en la copia. main.py lo deriva
+  // con un glob sobre engine/aNN_*.py, asi que al agregar a13 la frase quedo
+  // desactualizada de inmediato. Ahora se lee del mismo lugar que lo cuenta.
+  const health = useGet<HealthResponse>('/health');
 
   // `execute` is stable (memoized on the endpoint) so depending on the refs is safe.
   const { execute: runLc } = lc;
   const { execute: runScr } = scr;
   const { execute: runCovid } = covid;
+  const { execute: runHealth } = health;
 
   useEffect(() => {
     runLc();
     runScr({ available_capital: 1_000_000 });
     runCovid();
-  }, [runLc, runScr, runCovid]);
+    runHealth();
+  }, [runLc, runScr, runCovid, runHealth]);
 
   // El teaser de COVID mostraba "+0.22" y "3-10%" fijos en el codigo. Ambas
   // cifras se calculan ahora en el endpoint (que dejo de devolver constantes el
@@ -55,7 +66,7 @@ export default function Inicio() {
             <p className={styles.contextParagraph}>{t('inicio.contextP2')}</p>
             <p className={styles.contextParagraph}>{t('inicio.contextP3')}</p>
             <p className={styles.contextParagraph}>
-              {t('inicio.contextP4')}
+              {health.data && t('inicio.contextP4', { modules: health.data.engine_modules })}
               {' '}
               <a
                 href="https://github.com/GonorAndres/SIMA"
@@ -124,7 +135,9 @@ export default function Inicio() {
 
       {/* Elevator pitch */}
       <InsightCard variant="insight" title={t('inicio.portfolioTitle')}>
-        <p>{t('inicio.portfolioPitch')}</p>
+        {health.data && (
+          <p>{t('inicio.portfolioPitch', { modules: health.data.engine_modules })}</p>
+        )}
       </InsightCard>
 
       {/* Skills badges */}

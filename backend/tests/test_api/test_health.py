@@ -18,7 +18,7 @@ def test_health_check(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["engine_modules"] == 12
+    assert data["engine_modules"] == 13
 
 
 def test_health_reports_every_loaded_pipeline(client):

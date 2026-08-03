@@ -82,7 +82,7 @@ INEGI/CONAPO Data
 
 ## Key Features
 
-- **12 engine modules** (a01-a12) with progressive dependency chain
+- **13 engine modules** (a01-a13) with progressive dependency chain
 - **Sex-differentiated analysis**: separate Lee-Carter fits for male, female, and unisex mortality
 - **Real Mexican data pipeline**: INEGI deaths + CONAPO population (1990-2024)
 - **Regulatory validation**: projected mortality compared against CNSF 2000-I, CNSF M 2013 (mixta) and EMSSAH-97 / EMSSAM-97 (CUSF Anexo 14.2.4-a)
@@ -188,7 +188,7 @@ Real data files are gitignored. Mock synthetic data in `backend/data/mock/` enab
 
 ```
 backend/
-  engine/          # 12 actuarial modules (a01-a12)
+  engine/          # 13 actuarial modules (a01-a13)
   api/             # FastAPI application (routers, schemas, services)
   analysis/        # Standalone analysis scripts (Mexico, sensitivity, capital)
   tests/           # Unit + API test suite (run `pytest backend/tests/`)
