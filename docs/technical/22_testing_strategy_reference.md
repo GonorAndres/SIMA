@@ -6,7 +6,7 @@
 
 ## 1. Test Suite Overview
 
-191 tests across 19 test files, organized by engine module. Every test has a `THEORY` docstring explaining the actuarial property being verified.
+The suite is organized by engine module and gated in CI. No count is quoted here on purpose -- it has drifted repeatedly (191 -> 238 -> 242 -> 367); run `pytest backend/tests -q` for the current number. Every test has a `THEORY` docstring explaining the actuarial property being verified.
 
 ```
 backend/tests/
@@ -88,7 +88,7 @@ Four committed CSV files with synthetic but realistic Mexican demographic patter
 | `mock_inegi_deaths.csv` | Anio, Edad, Sexo, Defunciones | INEGI-format deaths |
 | `mock_conapo_population.csv` | Anio, Edad, Sexo, Poblacion | CONAPO-format population |
 | `mock_cnsf_2000_i.csv` | age, qx_male, qx_female | CNSF regulatory table |
-| `mock_emssa_2009.csv` | age, qx_male, qx_female | EMSSA regulatory table |
+| `mock_emssa_97.csv` | age, qx_male, qx_female | Synthetic sexed regulatory fixture (renamed from `mock_emssa_2009.csv` on 2026-08-03 -- there is no "EMSSA 2009" CUSF annex; see DATA.md) |
 
 ### Synthetic Data (In-Test)
 

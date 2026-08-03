@@ -32,13 +32,22 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # Dev pulls the same data as production, including HMD. Without it the
+      # cross-country pages fall back silently, so dev stops being a useful
+      # rehearsal of the production deploy.
       - name: Download production-equivalent actuarial data
         run: |
-          mkdir -p backend/data/inegi backend/data/conapo
+          mkdir -p backend/data/inegi backend/data/conapo backend/data/hmd/usa backend/data/hmd/spain
           gsutil cp gs://sima-mortality-data/inegi/inegi_deaths.csv backend/data/inegi/
           gsutil cp gs://sima-mortality-data/conapo/conapo_population.csv backend/data/conapo/
-          test -f backend/data/inegi/inegi_deaths.csv
-          test -f backend/data/conapo/conapo_population.csv
+          gsutil -m cp 'gs://sima-mortality-data/hmd/usa/*.txt' backend/data/hmd/usa/
+          gsutil -m cp 'gs://sima-mortality-data/hmd/spain/*.txt' backend/data/hmd/spain/
+
+      # Same content gate as production: existence checks pass on fabricated
+      # files, so assert properties of the world instead. See the module docstring
+      # in .github/scripts/data_gate.py for why this exists.
+      - name: Verify downloaded data is genuine
+        run: python3 .github/scripts/data_gate.py
 
       - name: Configure Docker
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
@@ -48,6 +57,12 @@ jobs:
           docker build -t "${GCP_IMAGE}:${GITHUB_SHA}" .
           docker push "${GCP_IMAGE}:${GITHUB_SHA}"
 
+      # Sizing matches production: measured peak RSS (VmHWM) for the full
+      # 9-pipeline startup load plus one pass over every endpoint is ~142MB, so
+      # 512Mi leaves about 3.7x headroom, and --max-instances caps the blast
+      # radius (Cloud Run otherwise defaults to 100 instances).
+      # Dev is a preview environment, so it takes traffic immediately -- the
+      # candidate/promote dance is production-only.
       - name: Deploy backend
         run: |
           gcloud run deploy "${GCP_SERVICE}" \
@@ -56,8 +71,9 @@ jobs:
             --region "${GCP_REGION}" \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 2Gi \
-            --cpu 2 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 3 \
             --update-env-vars 'APP_ENV=development,CORS_ORIGINS=' \
             --set-secrets 'SIMA_PROXY_SECRET=sima-pages-proxy:latest'
 
@@ -100,6 +116,12 @@ jobs:
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
         run: |
+          # Warm the container first: a cold start runs all nine mortality
+          # pipelines, which is slower than validate_production.py's timeout.
           curl --fail --retry 10 --retry-delay 6 \
             -H "X-SIMA-Proxy-Secret: ${SIMA_PROXY_SECRET}" \
             "${{ needs.backend.outputs.service_url }}/api/health"
+
+          # Then run the same actuarial checks production uses, so a broken
+          # result surfaces on dev instead of on the public site.
+          python3 scripts/validate_production.py "${{ needs.backend.outputs.service_url }}"

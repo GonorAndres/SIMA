@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 | `_lee_carter` | `LeeCarter` | `LeeCarter.fit(_graduated, reestimate_kt=False)` | mortality_service |
 | `_projection` | `MortalityProjection` | `MortalityProjection(_lee_carter, horizon=30, n_sim=500)` | mortality_service |
 | `_cnsf_lt` | `LifeTable` | `from_regulatory_table(mock_cnsf, sex="male")` | pricing_service, scr_service |
-| `_emssa_lt` | `LifeTable` | `from_regulatory_table(mock_emssa, sex="male")` | mortality_service |
+| `_emssa_lt` | `LifeTable` | `from_regulatory_table(emssah_emssam_97, sex="male")` | mortality_service |
 
 **Key design decision:** `reestimate_kt=False` because Whittaker-Henderson graduation changes the mortality surface, making the death-matching re-estimation equation unsatisfiable. The SVD k_t minimizes log-space error, which is consistent with the Lee-Carter log-bilinear formulation.
 
@@ -77,11 +77,11 @@ This prevents silent None-propagation -- a request that arrives before startup c
 
 | Router | Method | Path | Description | Params |
 |:-------|:-------|:-----|:------------|:-------|
-| -- | GET | `/api/health` | Health check (status, version, module count) | -- |
+| -- | GET | `/api/health` | Health check: `status`, `version`, `engine_modules`, `pipelines_loaded`, `data_source`, per-dataset `data_sources`, fitted `year_range`. Returns 503 with `status="error"` when startup loading failed. | -- |
 | mortality | GET | `/api/mortality/data/summary` | Loaded mock data summary | -- |
 | mortality | GET | `/api/mortality/lee-carter` | Lee-Carter parameters (a_x, b_x, k_t) | -- |
 | mortality | GET | `/api/mortality/projection` | RWD projection + optional life table | `horizon`, `projection_year` |
-| mortality | GET | `/api/mortality/life-table` | Regulatory table (CNSF/EMSSA) | `table_type`, `sex` |
+| mortality | GET | `/api/mortality/life-table` | Regulatory table (`cnsf` / `cnsf_2013` / `emssa_97`) | `table_type`, `sex` |
 | mortality | GET | `/api/mortality/validation` | Projected vs regulatory comparison | `projection_year`, `table_type` |
 | mortality | GET | `/api/mortality/graduation` | Raw vs graduated rates + diagnostics | -- |
 | mortality | GET | `/api/mortality/surface` | 2D log(mx) matrix for 3D viz | -- |

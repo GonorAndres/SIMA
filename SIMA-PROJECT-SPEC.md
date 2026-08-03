@@ -12,7 +12,7 @@ Mexican LISF/CUSF context.
 | Graduation | Whittaker–Henderson smoothing with diagnostics | Complete |
 | Mortality model | Lee–Carter SVD fit, optional `k_t` re-estimation | Complete |
 | Projection | Random Walk with Drift, stochastic paths, life-table bridge | Complete |
-| Regulatory comparison | CNSF/EMSSA ratios, RMSE, weighted RMSE, bias | Complete |
+| Regulatory comparison | CNSF 2000-I / CNSF M 2013 / EMSSAH-97 ratios, RMSE, weighted RMSE, bias | Complete |
 | Pricing | Whole life, term, endowment, pure endowment, limited-pay products | Complete |
 | Reserves | Prospective reserves and trajectories with maturity/expiry handling | Complete |
 | Portfolio | Policy validation, BEL breakdown, sex-specific bases, demo state | Complete |
@@ -61,7 +61,7 @@ transport, structured error mapping, and audit logging.
 | Engine | Python 3.12, NumPy, SciPy, Pandas |
 | API | FastAPI, Pydantic v2, Uvicorn |
 | Frontend | React 19, TypeScript 5.9, Vite 7, Plotly.js, i18next |
-| Quality | pytest (367 tests), Ruff, strict mypy on hardened core modules, ESLint, TypeScript |
+| Quality | pytest (CI-gated suite), Ruff, strict mypy on hardened core modules, ESLint, TypeScript |
 | Delivery | Docker, Google Cloud Run, GitHub Actions |
 
 ## API surface
@@ -83,7 +83,7 @@ portfolio. They are not per-user persistence.
 ## Data contract
 
 Real raw data are not required for CI: committed mock INEGI/CONAPO, HMD,
-CNSF, and EMSSA-format data exercise the complete pipeline. For real-data
+CNSF, and EMSSAH/M-97-format data exercise the complete pipeline. For real-data
 analysis, follow:
 
 - `backend/data/hmd/DOWNLOAD_GUIDE.md`

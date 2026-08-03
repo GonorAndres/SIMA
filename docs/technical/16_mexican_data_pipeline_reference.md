@@ -177,7 +177,7 @@ With modifications:
 | `mock_inegi_deaths.csv` | 3,333 | `Anio,Edad,Sexo,Defunciones` | 2000-2010 | 0-100 | Hombres, Mujeres, Total |
 | `mock_conapo_population.csv` | 3,333 | `Anio,Edad,Sexo,Poblacion` | 2000-2010 | 0-100 | Hombres, Mujeres, Total |
 | `mock_cnsf_2000_i.csv` | 101 | `age,qx_male,qx_female` | -- | 0-100 | (columns) |
-| `mock_emssa_2009.csv` | 101 | `age,qx_male,qx_female` | -- | 0-100 | (columns) |
+| `mock_emssa_97.csv` | 101 | `age,qx_male,qx_female` | -- | 0-100 | (columns) |
 
 Row count formula for INEGI/CONAPO: `101 ages * 3 sexes * 11 years = 3,333`.
 
@@ -201,7 +201,7 @@ age,qx_male,qx_female
 0,0.01550000,0.01280000
 1,0.00696460,0.00575141
 
-# mock_emssa_2009.csv
+# mock_emssa_97.csv
 age,qx_male,qx_female
 0,0.01400000,0.01150000
 1,0.00629061,0.00516728

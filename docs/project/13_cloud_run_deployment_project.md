@@ -154,7 +154,12 @@ Cloud Run automatically created: `us-central1-docker.pkg.dev/project-ad7a5be2-a1
 ### Health Check
 ```bash
 curl https://sima-451451662791.us-central1.run.app/api/health
-# {"status":"ok","engine_modules":12,"version":"1.0.0","data_source":"real"}
+# {"status":"ok","engine_modules":12,"pipelines_loaded":9,"version":"1.0.0",
+#  "data_source":"real","year_range":[1990,2019],
+#  "data_sources":{"mexico":"real","cnsf":"real","cnsf_2013":"real",
+#                  "emssa_97":"real","usa":"real","spain":"real"}}
+# Payload shape updated 2026-08-03: pipelines_loaded, data_sources and
+# year_range were added, and the endpoint now returns 503 when load_all failed.
 ```
 
 ### API Endpoints (all 21 verified working)

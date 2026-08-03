@@ -59,27 +59,31 @@ jobs:
           gsutil -m cp gs://sima-mortality-data/hmd/usa/*.txt backend/data/hmd/usa/
           gsutil -m cp gs://sima-mortality-data/hmd/spain/*.txt backend/data/hmd/spain/
 
-      - name: Verify downloaded data files
-        run: |
-          echo "=== Checking INEGI ==="
-          test -f backend/data/inegi/inegi_deaths.csv || { echo "MISSING: inegi_deaths.csv"; exit 1; }
-          echo "=== Checking CONAPO ==="
-          test -f backend/data/conapo/conapo_population.csv || { echo "MISSING: conapo_population.csv"; exit 1; }
-          echo "=== Checking HMD USA ==="
-          test -f backend/data/hmd/usa/Mx_1x1_usa.txt || { echo "MISSING: HMD USA Mx"; exit 1; }
-          echo "=== Checking HMD Spain ==="
-          test -f backend/data/hmd/spain/Mx_1x1_spain.txt || { echo "MISSING: HMD Spain Mx"; exit 1; }
-          echo "=== Checking CNSF (from git) ==="
-          test -f backend/data/cnsf/cnsf_2000_i.csv || { echo "MISSING: cnsf_2000_i.csv"; exit 1; }
-          test -f backend/data/cnsf/emssa_2009.csv || { echo "MISSING: emssa_2009.csv"; exit 1; }
-          echo "All required data files present."
+      # Content gate. This step used to be six `test -f` existence checks, which
+      # pass on an empty or fabricated file -- that is precisely how synthetic HMD
+      # fixtures reached production and were served as real actuarial results for
+      # months. The checks below assert properties of the world, not of the file
+      # format, so a generator cannot satisfy them without reimplementing
+      # demography. Stdlib only: no pip install in the deploy path.
+      - name: Verify downloaded data is genuine
+        run: python3 .github/scripts/data_gate.py
 
       - name: Build and push Docker image
         run: |
           docker build -t ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }} .
           docker push ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }}
 
-      - name: Deploy to Cloud Run
+      # Deploy WITHOUT traffic. The new revision goes live only on the `candidate`
+      # tag, reachable at its own URL; production keeps serving the previous
+      # revision until the validation step below passes. Previously the 22 checks
+      # in validate_production.py ran after 100% of traffic had already cut over,
+      # so they could only tell us we had already broken the site.
+      #
+      # Sizing: measured peak RSS (VmHWM) for the full 9-pipeline startup load
+      # plus one pass over every endpoint is ~142MB, so 512Mi is about 3.7x
+      # headroom. --max-instances caps blast radius on a personal GCP account;
+      # without it Cloud Run defaults to 100 instances.
+      - name: Deploy candidate revision (no traffic)
         run: |
           gcloud run deploy ${{ env.SERVICE }} \
             --image ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }} \
@@ -87,19 +91,62 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 2Gi \
-            --cpu 2 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 3 \
+            --no-traffic \
+            --tag candidate \
             --update-env-vars 'APP_ENV=production,CORS_ORIGINS=' \
             --set-secrets 'SIMA_PROXY_SECRET=sima-pages-proxy:latest'
 
-      - name: Read backend URL
+      - name: Read candidate and production URLs
         id: service
         run: |
+          # --flatten expands the traffic list so --filter can select the single
+          # entry carrying the candidate tag; --tag on `run deploy` moves that tag
+          # onto the revision we just pushed.
+          CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --flatten 'status.traffic[]' \
+            --filter 'status.traffic.tag=candidate' \
+            --format 'value(status.traffic.url)' | head -n 1)
+
+          if [ -z "$CANDIDATE_URL" ]; then
+            echo "::error::No candidate-tagged URL on ${{ env.SERVICE }}; refusing to cut over."
+            exit 1
+          fi
+
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
             --region ${{ env.REGION }} \
             --format 'value(status.url)')
-          echo "Service URL: $SERVICE_URL"
+
+          echo "Candidate URL: $CANDIDATE_URL"
+          echo "Service URL:   $SERVICE_URL"
+          echo "candidate_url=$CANDIDATE_URL" >> "$GITHUB_OUTPUT"
           echo "url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
+
+      # The gate. 22 actuarial and API checks against the revision that is about
+      # to take traffic. Non-zero exit here leaves production on the old revision.
+      - name: Validate candidate revision before cutover
+        env:
+          SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
+        run: |
+          # Warm the candidate first, exactly as deploy-dev.yml does. A
+          # --no-traffic tagged revision can be scaled to zero between the
+          # deploy step and this one, and validate_production.py uses a bare
+          # 60s urllib timeout with no retries -- so without this, a cold start
+          # fails a perfectly good production deploy while dev is protected.
+          curl --fail --retry 10 --retry-delay 6 \
+            -H "X-SIMA-Proxy-Secret: ${SIMA_PROXY_SECRET}" \
+            "${{ steps.service.outputs.candidate_url }}/api/health"
+
+          python3 scripts/validate_production.py "${{ steps.service.outputs.candidate_url }}"
+
+      - name: Promote candidate to 100% traffic
+        run: |
+          gcloud run services update-traffic ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --to-latest
 
   frontend:
     needs: deploy
@@ -129,7 +176,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler pages deploy dist --project-name sima --branch main
 
-      - name: Validate protected production backend
+      # Confirmation, not the gate -- the gate ran against the candidate revision
+      # before any traffic moved. This re-runs the same checks against the live
+      # URL to catch anything specific to the promoted routing.
+      - name: Re-validate live production backend
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
         run: python3 scripts/validate_production.py "${{ needs.deploy.outputs.service_url }}"
