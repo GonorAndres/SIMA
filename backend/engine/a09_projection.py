@@ -447,17 +447,30 @@ class MortalityProjection:
         """
         Validate projection results.
 
-        Checks:
-            drift_is_negative: mortality should be improving (drift < 0)
+        Only two of these are correctness checks. The other two describe the
+        projection, and reading them as pass/fail misleads: a longevity stress
+        scenario deliberately projects mortality improving faster, and a
+        mortality-deterioration scenario projects it worsening, which makes the
+        drift positive and the trend rise without either being a defect. The
+        keys are named accordingly.
+
+        Checks (must hold):
             sigma_positive: volatility must be positive
-            central_extends_trend: last projected k_t < last observed
             no_nan_in_central: no NaN in central projection
+
+        Descriptive (scenario-dependent, not pass/fail):
+            drift_indicates_improvement: drift < 0, i.e. mortality is falling
+            central_continues_downward: last projected k_t < last observed
         """
         return {
-            "drift_is_negative": bool(self.drift < 0),
             "sigma_positive": bool(self.sigma > 0),
-            "central_extends_trend": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
             "no_nan_in_central": bool(not np.any(np.isnan(self.kt_central))),
+            "drift_indicates_improvement": bool(self.drift < 0),
+            "central_continues_downward": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
+            # Kept so existing callers do not break on the rename. Same value,
+            # clearer name above; prefer the new keys in new code.
+            "drift_is_negative": bool(self.drift < 0),
+            "central_extends_trend": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
         }
 
     def summary(self) -> dict:

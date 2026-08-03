@@ -250,6 +250,62 @@ def test_validate_all_pass(projection):
     assert v["no_nan_in_central"]
 
 
+def _deteriorating_projection():
+    """A projection whose k_t RISES over time (worsening mortality).
+
+    Least contrived construction: MortalityProjection only reads ages/years/
+    ax/bx/kt off the model (same duck-typing the linear-drift test uses), so a
+    mock LeeCarter with a noisy upward k_t gives positive drift and sigma > 0
+    without touching real data.
+    """
+
+    class MockLC:
+        pass
+
+    lc = MockLC()
+    lc.ages = np.arange(0, 101)
+    lc.years = np.arange(1990, 2021)
+    lc.ax = np.full(101, -5.0)
+    lc.bx = np.ones(101) / 101
+    rng = np.random.default_rng(7)
+    lc.kt = np.linspace(-20, 10, 31) + rng.normal(0, 0.5, 31)  # rising trend
+    return MortalityProjection(lc, horizon=10, n_simulations=100, random_seed=42)
+
+
+def test_validate_aliases_mirror_new_keys(projection):
+    """
+    THEORY: the renamed validation keys are pure aliases. `drift_is_negative`
+    and `central_extends_trend` were kept for callers that predate the rename,
+    so they must always carry EXACTLY the same value as the new descriptive
+    keys — on improving and deteriorating projections alike.
+    """
+    for proj in (projection, _deteriorating_projection()):
+        v = proj.validate()
+        assert v["drift_is_negative"] == v["drift_indicates_improvement"]
+        assert v["central_extends_trend"] == v["central_continues_downward"]
+
+
+def test_validate_deteriorating_scenario_is_described_not_failed():
+    """
+    THEORY: a mortality-deterioration projection (positive drift, rising k_t)
+    is a legitimate scenario, not a defect. The correctness checks
+    (sigma_positive, no_nan_in_central) must still pass, while the
+    descriptive keys must truthfully report False — the dict separates
+    "the projection is broken" from "the projection describes worsening
+    mortality".
+    """
+    proj = _deteriorating_projection()
+    assert proj.drift > 0  # the scenario is what we intended to build
+
+    v = proj.validate()
+    # Correctness checks: must hold for any well-formed projection.
+    assert v["sigma_positive"] is True
+    assert v["no_nan_in_central"] is True
+    # Descriptive keys: correctly report the deterioration as False.
+    assert v["drift_indicates_improvement"] is False
+    assert v["central_continues_downward"] is False
+
+
 def test_summary_has_expected_keys(projection):
     """Summary should contain all key projection parameters."""
     s = projection.summary()

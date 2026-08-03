@@ -123,6 +123,39 @@ class TestCloseQx:
         closed = close_qx(ages, qx, closure_age=94)
         np.testing.assert_allclose(closed, qx)
 
+    def test_is_idempotent(self):
+        """THEORY: closing an already-closed table changes nothing.
+
+        The fit window (80-93) lies entirely below the closure age (94), so a
+        second pass refits on identical data and must reproduce the identical
+        tail. If a re-run drifted the table, every pipeline that closes
+        defensively at more than one layer would slowly corrupt the tail.
+        """
+        ages = np.arange(0, 101)
+        qx = 1.0 - np.exp(-_gompertz_mx(ages))
+
+        once = close_qx(ages, qx, closure_age=94)
+        twice = close_qx(ages, once, closure_age=94)
+
+        np.testing.assert_allclose(twice, once, rtol=1e-12, atol=0)
+
+    def test_fit_window_overlapping_the_closure_age_still_closes_soundly(self):
+        """THEORY: nothing forbids fit_ages reaching past closure_age, and the
+        fit then uses raw pre-closure rates for those ages. Even so, the
+        closure's contract must hold: ages below closure untouched, tail
+        monotone increasing, all rates in [0, 1], terminal q = 1.
+        """
+        ages = np.arange(0, 101)
+        qx = 1.0 - np.exp(-_gompertz_mx(ages))
+
+        closed = close_qx(ages, qx, fit_ages=(88, 97), closure_age=94)
+
+        np.testing.assert_allclose(closed[:94], qx[:94], rtol=0, atol=0)
+        tail = closed[ages >= 90]
+        assert np.all(np.diff(tail[:-1]) > 0)  # monotone up to the forced terminal
+        assert closed[-1] == 1.0
+        assert np.all(closed >= 0.0) and np.all(closed <= 1.0)
+
     def test_reproduces_the_fitting_window_closely(self):
         """THEORY: a closure that cannot reproduce the ages it was fitted on
         has no business extrapolating beyond them."""
@@ -170,3 +203,43 @@ class TestOnTheRealProjection:
         raw = projection.to_life_table(year=2049, close_old_age=False)
         for x in range(0, 94):
             assert closed.q_x[x] == pytest.approx(raw.q_x[x], rel=1e-12)
+
+    def test_closed_table_satisfies_life_table_invariants(self, projection):
+        """THEORY: the closure must hand a01 a table that still honours its
+        contract — sum(d_x) = l_0, terminal q = 1, every q_x in [0, 1] — and
+        l_x must be non-increasing with d_x = l_x - l_{x+1} consistent.
+        A closure that repaired the tail but broke conservation of lives
+        would poison every commutation downstream.
+        """
+        lt = projection.to_life_table(year=2049)
+        v = lt.validate()
+        assert v["sum_deaths_equals_l0"]
+        assert v["terminal_mortality_is_one"]
+        assert v["all_rates_valid"]
+
+        ages = sorted(lt.l_x)
+        lx = [lt.l_x[a] for a in ages]
+        assert all(b <= a for a, b in zip(lx, lx[1:])), "l_x must be non-increasing"
+        for a, a_next in zip(ages, ages[1:]):
+            assert lt.d_x[a] == pytest.approx(lt.l_x[a] - lt.l_x[a_next], abs=1e-9)
+
+    def test_close_old_age_false_is_the_untouched_extrapolation(self, projection):
+        """THEORY: close_old_age=False must reproduce the pre-fix behaviour
+        exactly — q_x = 1 - exp(-exp(a_x + b_x * k_t)) straight off the
+        Lee-Carter parameters, with only the terminal q forced to 1. If the
+        escape hatch quietly applied any correction, the before/after
+        comparisons on this page (and the regression guard above) would be
+        comparing the closure against itself.
+        """
+        year = 2049
+        raw = projection.to_life_table(year=year, close_old_age=False)
+
+        year_idx = list(projection.projected_years).index(year)
+        kt = projection.kt_central[year_idx]
+        lc = projection.lee_carter
+        expected_qx = 1.0 - np.exp(-np.exp(lc.ax + lc.bx * kt))
+        expected_qx[-1] = 1.0
+        expected_qx = np.clip(expected_qx, 0.0, 1.0)
+
+        for i, age in enumerate(np.asarray(lc.ages, dtype=int)):
+            assert raw.q_x[int(age)] == pytest.approx(expected_qx[i], rel=1e-12)

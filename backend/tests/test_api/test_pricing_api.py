@@ -301,3 +301,28 @@ def test_pure_endowment_sensitivity_sweep(client):
     # has to be put aside, so the premium must fall as the rate rises.
     premiums = [r["annual_premium"] for r in results]
     assert premiums[0] > premiums[1] > premiums[2]
+
+
+def test_sensitivity_schema_accepts_every_premium_product():
+    """THEORY: the sensitivity sweep must price every product the premium
+    endpoint prices. The two Literals drifted apart once (pure_endowment was
+    missing from SensitivityRequest), so assert set equality structurally
+    rather than enumerating product names — a new product added to one schema
+    but not the other fails this immediately.
+    """
+    from typing import get_args
+
+    from backend.api.schemas.pricing import (
+        PremiumRequest,
+        ReserveRequest,
+        SensitivityRequest,
+    )
+
+    def products(model):
+        return set(get_args(model.model_fields["product_type"].annotation))
+
+    premium_products = products(PremiumRequest)
+    assert premium_products, "PremiumRequest.product_type is not a Literal"
+    assert products(SensitivityRequest) == premium_products
+    # ReserveRequest shares the same product universe.
+    assert products(ReserveRequest) == premium_products

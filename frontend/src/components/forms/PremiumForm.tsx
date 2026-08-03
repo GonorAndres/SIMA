@@ -75,7 +75,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
       <SliderInput
         label={t('forms.age')}
         min={20}
-        max={70}
+        max={90}
         step={1}
         value={age}
         onChange={setAge}

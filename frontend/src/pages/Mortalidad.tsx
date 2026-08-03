@@ -63,6 +63,18 @@ export default function Mortalidad() {
   const validationCnsf2013 = useGet<ValidationResponse>('/mortality/validation');
   const validationEmssa = useGet<ValidationResponse>('/mortality/validation');
 
+  // Las tres tablas regulatorias se piden por separado a proposito: cada una
+  // puede fallar sola (p.ej. si CNSF 2013 no esta disponible en el entorno
+  // desplegado) sin tumbar la seccion, y prefetcharlas hace que cambiar de
+  // pestaña sea instantaneo. Lo que si estaba triplicado era el cableado --
+  // tres ternarios paralelos para elegir la activa y para reintentar. Este
+  // registro es la unica fuente de esa correspondencia.
+  const validations: Record<TableKey, typeof validation> = {
+    cnsf: validation,
+    cnsf_2013: validationCnsf2013,
+    emssa_97: validationEmssa,
+  };
+
   // useApi returns a stable `execute` (memoized on the endpoint), so we depend
   // on the destructured refs directly -- the effect re-runs only when `sex` changes.
   const { execute: runLc } = lc;
@@ -88,22 +100,11 @@ export default function Mortalidad() {
     runValidationEmssa({ table_type: 'emssa_97', sex });
   }, [sex, runLc, runProj, runValidation, runValidationCnsf2013, runGraduation, runSurface, runDiagnostics, runValidationEmssa]);
 
-  const activeValidation = validationTab === 'cnsf'
-    ? validation
-    : validationTab === 'cnsf_2013'
-      ? validationCnsf2013
-      : validationEmssa;
+  const activeValidation = validations[validationTab];
 
-  // Cada tabla regulatoria se pide por separado, asi que una puede fallar sola
-  // (p.ej. si la tabla CNSF 2013 no esta disponible en el entorno desplegado).
-  // El reintento tiene que volver a pedir solo la pestaña activa.
+  // El reintento vuelve a pedir solo la pestaña activa.
   const retryActiveValidation = () => {
-    const runActive = validationTab === 'cnsf'
-      ? runValidation
-      : validationTab === 'cnsf_2013'
-        ? runValidationCnsf2013
-        : runValidationEmssa;
-    runActive({ table_type: validationTab, sex });
+    validations[validationTab].execute({ table_type: validationTab, sex });
   };
 
   return (
