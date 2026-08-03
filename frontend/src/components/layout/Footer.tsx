@@ -31,7 +31,7 @@ export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.topRow}>
-        <span>SIMA · Sistema Integral de Modelacion Actuarial · {new Date().getFullYear()}</span>
+        <span>SIMA · Sistema Integral de Modelación Actuarial · {new Date().getFullYear()}</span>
         {dataSource && (
           <span className={styles.dataSource}>
             {dataSource === 'real'

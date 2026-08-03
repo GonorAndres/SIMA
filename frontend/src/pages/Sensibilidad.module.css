@@ -136,3 +136,15 @@
     text-align: justify;
   }
 }
+
+/* Aviso discreto: una salvedad que el lector encuentra junto al dato que
+   califica, sin competir con el cuerpo del texto. */
+.footnote {
+  color: var(--color-gray-700);
+  max-width: 720px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0 0 var(--space-lg);
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--color-gray-200);
+}

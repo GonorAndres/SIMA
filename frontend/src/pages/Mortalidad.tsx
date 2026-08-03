@@ -75,14 +75,17 @@ export default function Mortalidad() {
   const { execute: runValidationEmssa } = validationEmssa;
 
   useEffect(() => {
+    // projection_year is deliberately omitted: the API derives the end of the
+    // projected window from the fit. Hardcoding 2040 here made the chart title
+    // disagree with the plotted series and would break on a data refresh.
     runLc({ sex });
-    runProj({ horizon: 30, projection_year: 2040, sex });
-    runValidation({ projection_year: 2040, table_type: 'cnsf', sex });
-    runValidationCnsf2013({ projection_year: 2040, table_type: 'cnsf_2013', sex });
+    runProj({ horizon: 30, sex });
+    runValidation({ table_type: 'cnsf', sex });
+    runValidationCnsf2013({ table_type: 'cnsf_2013', sex });
     runGraduation({ sex });
     runSurface({ sex });
     runDiagnostics({ sex });
-    runValidationEmssa({ projection_year: 2040, table_type: 'emssa_97', sex });
+    runValidationEmssa({ table_type: 'emssa_97', sex });
   }, [sex, runLc, runProj, runValidation, runValidationCnsf2013, runGraduation, runSurface, runDiagnostics, runValidationEmssa]);
 
   const activeValidation = validationTab === 'cnsf'
@@ -100,7 +103,7 @@ export default function Mortalidad() {
       : validationTab === 'cnsf_2013'
         ? runValidationCnsf2013
         : runValidationEmssa;
-    runActive({ projection_year: 2040, table_type: validationTab, sex });
+    runActive({ table_type: validationTab, sex });
   };
 
   return (
@@ -145,7 +148,7 @@ export default function Mortalidad() {
             src="/formulas/whittaker_henderson.png"
             alt="g_hat = (W + lambda D'D)^{-1} W m"
             label="Whittaker-Henderson"
-            description="W = diagonal weight matrix (exposures), D = difference matrix (order 2), lambda = smoothing parameter"
+            description={t('metodologia.formulaDescriptions.graduation')}
           />
           <div className={styles.metricsRow}>
             <MetricBlock
@@ -237,7 +240,7 @@ export default function Mortalidad() {
               src="/formulas/lee_carter.png"
               alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
               label={t('mortalidad.lcModel')}
-              description="a_x = average log-mortality by age, b_x = age sensitivity to change, k_t = temporal index"
+              description={t('metodologia.formulaDescriptions.leeCarter')}
             />
             <div className={styles.metricsRow}>
               <MetricBlock
@@ -344,7 +347,7 @@ export default function Mortalidad() {
       {proj.error && !proj.loading && (
         <ErrorState
           message={proj.error}
-          onRetry={() => runProj({ horizon: 30, projection_year: 2040, sex })}
+          onRetry={() => runProj({ horizon: 30, sex })}
         />
       )}
 
@@ -352,7 +355,10 @@ export default function Mortalidad() {
         <Section
           step="6"
           id="sec-proyeccion"
-          title={t('mortalidad.projTitle')}
+          title={t('mortalidad.projTitle', {
+            yearFrom: proj.data.projected_years[0],
+            yearTo: proj.data.projected_years[proj.data.projected_years.length - 1],
+          })}
           explainer={t('mortalidad.projExplainer')}
           demoSection="projection"
         >
@@ -398,6 +404,14 @@ export default function Mortalidad() {
             <li>{t('mortalidad.validationDescConservative')}</li>
           </ul>
 
+          {activeValidation.data && (
+            <p className={styles.footnote}>
+              {t('mortalidad.validationYearNote', {
+                year: activeValidation.data.projection_year,
+              })}
+            </p>
+          )}
+
           <OptionGroup<TableKey>
             label={t('mortalidad.controlTableLabel')}
             hint={t('mortalidad.controlTableHint')}
@@ -409,6 +423,14 @@ export default function Mortalidad() {
               { value: 'emssa_97', label: t('mortalidad.validationEmssa') },
             ]}
           />
+
+          {/* CNSF 2000-I y EMSSAH/M-97 no tienen columna unisex, asi que el
+              backend compara contra la tabla masculina (mortality_service.py).
+              La respuesta no expone la sustitucion, de modo que se infiere del
+              par (sexo, tabla). CNSF M 2013 es mixta y no la necesita. */}
+          {sex === 'unisex' && validationTab !== 'cnsf_2013' && (
+            <p className={styles.footnote}>{t('mortalidad.validationUnisexFallback')}</p>
+          )}
 
           {activeValidation.error && !activeValidation.loading && (
             <ErrorState message={activeValidation.error} onRetry={retryActiveValidation} />

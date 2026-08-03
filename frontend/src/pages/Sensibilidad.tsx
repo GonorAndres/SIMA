@@ -21,6 +21,7 @@ import type {
   CrossCountryResponse,
   CovidComparisonResponse,
 } from '../types';
+import { countryLabel, wholeMoney } from '../utils/format';
 import styles from './Sensibilidad.module.css';
 
 type TabKey = 'interest_rate' | 'mortality' | 'comparison' | 'covid';
@@ -39,7 +40,9 @@ const heatmapAges = [20, 30, 40, 50, 60];
 function getSensColumns(t: (key: string) => string): Column[] {
   return [
     { key: 'interest_rate', label: t('tables.interestRate'), align: 'right', numeric: true, format: (v) => `${(Number(v) * 100).toFixed(0)}%` },
-    { key: 'annual_premium', label: t('tables.annualPremium'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+    // Peso entero, como el resto de tablas de la pagina: los centavos de una
+    // prima anual sobre un millon asegurado no informan nada.
+    { key: 'annual_premium', label: t('tables.annualPremium'), align: 'right', numeric: true, format: (v) => wholeMoney(Number(v)) },
   ];
 }
 
@@ -56,8 +59,10 @@ function getCrossColumns(t: (key: string) => string): Column[] {
 function getCovidColumns(t: (key: string) => string): Column[] {
   return [
     { key: 'age', label: t('tables.age'), align: 'right', numeric: true },
-    { key: 'pre_covid', label: t('tables.preCovid'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
-    { key: 'full', label: t('tables.fullPeriod'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
+    // toLocaleString() sin opciones da tres decimales: las primas se muestran
+    // en pesos enteros, como en el resto de la pagina.
+    { key: 'pre_covid', label: t('tables.preCovid'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+    { key: 'full', label: t('tables.fullPeriod'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
     { key: 'pct_change', label: t('tables.premiumChange'), align: 'right', numeric: true, format: (v) => `+${Number(v).toFixed(2)}%` },
   ];
 }
@@ -87,11 +92,62 @@ export default function Sensibilidad() {
   const [shockAge, setShockAge] = useState(40);
   const [shockProduct, setShockProduct] = useState('whole_life');
 
-  // Tab 3: Cross-country from API
+  // Tab 3: Cross-country from API. El endpoint no acepta sexo: compara los tres
+  // paises en unisex por diseño, para que la comparacion tenga una sola base.
   const crossCountry = useGet<CrossCountryResponse>('/sensitivity/cross-country');
+
+  // Las cifras de la prosa comparativa salen de esta respuesta, no de constantes.
+  // El nombre del pais llega en español y con acentos que difieren entre
+  // endpoints, asi que se normaliza antes de emparejar.
+  const crossFigures = useMemo(() => {
+    const countries = crossCountry.data?.countries;
+    if (!countries) return null;
+    const find = (needle: string) => countries.find((c) =>
+      c.country.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle)
+    );
+    const mx = find('mexico');
+    const usa = find('estados unidos') ?? find('usa');
+    const spain = find('espana');
+    if (!mx || !usa || !spain || mx.drift === 0) return null;
+    return {
+      mxDrift: mx.drift.toFixed(3),
+      usaDrift: usa.drift.toFixed(3),
+      spainDrift: spain.drift.toFixed(3),
+      usaRatio: (usa.drift / mx.drift).toFixed(2),
+      spainRatio: (spain.drift / mx.drift).toFixed(2),
+      mxVar: (mx.explained_var * 100).toFixed(1),
+      usaVar: (usa.explained_var * 100).toFixed(1),
+      spainVar: (spain.explained_var * 100).toFixed(1),
+    };
+  }, [crossCountry.data]);
 
   // Tab 4: COVID comparison from API
   const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
+
+  // El diferencial 2%-8% se lee del barrido del sexo activo. Antes estaba escrito
+  // en la prosa con el valor unisex y contradecia la tabla en los demas estados.
+  const rateSpread = useMemo(() => {
+    const results = wl.data?.results;
+    if (!results) return null;
+    const at = (i: number) => results.find((r) => Math.abs(r.interest_rate - i) < 1e-9)?.annual_premium;
+    const p2 = at(0.02), p5 = at(0.05), p8 = at(0.08);
+    if (p2 == null || p5 == null || p8 == null || p5 === 0) return null;
+    return (((p2 - p8) / p5) * 100).toFixed(1);
+  }, [wl.data]);
+
+  // Igual con el COVID: drifts, freno y rango de primas salen de la respuesta.
+  const covidFigures = useMemo(() => {
+    const d = covid.data;
+    if (!d || d.pre_covid.drift === 0) return null;
+    const pcts = d.premium_impact.map((p) => p.pct_change);
+    return {
+      preDrift: d.pre_covid.drift.toFixed(3),
+      fullDrift: d.full_period.drift.toFixed(3),
+      slowdown: (((d.full_period.drift - d.pre_covid.drift) / Math.abs(d.pre_covid.drift)) * 100).toFixed(0),
+      premiumMin: Math.min(...pcts).toFixed(1),
+      premiumMax: Math.max(...pcts).toFixed(1),
+    };
+  }, [covid.data]);
 
   // Lazy-load: fetch cross-country and COVID data only when their tab is active
   const crossExecute = crossCountry.execute;
@@ -266,6 +322,11 @@ export default function Sensibilidad() {
                   columns={sensColumns}
                   data={wl.data.results as unknown as Record<string, unknown>[]}
                 />
+                {rateSpread && (
+                  <p className={styles.narrative}>
+                    {t('sensibilidad.interestSpreadNote', { spread: rateSpread })}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -357,13 +418,15 @@ export default function Sensibilidad() {
       {/* Tab 3: Cross-Country Comparison */}
       {activeTab === 'comparison' && (
         <div data-demo-section="cross-country">
-          <InsightCard variant="info" title={t('sensibilidad.crossInsightTitle')}>
-            <p>{t('sensibilidad.crossInsight')}</p>
-          </InsightCard>
           <h3 className={styles.sectionTitle}>{t('sensibilidad.crossHeader')}</h3>
-          <p className={styles.narrative}>
-            {t('sensibilidad.crossIntro')}
-          </p>
+          {/* El selector de sexo de la pagina no llega a esta vista: decirlo
+              antes de los datos evita leerlos como respuesta a ese control. */}
+          <p className={styles.footnote}>{t('sensibilidad.crossSexNote')}</p>
+          {crossFigures && (
+            <p className={styles.narrative}>
+              {t('sensibilidad.crossIntro', crossFigures)}
+            </p>
+          )}
 
           {crossCountry.loading && <LoadingState message={t('sensibilidad.loadingCrossCountry')} />}
           {crossCountry.error && !crossCountry.loading && (
@@ -374,18 +437,18 @@ export default function Sensibilidad() {
             <>
               <div className={styles.comparisonGrid}>
                 {crossCountry.data.countries.map(c => (
-                  <MetricBlock key={c.country} label={`${t('tables.drift')} ${c.country}`} value={c.drift.toFixed(3)} unit={t('inicio.yearUnit')} />
+                  <MetricBlock key={c.country} label={`${t('tables.drift')} ${countryLabel(t, c.country)}`} value={c.drift.toFixed(3)} unit={t('inicio.yearUnit')} />
                 ))}
               </div>
 
               <DataTable
                 columns={crossColumns}
                 data={crossCountry.data.countries.map(c => ({
-                  country: c.country,
+                  country: countryLabel(t, c.country),
                   drift: c.drift,
                   explained_var: `${(c.explained_var * 100).toFixed(1)}%`,
                   q60: c.q60.toFixed(4),
-                  premium_age40: `$${c.premium_age40.toLocaleString()}`,
+                  premium_age40: `$${c.premium_age40.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
                 })) as unknown as Record<string, unknown>[]}
               />
 
@@ -396,14 +459,16 @@ export default function Sensibilidad() {
                   traces={crossCountry.data.kt_profiles.map((p, i) => ({
                     x: p.years,
                     y: p.kt,
-                    name: p.country,
+                    name: countryLabel(t, p.country),
                     color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
                   xTitle={t('charts.year')}
                   yTitle="k_t"
                   height={350}
                 />
-                <p className={styles.narrative}>{t('sensibilidad.ktCaption')}</p>
+                {crossFigures && (
+                  <p className={styles.narrative}>{t('sensibilidad.ktCaption', crossFigures)}</p>
+                )}
               </div>
 
               {/* a_x profiles */}
@@ -413,7 +478,7 @@ export default function Sensibilidad() {
                   traces={crossCountry.data.ax_profiles.map((p, i) => ({
                     x: p.ages,
                     y: p.values,
-                    name: p.country,
+                    name: countryLabel(t, p.country),
                     color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
                   xTitle={t('charts.age')}
@@ -430,7 +495,7 @@ export default function Sensibilidad() {
                   traces={crossCountry.data.bx_profiles.map((p, i) => ({
                     x: p.ages,
                     y: p.values,
-                    name: p.country,
+                    name: countryLabel(t, p.country),
                     color: COUNTRY_COLORS[i % COUNTRY_COLORS.length],
                   }))}
                   xTitle={t('charts.age')}
@@ -439,6 +504,14 @@ export default function Sensibilidad() {
                 />
                 <p className={styles.narrative}>{t('sensibilidad.bxCaption')}</p>
               </div>
+
+              {/* La lectura va despues de los datos que interpreta, y con las
+                  mismas cifras que devolvio el motor. */}
+              {crossFigures && (
+                <InsightCard variant="info" title={t('sensibilidad.crossInsightTitle')}>
+                  <p>{t('sensibilidad.crossInsight', crossFigures)}</p>
+                </InsightCard>
+              )}
             </>
           )}
         </div>
@@ -447,13 +520,20 @@ export default function Sensibilidad() {
       {/* Tab 4: COVID Impact */}
       {activeTab === 'covid' && (
         <div data-demo-section="covid">
-          <InsightCard variant="regulatory" title={t('sensibilidad.covidInsightTitle')}>
-            <p>{t('sensibilidad.covidInsight')}</p>
-          </InsightCard>
+          {covidFigures && (
+            <InsightCard variant="regulatory" title={t('sensibilidad.covidInsightTitle')}>
+              <p>{t('sensibilidad.covidInsight', covidFigures)}</p>
+            </InsightCard>
+          )}
           <h3 className={styles.sectionTitle}>{t('sensibilidad.covidHeader')}</h3>
-          <p className={styles.narrative}>
-            {t('sensibilidad.covidIntro')}
-          </p>
+          {/* El endpoint compara ambos ajustes en unisex, igual que la vista de
+              comparacion: decirlo evita leer las cifras como respuesta al selector. */}
+          <p className={styles.footnote}>{t('sensibilidad.covidSexNote')}</p>
+          {covidFigures && (
+            <p className={styles.narrative}>
+              {t('sensibilidad.covidIntro', covidFigures)}
+            </p>
+          )}
 
           {covid.loading && <LoadingState message={t('sensibilidad.loadingCovid')} />}
           {covid.error && !covid.loading && (

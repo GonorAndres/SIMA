@@ -14,6 +14,10 @@ export default function MetricBlock({ label, value, unit }: MetricBlockProps) {
       </div>
       <div className={styles.value}>
         {typeof value === 'number' ? value.toLocaleString() : value}
+        {/* Espacio explicito: JSX descarta el salto de linea entre ambos nodos,
+            asi que sin el la copia del texto salia como "30años" o "$3.73M(78%)".
+            La separacion visual la sigue dando el margin-left de .unit. */}
+        {unit && ' '}
         {unit && (
           <span className={styles.unit}>
             {unit}

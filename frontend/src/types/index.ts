@@ -39,11 +39,13 @@ export interface ProjectionResponse {
   drift: number;
   sigma: number;
   sex: string;
+  projection_year: number;
   life_table?: LifeTableResponse;
 }
 
 export interface ValidationResponse {
   name: string;
+  projection_year: number;
   rmse: number;
   max_ratio: number;
   min_ratio: number;
@@ -318,7 +320,8 @@ export interface LISFRiskModuleInfo {
   lisf_reference: string;
   description_es: string;
   description_en: string;
-  standard_shock: string;
+  standard_shock_es: string;
+  standard_shock_en: string;
   shock_basis: string;
 }
 
@@ -333,8 +336,10 @@ export interface LISFComplianceResponse {
   risk_margin_rate: number;
   risk_margin_basis_es: string;
   risk_margin_basis_en: string;
-  coverage: string[];
-  limitations: string[];
+  coverage_es: string[];
+  coverage_en: string[];
+  limitations_es: string[];
+  limitations_en: string[];
 }
 
 export interface SCRResponse {

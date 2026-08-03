@@ -61,8 +61,11 @@ def test_lisf_compliance(client):
         assert "CUSF" in m["lisf_reference"]
     assert data["correlation_matrix"]["mortality_longevity"] == -0.25
     assert data["risk_margin_rate"] == 0.06
-    assert len(data["coverage"]) >= 5
-    assert len(data["limitations"]) >= 5
+    # Both lists are rendered verbatim by the SPA, so they must exist in both
+    # languages and stay aligned entry-for-entry.
+    for key in ("coverage", "limitations"):
+        assert len(data[f"{key}_en"]) >= 5
+        assert len(data[f"{key}_es"]) == len(data[f"{key}_en"])
 
 
 def test_scr_custom_shocks(client):
@@ -108,3 +111,22 @@ def test_scr_sex_defaults_to_male(client):
     default = client.post("/api/scr/compute", json={}).json()
     male = client.post("/api/scr/compute", json={"sex": "male"}).json()
     assert default["bel_base"] == pytest.approx(male["bel_base"])
+
+
+def test_compliance_text_fields_are_bilingual(client):
+    """THEORY: the SCR page prints this payload verbatim and selects by language,
+    so every human-readable field must exist in both trees. `standard_shock` was
+    a single English string and showed up untranslated on the Spanish page."""
+    payload = client.get("/api/scr/compliance").json()
+    assert payload["risk_modules"], "compliance response must list risk modules"
+    for module in payload["risk_modules"]:
+        for field in ("description", "standard_shock"):
+            for lang in ("es", "en"):
+                value = module.get(f"{field}_{lang}")
+                assert value, f"{module['module']}.{field}_{lang} is missing"
+    for field in ("framework_description", "correlation_basis", "risk_margin_basis"):
+        for lang in ("es", "en"):
+            assert payload.get(f"{field}_{lang}")
+    for field in ("coverage", "limitations"):
+        for lang in ("es", "en"):
+            assert payload.get(f"{field}_{lang}")

@@ -67,16 +67,30 @@ def get_lee_carter_params(sex: str = "unisex") -> dict:
 
 def get_projection_data(
     horizon: int = 30,
-    projection_year: int = 2040,
+    projection_year: int | None = None,
     sex: str = "unisex",
 ) -> dict:
-    """Return projection data including a projected life table."""
+    """Return projection data including a projected life table.
+
+    ``projection_year=None`` means "the end of the projected window", derived
+    from the fit at runtime. It used to default to a hardcoded 2040, which
+    silently became a mid-horizon year (and, on a short enough refresh, an
+    out-of-range one) as soon as the input data gained a year.
+    """
     proj = get_projection(sex)
 
-    # Build a life table for the requested year
+    # Build a life table for the requested year.
+    #
+    # `horizon` truncates the k_t series the chart plots; it does NOT narrow
+    # which years a life table may be built for. Validity is checked against
+    # the full projected window, while the default follows the plotted window
+    # so the chart title and the table always describe the same horizon.
     lt = None
+    horizon_years = proj.projected_years[:horizon]
     last_year = int(proj.projected_years[-1])
     first_year = int(proj.projected_years[0])
+    if projection_year is None:
+        projection_year = int(horizon_years[-1])
 
     if first_year <= projection_year <= last_year:
         lt_obj = proj.to_life_table(year=projection_year, radix=100_000)
@@ -90,11 +104,12 @@ def get_projection_data(
         }
 
     return {
-        "projected_years": [int(y) for y in proj.projected_years[:horizon]],
+        "projected_years": [int(y) for y in horizon_years],
         "kt_central": [float(v) for v in proj.kt_central[:horizon]],
         "drift": proj.drift,
         "sigma": proj.sigma,
         "sex": sex,
+        "projection_year": projection_year,
         "life_table": lt,
     }
 
@@ -202,14 +217,20 @@ def get_diagnostics_data(sex: str = "unisex") -> dict:
 
 
 def get_validation(
-    projection_year: int = 2040,
+    projection_year: int | None = None,
     table_type: str = "cnsf",
     sex: str = "unisex",
 ) -> dict:
-    """Compare projected life table against a regulatory benchmark."""
+    """Compare projected life table against a regulatory benchmark.
+
+    ``projection_year=None`` means the end of the projected window. See
+    :func:`get_projection_data` for why this is derived rather than hardcoded.
+    """
     proj = get_projection(sex)
     last_year = int(proj.projected_years[-1])
     first_year = int(proj.projected_years[0])
+    if projection_year is None:
+        projection_year = last_year
 
     if not (first_year <= projection_year <= last_year):
         raise ValueError(f"projection_year must be between {first_year} and {last_year}")
@@ -233,6 +254,7 @@ def get_validation(
 
     return {
         "name": summary["name"],
+        "projection_year": projection_year,
         "rmse": summary["rmse"],
         "max_ratio": summary["max_ratio"],
         "min_ratio": summary["min_ratio"],

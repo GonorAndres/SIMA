@@ -40,10 +40,14 @@ def get_lee_carter(
 @safe_route
 def get_projection(
     horizon: int = Query(default=30, ge=1, le=100),
-    projection_year: int = Query(default=2040),
+    projection_year: int | None = Query(default=None),
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ) -> ProjectionResponse:
-    """Get mortality projection with optional life table at a specific year."""
+    """Get mortality projection with optional life table at a specific year.
+
+    Omit ``projection_year`` to get the end of the projected window; it is
+    derived from the fit so a data refresh cannot strand it mid-horizon.
+    """
     return mortality_service.get_projection_data(
         horizon=horizon,
         projection_year=projection_year,
@@ -64,11 +68,14 @@ def get_life_table(
 @router.get("/validation", response_model=ValidationResponse)
 @safe_route
 def get_validation(
-    projection_year: int = Query(default=2040),
+    projection_year: int | None = Query(default=None),
     table_type: str = Query(default="cnsf", pattern="^(cnsf|cnsf_2013|emssa_97)$"),
     sex: str = Query(default="unisex", pattern="^(male|female|unisex)$"),
 ) -> ValidationResponse:
-    """Compare projected mortality against regulatory benchmark."""
+    """Compare projected mortality against regulatory benchmark.
+
+    Omit ``projection_year`` to compare at the end of the projected window.
+    """
     return mortality_service.get_validation(
         projection_year,
         table_type,

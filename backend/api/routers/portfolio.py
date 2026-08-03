@@ -1,7 +1,8 @@
 """Portfolio management and BEL computation endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.api.dependencies import demo_session
 from backend.api.exception_handlers import safe_route
 from backend.api.schemas.portfolio import (
     PolicyCreate,
@@ -17,9 +18,9 @@ router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 @router.get("/summary", response_model=PortfolioSummaryResponse)
 @safe_route
-def get_portfolio_summary():
-    """Get portfolio summary (policies, counts, totals)."""
-    portfolio = scr_service.get_portfolio()
+def get_portfolio_summary(session_id: str = Depends(demo_session)):
+    """Get portfolio summary (policies, counts, totals) for this session."""
+    portfolio = scr_service.get_portfolio(session_id)
 
     policies = []
     for p in portfolio.policies:
@@ -51,15 +52,20 @@ def get_portfolio_summary():
 
 @router.post("/bel", response_model=PortfolioBELResponse)
 @safe_route
-def compute_bel(request: PortfolioBELRequest) -> PortfolioBELResponse:
-    """Compute Best Estimate Liability (BEL) for the portfolio."""
-    return scr_service.compute_portfolio_bel(request.interest_rate, sex=request.sex)
+def compute_bel(
+    request: PortfolioBELRequest,
+    session_id: str = Depends(demo_session),
+) -> PortfolioBELResponse:
+    """Compute Best Estimate Liability (BEL) for this session's portfolio."""
+    return scr_service.compute_portfolio_bel(
+        request.interest_rate, sex=request.sex, session_id=session_id
+    )
 
 
 @router.post("/policy")
 @safe_route
-def add_policy(policy: PolicyCreate):
-    """Add a policy to the portfolio (thread-safe)."""
+def add_policy(policy: PolicyCreate, session_id: str = Depends(demo_session)):
+    """Add a policy to this session's portfolio (thread-safe)."""
     p = scr_service.add_policy(
         policy_id=policy.policy_id,
         product_type=policy.product_type,
@@ -69,6 +75,7 @@ def add_policy(policy: PolicyCreate):
         annual_premium=policy.annual_premium,
         term=policy.term,
         duration=policy.duration,
+        session_id=session_id,
     )
     return {
         "message": f"Policy {p.policy_id} added",
@@ -79,9 +86,9 @@ def add_policy(policy: PolicyCreate):
 
 @router.post("/reset")
 @safe_route
-def reset_portfolio():
-    """Reset portfolio to the default sample portfolio."""
-    portfolio = scr_service.reset_portfolio()
+def reset_portfolio(session_id: str = Depends(demo_session)):
+    """Reset this session's portfolio to the default sample portfolio."""
+    portfolio = scr_service.reset_portfolio(session_id)
     return {
         "message": "Portfolio reset to sample",
         "n_policies": len(portfolio),

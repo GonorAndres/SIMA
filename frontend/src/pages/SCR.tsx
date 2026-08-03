@@ -18,9 +18,8 @@ import ErrorState from '../components/common/ErrorState';
 import { usePost, useGet } from '../hooks/useApi';
 import type { SCRResponse, PortfolioSummaryResponse, PortfolioBELResponse, LISFComplianceResponse } from '../types';
 import api from '../api/client';
+import { compactMoney as fmt } from '../utils/format';
 import styles from './SCR.module.css';
-
-const fmt = (v: number) => `$${(v / 1000).toFixed(1)}K`;
 
 function getPolicyColumns(t: (key: string) => string): Column[] {
   return [
@@ -28,8 +27,10 @@ function getPolicyColumns(t: (key: string) => string): Column[] {
     { key: 'product_type', label: t('tables.product'), align: 'left' },
     { key: 'issue_age', label: t('tables.issueAge'), align: 'right', numeric: true },
     { key: 'attained_age', label: t('tables.attainedAge'), align: 'right', numeric: true },
-    { key: 'sum_assured', label: t('tables.sumAssured'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString()}` },
-    { key: 'annual_pension', label: t('tables.annualPension'), align: 'right', numeric: true, format: (v) => Number(v) > 0 ? `$${Number(v).toLocaleString()}` : '-' },
+    // Moneda a peso entero. toLocaleString() sin opciones deja hasta tres
+    // decimales, que en una suma asegurada solo produce ruido.
+    { key: 'sum_assured', label: t('tables.sumAssured'), align: 'right', numeric: true, format: (v) => `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+    { key: 'annual_pension', label: t('tables.annualPension'), align: 'right', numeric: true, format: (v) => Number(v) > 0 ? `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-' },
     { key: 'duration', label: t('tables.duration'), align: 'right', numeric: true },
   ];
 }
@@ -132,7 +133,7 @@ export default function SCR() {
               <div key={m.module} className={styles.regulatoryModule}>
                 <div className={styles.moduleHeader}>
                   <span className={styles.moduleName}>{t(`scr.${m.module === 'interest_rate' ? 'interestRate' : m.module}`)}</span>
-                  <span className={styles.moduleShock}>{m.standard_shock}</span>
+                  <span className={styles.moduleShock}>{lang === 'es' ? m.standard_shock_es : m.standard_shock_en}</span>
                 </div>
                 <p className={styles.moduleDesc}>{desc(m)}</p>
                 <div className={styles.moduleRef}>{m.lisf_reference}</div>
@@ -171,7 +172,7 @@ export default function SCR() {
           src="/formulas/scr_aggregation.png"
           alt="SCR = sqrt(S^T * C * S)"
           label={t('scr.aggFormula')}
-          description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
+          description={t('metodologia.formulaDescriptions.scrAggregation')}
         />
 
         {showPolicyForm && (
@@ -192,7 +193,7 @@ export default function SCR() {
               <MetricBlock label={t('scr.annuities')} value={portfolio.data.n_annuity} />
               <MetricBlock
                 label={t('scr.totalSA')}
-                value={`$${(portfolio.data.total_sum_assured / 1e6).toFixed(2)}M`}
+                value={fmt(portfolio.data.total_sum_assured)}
               />
             </div>
             <DataTable
@@ -235,9 +236,9 @@ export default function SCR() {
               <p>{t('scr.belExplain')}</p>
             </InsightCard>
             <div className={styles.metricsRow}>
-              <MetricBlock label={t('scr.belTotal')} value={`$${(scr.data.bel_base / 1e6).toFixed(2)}M`} />
-              <MetricBlock label={t('scr.belDeath')} value={`$${(scr.data.bel_death / 1e3).toFixed(0)}K`} />
-              <MetricBlock label={t('scr.belAnnuity')} value={`$${(scr.data.bel_annuity / 1e6).toFixed(2)}M`} />
+              <MetricBlock label={t('scr.belTotal')} value={fmt(scr.data.bel_base)} />
+              <MetricBlock label={t('scr.belDeath')} value={fmt(scr.data.bel_death)} />
+              <MetricBlock label={t('scr.belAnnuity')} value={fmt(scr.data.bel_annuity)} />
             </div>
 
             {/* BEL breakdown table */}
@@ -327,6 +328,12 @@ export default function SCR() {
 
             <div className={styles.splitLayout}>
               <div>
+                {/* Los dos porcentajes juntos: el del modulo de vida y el total.
+                    Mostrar solo el total dejaba la explicacion sin contraparte visible. */}
+                <MetricBlock
+                  label={t('scr.diversificationLife')}
+                  value={`${(scr.data.life_aggregation.diversification_pct ?? 0).toFixed(1)}%`}
+                />
                 <MetricBlock
                   label={t('scr.diversification')}
                   value={`${(scr.data.total_aggregation.diversification_pct ?? 0).toFixed(1)}%`}
@@ -334,7 +341,7 @@ export default function SCR() {
                 <MetricBlock label={t('scr.riskMargin')} value={fmt(scr.data.risk_margin.risk_margin)} />
                 <MetricBlock
                   label={t('scr.techProvisions')}
-                  value={`$${(scr.data.technical_provisions / 1e6).toFixed(2)}M`}
+                  value={fmt(scr.data.technical_provisions)}
                 />
                 <MetricBlock label={t('scr.scrTotal')} value={fmt(scr.data.total_aggregation.scr_aggregated)} />
               </div>
@@ -365,13 +372,15 @@ export default function SCR() {
                 <div>
                   <h4 className={styles.belSubheading}>{t('scr.coverageTitle')}</h4>
                   <ul className={styles.complianceList}>
-                    {compliance.data.coverage.map((c, i) => <li key={i}>{c}</li>)}
+                    {(lang === 'es' ? compliance.data.coverage_es : compliance.data.coverage_en)
+                      .map((c, i) => <li key={i}>{c}</li>)}
                   </ul>
                 </div>
                 <div>
                   <h4 className={styles.belSubheading}>{t('scr.limitationsTitle')}</h4>
                   <ul className={styles.complianceList}>
-                    {compliance.data.limitations.map((l, i) => <li key={i}>{l}</li>)}
+                    {(lang === 'es' ? compliance.data.limitations_es : compliance.data.limitations_en)
+                      .map((l, i) => <li key={i}>{l}</li>)}
                   </ul>
                 </div>
               </div>

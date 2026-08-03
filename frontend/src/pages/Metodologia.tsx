@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import FormulaBlock from '../components/data/FormulaBlock';
 import InsightCard from '../components/data/InsightCard';
 import MetricBlock from '../components/data/MetricBlock';
@@ -12,7 +12,11 @@ import type {
   CrossCountryEntry,
   SCRResponse,
   CovidComparisonResponse,
+  SensitivityResponse,
+  MortalityShockRequest,
+  MortalityShockResponse,
 } from '../types';
+import { compactMoney, countryKey, wholeMoney } from '../utils/format';
 import styles from './Metodologia.module.css';
 
 // --- Live-value formatting helpers (M3: no hardcoded actuarial numbers) ---
@@ -21,11 +25,14 @@ const pct = (frac?: number, digits = 1) =>
   frac == null ? DASH : `${(frac * 100).toFixed(digits)}%`;
 const pctRaw = (value?: number, digits = 1) =>
   value == null ? DASH : `${value.toFixed(digits)}%`;
+const pctSigned = (value?: number, digits = 1) =>
+  value == null ? DASH : `${value > 0 ? '+' : ''}${value.toFixed(digits)}%`;
 const signed = (v?: number, digits = 3) => (v == null ? DASH : v.toFixed(digits));
-const money = (v?: number) =>
-  v == null ? DASH : `$${Math.round(v).toLocaleString('en-US')}`;
-const moneyM = (v?: number) =>
-  v == null ? DASH : `$${(v / 1_000_000).toFixed(2)}M`;
+// Prima a peso entero: la seccion 05 muestra importes de cuatro y cinco cifras.
+const money = (v?: number) => (v == null ? DASH : wholeMoney(v));
+// Escala compacta con umbral, la misma que usa /scr: un RCS de 809,207 se lee
+// "$809.2K" en las dos paginas y no queda descuadrado junto a "$5.30M".
+const scaled = (v?: number) => (v == null ? DASH : compactMoney(v));
 
 interface SectionProps {
   number: string;
@@ -50,23 +57,48 @@ export default function Metodologia() {
   const cross = useGet<CrossCountryResponse>('/sensitivity/cross-country');
   const scr = usePost<object, SCRResponse>('/scr/defaults');
   const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
+  // Seccion 05: las primas y el choque de mortalidad se calculan aqui mismo en vez
+  // de citarse. Base fija y declarada en el texto: vida entera, edad 40, SA 1,000,000,
+  // tabla unisex. Tarificacion parte del ajuste masculino, de ahi que su prima difiera.
+  const rateSweep = usePost<object, SensitivityResponse>('/pricing/sensitivity');
+  const mortShock = usePost<MortalityShockRequest, MortalityShockResponse>(
+    '/sensitivity/mortality-shock',
+  );
 
   const { execute: runCross } = cross;
   const { execute: runScr } = scr;
   const { execute: runCovid } = covid;
+  const { execute: runRateSweep } = rateSweep;
+  const { execute: runMortShock } = mortShock;
 
   useEffect(() => {
     runCross();
     runScr({});
     runCovid();
-  }, [runCross, runScr, runCovid]);
+    runRateSweep({
+      product_type: 'whole_life',
+      age: 40,
+      sum_assured: 1_000_000,
+      rates: [0.02, 0.05, 0.08],
+      sex: 'unisex',
+    });
+    runMortShock({
+      age: 40,
+      sum_assured: 1_000_000,
+      product_type: 'whole_life',
+      factors: [0, 0.3],
+      sex: 'unisex',
+    });
+  }, [runCross, runScr, runCovid, runRateSweep, runMortShock]);
 
   // --- Derived values fed into prose and metric blocks ---
-  const country = (name: string): CrossCountryEntry | undefined =>
-    cross.data?.countries.find((c) => c.country === name);
-  const mx = country('México');
-  const spain = country('España');
-  const usa = country('Estados Unidos');
+  // Se empareja por clave normalizada: el nombre llega acentuado desde la API y
+  // una comparacion literal se rompe con cualquier cambio de ortografia.
+  const country = (key: 'mexico' | 'usa' | 'spain'): CrossCountryEntry | undefined =>
+    cross.data?.countries.find((c) => countryKey(c.country) === key);
+  const mx = country('mexico');
+  const spain = country('spain');
+  const usa = country('usa');
 
   const scrData = scr.data;
   const totalScr = scrData?.total_aggregation.scr_aggregated;
@@ -81,15 +113,55 @@ export default function Metodologia() {
   const premiumMin = premiumPcts?.length ? Math.min(...premiumPcts) : undefined;
   const premiumMax = premiumPcts?.length ? Math.max(...premiumPcts) : undefined;
 
+  const rateAt = (i: number) =>
+    rateSweep.data?.results.find((r) => Math.abs(r.interest_rate - i) < 1e-9)?.annual_premium;
+  const premium2 = rateAt(0.02);
+  const premium5 = rateAt(0.05);
+  const premium8 = rateAt(0.08);
+  // (P al 2% - P al 8%) / P al 5%: el denominador es la prima base, no un extremo.
+  const rateSpreadPct =
+    premium2 != null && premium5 != null && premium8 != null
+      ? ((premium2 - premium8) / premium5) * 100
+      : undefined;
+  const shockIdx = mortShock.data?.factors.findIndex((f) => Math.abs(f - 0.3) < 1e-9);
+  const shock30Pct =
+    shockIdx != null && shockIdx >= 0 ? mortShock.data?.pct_changes[shockIdx] : undefined;
+
+  const belTotal = scrData?.bel_base;
+  const belShare = (part?: number) =>
+    part == null || !belTotal ? undefined : (part / belTotal) * 100;
+
   // Toda la pagina se degrada a guiones (DASH) si la API falla, lo cual es
   // silencioso: el lector no distingue "no hay dato" de "el backend no
   // respondio". Un solo aviso con reintento cubre las tres peticiones.
-  const loadError = cross.error ?? scr.error ?? covid.error;
-  const anyLoading = cross.loading || scr.loading || covid.loading;
+  const loadError =
+    cross.error ?? scr.error ?? covid.error ?? rateSweep.error ?? mortShock.error;
+  const anyLoading =
+    cross.loading || scr.loading || covid.loading || rateSweep.loading || mortShock.loading;
   const retryAll = () => {
     runCross();
     runScr({});
     runCovid();
+    runRateSweep({
+      product_type: 'whole_life',
+      age: 40,
+      sum_assured: 1_000_000,
+      rates: [0.02, 0.05, 0.08],
+      sex: 'unisex',
+    });
+    runMortShock({
+      age: 40,
+      sum_assured: 1_000_000,
+      product_type: 'whole_life',
+      factors: [0, 0.3],
+      sex: 'unisex',
+    });
+  };
+
+  // <Trans> comparte el mismo marcado tipografico en las siete narrativas.
+  const proseTags = {
+    em: <em />,
+    hl: <span className={styles.highlight} />,
   };
 
   return (
@@ -106,20 +178,13 @@ export default function Metodologia() {
       {/* SECTION 1: DATOS */}
       <Section number="01" title={t('metodologia.sections.datos')}>
         <p className={styles.narrative}>
-          Empecé con los datos crudos de mortalidad del INEGI: 30 años de defunciones registradas
-          en México (1990-2019), cruzados con las proyecciones de población del CONAPO para obtener
-          exposiciones. Para cada edad <em>x</em> y año <em>t</em>, calculé la tasa central de
-          mortalidad dividiendo las defunciones observadas entre la población expuesta al riesgo.
-          Estos datos cubren edades de 0 a 100 años, con todas las particularidades de la experiencia
-          mexicana: la mortalidad infantil elevada, el pico de mortalidad en jóvenes adultos por
-          causas externas, y el crecimiento exponencial en edades avanzadas siguiendo un patrón
-          tipo Gompertz.
+          <Trans i18nKey="metodologia.narrative.datos" components={proseTags} />
         </p>
         <FormulaBlock
           src="/formulas/central_death_rate.png"
           alt="m_{x,t} = D_{x,t} / E_{x,t}"
           label={t('metodologia.formulaLabels.centralDeathRate')}
-          description="D = observed deaths, E = population exposed to risk, x = age, t = year"
+          description={t('metodologia.formulaDescriptions.centralDeathRate')}
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.dataYears')} value="30" unit={t('metodologia.metrics.yearsUnit')} />
@@ -134,22 +199,13 @@ export default function Metodologia() {
       {/* SECTION 2: GRADUACION */}
       <Section number="02" title={t('metodologia.sections.graduacion')}>
         <p className={styles.narrative}>
-          Los datos crudos de mortalidad contienen ruido estadístico considerable: fluctuaciones
-          aleatorias año con año, especialmente en edades con pocas observaciones. Necesitaba un
-          método que suavizara este ruido sin destruir la señal biológica subyacente. Utilicé la
-          graduación Whittaker-Henderson, que resuelve un problema de optimización elegante:
-          minimizar simultáneamente la infidelidad a los datos observados y la rugosidad de la curva
-          graduada. El parámetro <span className={styles.highlight}>lambda = 10^5</span> controla
-          el balance entre fidelidad y suavidad. Cuando lambda tiende a cero, la curva graduada
-          reproduce exactamente los datos crudos; cuando lambda crece, la curva se acerca a un
-          polinomio de grado z-1. La solución es un sistema lineal simétrico definido positivo con
-          estructura de banda, lo que permite resolverlo en tiempo O(n).
+          <Trans i18nKey="metodologia.narrative.graduacion" components={proseTags} />
         </p>
         <FormulaBlock
           src="/formulas/whittaker_henderson.png"
           alt="g_hat = (W + lambda D'D)^{-1} W m"
           label={t('metodologia.formulaLabels.graduation')}
-          description="W = diagonal weight matrix (exposures), D = difference matrix (order 2), lambda = smoothing parameter, m = raw rates"
+          description={t('metodologia.formulaDescriptions.graduation')}
         />
         <div className={styles.metricsRow}>
           <MetricBlock label="Lambda" value="100,000" />
@@ -161,23 +217,21 @@ export default function Metodologia() {
       {/* SECTION 3: LEE-CARTER */}
       <Section number="03" title={t('metodologia.sections.leeCarter')}>
         <p className={styles.narrative}>
-          Con las tasas ya graduadas, apliqué el modelo Lee-Carter para descomponer la mortalidad
-          en un perfil por edad y una tendencia temporal. La idea central es que el logaritmo de la
-          tasa de mortalidad se puede expresar como una combinación de tres componentes: un nivel
-          promedio <em>a_x</em> (que captura la forma de la curva por edad), una sensibilidad al
-          cambio <em>b_x</em> (que mide cuánto mejora cada edad), y un índice temporal <em>k_t</em>
-          (que captura la mejora general). Resolví el sistema por SVD (descomposición en valores
-          singulares) con las restricciones de identificabilidad: la suma de b_x igual a 1 y la
-          suma de k_t igual a 0. Para México, el primer componente singular explica el{' '}
-          <span className={styles.highlight}>{pct(mx?.explained_var)}</span> de la variabilidad -- menor que para
-          España ({pct(spain?.explained_var)}) o Estados Unidos ({pct(usa?.explained_var)}), reflejando mayor heterogeneidad en la experiencia
-          mexicana.
+          <Trans
+            i18nKey="metodologia.narrative.leeCarter"
+            components={proseTags}
+            values={{
+              mxVar: pct(mx?.explained_var),
+              spainVar: pct(spain?.explained_var),
+              usaVar: pct(usa?.explained_var),
+            }}
+          />
         </p>
         <FormulaBlock
           src="/formulas/lee_carter.png"
           alt="ln(m_{x,t}) = a_x + b_x * k_t + epsilon_{x,t}"
           label={t('metodologia.formulaLabels.leeCarter')}
-          description="a_x = average log-mortality by age, b_x = age sensitivity, k_t = temporal index, epsilon = residual"
+          description={t('metodologia.formulaDescriptions.leeCarter')}
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.explainedVar')} value={pct(mx?.explained_var)} />
@@ -192,21 +246,24 @@ export default function Metodologia() {
       {/* SECTION 4: PROYECCION */}
       <Section number="04" title={t('metodologia.sections.proyeccion')}>
         <p className={styles.narrative}>
-          Una vez estimado el modelo, el siguiente paso fue proyectar la mortalidad hacia el futuro.
-          El índice temporal k_t sigue una caminata aleatoria con deriva (Random Walk with Drift),
-          donde la deriva representa la velocidad promedio de mejora de la mortalidad. Para México
-          pre-COVID, la deriva fue de <span className={styles.highlight}>{signed(mx?.drift)} por año</span>,
-          indicando una mejora sostenida pero más lenta que en España ({signed(spain?.drift)}) o Estados Unidos ({signed(usa?.drift)}).
-          Lo que descubrí al incluir los datos 2020-2024 fue revelador: el COVID-19 redujo la
-          deriva a {signed(covidDrift)}, lo que se traduce en primas entre {pctRaw(premiumMin)} y {pctRaw(premiumMax)} más altas dependiendo del
-          producto y la edad. La proyección central con banda de confianza al 95% permite construir
-          tablas de mortalidad proyectadas que alimentan al motor de tarificación.
+          <Trans
+            i18nKey="metodologia.narrative.proyeccion"
+            components={proseTags}
+            values={{
+              mxDrift: signed(mx?.drift),
+              spainDrift: signed(spain?.drift),
+              usaDrift: signed(usa?.drift),
+              covidDrift: signed(covidDrift),
+              premiumMin: pctRaw(premiumMin),
+              premiumMax: pctRaw(premiumMax),
+            }}
+          />
         </p>
         <FormulaBlock
           src="/formulas/rwd.png"
           alt="k_{t+1} = k_t + d + sigma * Z_t, Z_t ~ N(0,1)"
           label={t('metodologia.formulaLabels.rwd')}
-          description="d = drift (annual improvement rate), sigma = volatility, Z = standard normal innovation"
+          description={t('metodologia.formulaDescriptions.rwd')}
         />
         <div className={styles.metricsRow}>
           <MetricBlock label={t('metodologia.metrics.driftMexico')} value={signed(mx?.drift)} unit={t('metodologia.metrics.perYear')} />
@@ -218,26 +275,28 @@ export default function Metodologia() {
       {/* SECTION 5: TARIFICACION */}
       <Section number="05" title={t('metodologia.sections.tarificacion')}>
         <p className={styles.narrative}>
-          Con la tabla de mortalidad proyectada, construí funciones de conmutación (D_x, N_x, C_x, M_x)
-          que condensan toda la información de mortalidad y descuento en cantidades que simplifican
-          el cálculo de primas. La tarificación sigue el principio de equivalencia: la prima es el
-          precio justo tal que el valor presente esperado de lo que paga el asegurado iguala al valor
-          presente esperado de lo que recibirá. El resultado más sorprendente del análisis de
-          sensibilidad fue que la <span className={styles.highlight}>tasa de interés es el factor
-          dominante</span>: una vida entera a edad 40 tiene una prima de $17,910 al 2% pero solo
-          $7,014 al 8% -- un rango de 101%. En contraste, un choque de +30% en mortalidad solo
-          aumenta la prima un 16.2%.
+          <Trans
+            i18nKey="metodologia.narrative.tarificacion"
+            components={proseTags}
+            values={{
+              premium2: money(premium2),
+              premium5: money(premium5),
+              premium8: money(premium8),
+              rateSpread: pctRaw(rateSpreadPct),
+              mortShock: pctSigned(shock30Pct, 2),
+            }}
+          />
         </p>
         <FormulaBlock
           src="/formulas/whole_life_premium.png"
           alt="P = SA * M_x / N_x"
           label={t('metodologia.formulaLabels.wholeLifePremium')}
-          description="P = net annual premium, SA = sum assured, M_x = commutation (insurance), N_x = commutation (annuity)"
+          description={t('metodologia.formulaDescriptions.wholeLifePremium')}
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.premiumAge40')} value="$10,765" />
-          <MetricBlock label={t('metodologia.metrics.rateSpread')} value="101%" />
-          <MetricBlock label={t('metodologia.metrics.mortalityImpact')} value="+16.2%" />
+          <MetricBlock label={t('metodologia.metrics.premiumAge40')} value={money(premium5)} />
+          <MetricBlock label={t('metodologia.metrics.rateSpread')} value={pctRaw(rateSpreadPct)} />
+          <MetricBlock label={t('metodologia.metrics.mortalityImpact')} value={pctSigned(shock30Pct, 2)} />
         </div>
         <div className={styles.linkRow}>
           <DeepDiveLink text={t('metodologia.links.calculatePremiums')} to="/tarificacion" />
@@ -247,26 +306,26 @@ export default function Metodologia() {
       {/* SECTION 6: RESERVAS */}
       <Section number="06" title={t('metodologia.sections.reservas')}>
         <p className={styles.narrative}>
-          Las reservas existen porque cobramos primas niveladas pero la mortalidad crece con la edad.
-          En los primeros años la prima excede el costo real del riesgo, generando un excedente que
-          se acumula. En los años posteriores, cuando la mortalidad supera la prima, ese excedente
-          cubre el déficit. Utilicé el método prospectivo: la reserva al tiempo t es el valor presente
-          de las obligaciones futuras menos el valor presente de las primas futuras por cobrar. Lo
-          crucial para el marco de Solvencia II es que esta reserva prospectiva es exactamente la{' '}
-          <span className={styles.highlight}>Mejor Estimación (BEL)</span> de la obligación. No fue
-          necesario inventar matemáticas nuevas: la reserva actuarial clásica, calculada con supuestos
-          de mejor estimación, es la BEL que exige la regulación de la CNSF.
+          <Trans i18nKey="metodologia.narrative.reservas" components={proseTags} />
         </p>
         <FormulaBlock
           src="/formulas/prospective_reserve.png"
           alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
           label={t('metodologia.formulaLabels.prospectiveReserve')}
-          description="tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium"
+          description={t('metodologia.formulaDescriptions.prospectiveReserve')}
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.belTotal')} value="$5.16M" />
-          <MetricBlock label={t('metodologia.metrics.belAnnuity')} value="$4.27M" unit="(83%)" />
-          <MetricBlock label={t('metodologia.metrics.belDeath')} value="$0.89M" unit="(17%)" />
+          <MetricBlock label={t('metodologia.metrics.belTotal')} value={scaled(belTotal)} />
+          <MetricBlock
+            label={t('metodologia.metrics.belAnnuity')}
+            value={scaled(scrData?.bel_annuity)}
+            unit={`(${pctRaw(belShare(scrData?.bel_annuity), 0)})`}
+          />
+          <MetricBlock
+            label={t('metodologia.metrics.belDeath')}
+            value={scaled(scrData?.bel_death)}
+            unit={`(${pctRaw(belShare(scrData?.bel_death), 0)})`}
+          />
         </div>
         <div className={styles.linkRow}>
           <DeepDiveLink text={t('metodologia.links.seePricing')} to="/tarificacion" />
@@ -276,29 +335,32 @@ export default function Metodologia() {
       {/* SECTION 7: RCS */}
       <Section number="07" title={t('metodologia.sections.rcs')}>
         <p className={styles.narrative}>
-          El Requerimiento de Capital de Solvencia (RCS) es el colchón que una aseguradora debe
-          mantener para sobrevivir un escenario adverso de 1 en 200 años (VaR al 99.5%). Implementé
-          cuatro módulos de riesgo siguiendo el marco de Solvencia II adaptado por la CNSF:
-          mortalidad (+15% permanente en q_x), longevidad (-20% permanente en q_x), tasa de interés
-          (+/- 1% paralelo), y catástrofe (+35% puntual, calibrado con la experiencia COVID-19
-          mexicana). La agregación usa una matriz de correlación que captura las coberturas naturales
-          del portafolio -- la correlación negativa de -0.25 entre mortalidad y longevidad genera un{' '}
-          <span className={styles.highlight}>beneficio por diversificación del {pctRaw(divPct)}</span>. El
-          resultado: un RCS total de {money(totalScr)} sobre provisiones técnicas de {moneyM(techProv)}. El riesgo de
-          tasa de interés domina con el {pctRaw(irDominancePct)} del capital requerido, porque afecta a todas las
-          pólizas del portafolio.
+          <Trans
+            i18nKey="metodologia.narrative.rcs"
+            components={proseTags}
+            values={{
+              divPct: pctRaw(divPct),
+              totalScr: scaled(totalScr),
+              techProv: scaled(techProv),
+              irPct: pctRaw(irDominancePct),
+            }}
+          />
         </p>
         <FormulaBlock
           src="/formulas/rcs_aggregation.png"
           alt="RCS = sqrt(S^T * C * S)"
           label={t('metodologia.formulaLabels.scrAggregation')}
-          description="S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies"
+          description={t('metodologia.formulaDescriptions.scrAggregation')}
         />
         <div className={styles.metricsRow}>
-          <MetricBlock label={t('metodologia.metrics.totalSCR')} value={money(totalScr)} />
-          <MetricBlock label={t('metodologia.metrics.techProvisions')} value={moneyM(techProv)} />
+          <MetricBlock label={t('metodologia.metrics.totalSCR')} value={scaled(totalScr)} />
+          <MetricBlock label={t('metodologia.metrics.techProvisions')} value={scaled(techProv)} />
           <MetricBlock label={t('metodologia.metrics.diversification')} value={pctRaw(divPct)} />
-          <MetricBlock label={t('metodologia.metrics.dominantRisk')} value={t('metodologia.metrics.interestRateRisk')} />
+          <MetricBlock
+            label={t('metodologia.metrics.dominantRisk')}
+            value={t('metodologia.metrics.interestRateRisk')}
+            unit={`(${pctRaw(irDominancePct)})`}
+          />
         </div>
         <div className={styles.linkRow}>
           <DeepDiveLink text={t('metodologia.links.seeSCR')} to="/scr" />

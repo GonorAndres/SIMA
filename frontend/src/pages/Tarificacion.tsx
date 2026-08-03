@@ -16,6 +16,7 @@ import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import { usePost } from '../hooks/useApi';
 import type { PremiumResponse, ReserveResponse, SensitivityResponse, CrossCountryPremiumResponse } from '../types';
+import { countryKey, countryLabel, wholeMoney } from '../utils/format';
 import styles from './Tarificacion.module.css';
 
 const formulaSrcMap: Record<string, string> = {
@@ -53,6 +54,9 @@ export default function Tarificacion() {
       age: req.age,
       sum_assured: req.sum_assured,
       term: req.term,
+      // El barrido de tasas debe usar el mismo sexo que la prima de arriba; sin
+      // este campo la API cae a "male" y la curva contradice la tarjeta.
+      sex: req.sex,
       rates: [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
     });
     crossCountry.execute(req);
@@ -69,10 +73,12 @@ export default function Tarificacion() {
     if (lastRequest) handleSubmit(lastRequest);
   };
 
+  // Se empareja por clave normalizada (countryKey), no por la ortografia exacta
+  // que emita COUNTRY_LABELS en backend/api/services/pricing_service.py.
   const countryColors: Record<string, string> = useMemo(() => ({
-    'Mexico': '#C41E3A',
-    'Estados Unidos': '#1A365D',
-    'España': '#D4A843',
+    mexico: '#C41E3A',
+    usa: '#1A365D',
+    spain: '#D4A843',
   }), []);
 
   const crossCountryColumns = useMemo(() => [
@@ -122,7 +128,7 @@ export default function Tarificacion() {
                 </div>
                 <MetricBlock
                   label={t('tarificacion.annualPremium')}
-                  value={`$${premium.data.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                  value={wholeMoney(premium.data.annual_premium)}
                 />
                 <MetricBlock
                   label={t('tarificacion.premiumRate')}
@@ -156,7 +162,7 @@ export default function Tarificacion() {
             src="/formulas/prospective_reserve.png"
             alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
             label={t('tarificacion.reserveFormula')}
-            description="tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium"
+            description={t('metodologia.formulaDescriptions.prospectiveReserve')}
           />
           <LineChart
             traces={[{
@@ -227,9 +233,9 @@ export default function Tarificacion() {
               {entries.map(e => (
                 <MetricBlock
                   key={e.country}
-                  label={e.country}
+                  label={countryLabel(t, e.country)}
                   value={`$${e.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                  unit={e.country === 'Mexico'
+                  unit={countryKey(e.country) === 'mexico'
                     ? `drift ${e.drift.toFixed(2)}`
                     : `${pctDiff(e)}% vs MX`}
                 />
@@ -238,10 +244,10 @@ export default function Tarificacion() {
 
             <Plot
               data={[{
-                x: entries.map(e => e.country),
+                x: entries.map(e => countryLabel(t, e.country)),
                 y: entries.map(e => e.annual_premium),
                 type: 'bar' as const,
-                marker: { color: entries.map(e => countryColors[e.country] || '#666') },
+                marker: { color: entries.map(e => countryColors[countryKey(e.country) ?? ''] || '#666') },
                 text: entries.map(e => `$${e.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`),
                 textposition: 'outside' as const,
                 hovertemplate: '%{x}<br>$%{y:,.0f}<extra></extra>',
@@ -261,7 +267,11 @@ export default function Tarificacion() {
               style={{ width: '100%' }}
               useResizeHandler
             />
-            <DataTable columns={crossCountryColumns} data={crossCountry.data.entries as unknown as Record<string, unknown>[]} sortable={false} />
+            <DataTable
+              columns={crossCountryColumns}
+              data={crossCountry.data.entries.map((e) => ({ ...e, country: countryLabel(t, e.country) })) as unknown as Record<string, unknown>[]}
+              sortable={false}
+            />
           </Section>
         );
       })()}
