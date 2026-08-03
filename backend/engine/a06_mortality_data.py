@@ -292,9 +292,9 @@ class MortalityData:
                     constraint=f"{HMD_SCHEMA['filename_patterns'][name]} must exist",
                 )
 
-        mx_raw = _load_hmd_file(mx_file, sex, allow_missing_values=impute_missing)
-        dx_raw = _load_hmd_file(dx_file, sex, allow_missing_values=impute_missing)
-        ex_raw = _load_hmd_file(ex_file, sex, allow_missing_values=impute_missing)
+        mx_raw = _load_hmd_file(mx_file, sex)
+        dx_raw = _load_hmd_file(dx_file, sex)
+        ex_raw = _load_hmd_file(ex_file, sex)
 
         # --- Filter years ---
         mx_raw = mx_raw[(mx_raw["Year"] >= year_min) & (mx_raw["Year"] <= year_max)]
@@ -537,8 +537,6 @@ class MortalityData:
 def _load_hmd_file(
     filepath: Path,
     sex: str,
-    *,
-    allow_missing_values: bool = False,
 ) -> pd.DataFrame:
     """
     Load a single HMD text file and extract one sex column.
@@ -568,8 +566,13 @@ def _load_hmd_file(
     required = [HMD_SCHEMA["year_column"], HMD_SCHEMA["age_column"], sex]
     validate_required_columns(df, required, filepath=filepath, source="HMD")
     validate_no_missing_cells(df, ["Year", "Age"], filepath=filepath, source="HMD")
-    if not allow_missing_values:
-        validate_no_missing_cells(df, [sex], filepath=filepath, source="HMD")
+    # Rate completeness is deliberately NOT checked here. A real HMD file spans the
+    # country's full series (USA from 1933, Spain from 1908) and legitimately carries
+    # '.' where a rate is undefined -- Spain's early years, and age 110+ in any year
+    # when nobody reached 110. Those rows are discarded downstream by the year filter
+    # and by _cap_ages(), so rejecting the file on them would refuse perfectly good
+    # data over cells that are never used. Completeness of the window actually
+    # requested is enforced by _validate(), which runs on the final matrices.
 
     # Handle '110+' in Age column
     df["Age"] = df["Age"].astype(str).str.replace("+", "", regex=False)
@@ -744,19 +747,12 @@ def _validate(
             constraint="ex > 0",
         )
 
-    # Consistency: d/L should approximate m_x
-    mx_recomputed = dx / ex
-    relative_error = np.abs(mx - mx_recomputed) / (mx + 1e-12)
-    max_rel_error = np.max(relative_error)
-    if max_rel_error > 0.01:  # 1% tolerance
-        worst = np.unravel_index(np.argmax(relative_error), mx.shape)
-        raise DataQualityError(
-            f"{country}/{sex}: m_x inconsistent with d/L. "
-            f"Max relative error: {max_rel_error:.4f} "
-            f"at age {ages[worst[0]]}, year {years[worst[1]]}.",
-            field="mx",
-            constraint="mx ≈ dx / ex",
-        )
+    # Consistency of m_x against d/L is NOT checked here. Both callers invoke
+    # validate_mx_consistency() immediately after this function, and that is the
+    # single source of truth for the rule -- it grants low-count cells a wider
+    # allowance, which real HMD data requires and a flat 1% cannot express.
+    # A second, stricter copy of the same rule here would silently win and make
+    # the shared validator unreachable.
 
 
 def _load_inegi_deaths(

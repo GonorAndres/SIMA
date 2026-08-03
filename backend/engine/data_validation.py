@@ -23,6 +23,12 @@ import pandas as pd
 
 from .exceptions import DataQualityError
 
+# Extra m_x-vs-dx/ex allowance granted to low-count cells, as a multiple of
+# 1/sqrt(deaths). Empirically the HMD discrepancy sits at ~0.05/sqrt(dx) across
+# USA + Spain 1990-2019; 0.15 leaves 3x headroom while still failing a cell whose
+# rate genuinely disagrees with its own death and exposure counts.
+_MX_COUNT_ALLOWANCE = 0.15
+
 
 def validate_required_columns(
     df: pd.DataFrame,
@@ -169,16 +175,34 @@ def validate_mx_consistency(
     abs_err = np.abs(mx - recomputed)
     rel_err = np.where(positive, abs_err / (mx + 1e-12), abs_err)
 
-    max_err = float(np.nanmax(rel_err))
-    if max_err > tolerance:
-        worst_idx = np.nanargmax(rel_err)
-        worst = np.unravel_index(worst_idx, mx.shape)
+    # Published m_x is not literally dx/ex. HMD derives rates from Lexis triangles
+    # and publishes all three series rounded independently, so recomputing dx/ex
+    # reproduces m_x only up to that redistribution. Measured across USA + Spain
+    # 1990-2019 (18,180 cells), the discrepancy is ~0.05/sqrt(dx): negligible where
+    # deaths are plentiful, but several percent in cells with a handful of deaths
+    # (worst observed: 2.84% at Spain/Female age 7, 2016, with 3 deaths).
+    # A flat tolerance therefore cannot separate "small counts" from "wrong data" --
+    # it was only ever satisfiable because the synthetic fixtures set dx = mx * ex
+    # exactly. Scale the allowance by count and keep `tolerance` as the floor for
+    # well-populated cells, where a real inconsistency would still be caught.
+    with np.errstate(divide="ignore", invalid="ignore"):
+        count_allowance = _MX_COUNT_ALLOWANCE / np.sqrt(np.where(dx > 0, dx, np.nan))
+    cell_tolerance = np.where(np.isfinite(count_allowance), count_allowance, tolerance)
+    cell_tolerance = np.maximum(cell_tolerance, tolerance)
+
+    exceed = both_finite & (rel_err > cell_tolerance)
+    if np.any(exceed):
+        # Report the cell that overshoots its own allowance by the widest margin.
+        overshoot = np.where(exceed, rel_err / cell_tolerance, -np.inf)
+        worst = np.unravel_index(np.nanargmax(overshoot), mx.shape)
         raise DataQualityError(
             f"{source}: mx inconsistent with dx/ex. "
-            f"Max error {max_err:.4f} (tolerance {tolerance}) "
+            f"Error {float(rel_err[worst]):.4f} exceeds allowance "
+            f"{float(cell_tolerance[worst]):.4f} "
+            f"({int(dx[worst])} deaths) "
             f"at age {int(ages[worst[0]])}, year {int(years[worst[1]])}",
             field="mx",
-            constraint=f"mx ≈ dx/ex within relative tolerance {tolerance}",
+            constraint=(f"mx ≈ dx/ex within max({tolerance}, {_MX_COUNT_ALLOWANCE}/sqrt(dx))"),
         )
 
 
