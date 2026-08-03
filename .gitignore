@@ -30,11 +30,18 @@ Thumbs.db
 *~
 
 # HMD data (CC BY 4.0 -- do not redistribute, download from www.mortality.org)
-backend/data/hmd/
+# The download guide itself IS tracked: README points readers at it, and a fresh
+# clone otherwise has no instructions for obtaining the data. Note the trailing
+# `/*` -- a bare negation under a directory-level ignore does not work, because
+# git will not re-include a file whose parent directory is excluded.
+backend/data/hmd/*
+!backend/data/hmd/DOWNLOAD_GUIDE.md
 
 # Mexican data (do not redistribute -- download from original sources)
-backend/data/inegi/
-backend/data/conapo/
+backend/data/inegi/*
+!backend/data/inegi/DOWNLOAD_GUIDE.md
+backend/data/conapo/*
+!backend/data/conapo/DOWNLOAD_GUIDE.md
 # NOTE: CNSF/EMSSA tables are PUBLIC regulatory data (published in CUSF/DOF).
 # They are tracked in git with sex-differentiated qx_male/qx_female columns.
 
