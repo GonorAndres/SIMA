@@ -17,6 +17,16 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+# Counted from the checkout rather than written as a literal, mirroring how
+# main.py derives the same number on the server. A literal here went stale the
+# moment a13_old_age_closure.py landed and failed the deploy it was meant to
+# guard; counting both sides turns the check into what it should always have
+# been -- an assertion that the deployed image matches this source tree.
+ENGINE_MODULE_COUNT = len(
+    list((Path(__file__).resolve().parent.parent / "backend" / "engine").glob("a[0-9][0-9]_*.py"))
+)
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "https://sima-451451662791.us-central1.run.app"
 API = f"{BASE_URL}/api"
@@ -64,7 +74,8 @@ health = get("/health")
 # data_source collapses to "real" only when EVERY dataset is real; it reads
 # "mixed" if any one of them fell back to a mock fixture.
 check("A1", health["data_source"] == "real", f"data_source={health['data_source']}")
-check("A2", health["engine_modules"] == 12, f"engine_modules={health['engine_modules']}")
+check("A2", health["engine_modules"] == ENGINE_MODULE_COUNT,
+      f"engine_modules={health['engine_modules']} (checkout has {ENGINE_MODULE_COUNT})")
 # A1 is a summary and can be satisfied in ways that hide the specific lie this
 # check exists to catch: synthetic HMD files sitting in the real-data directory
 # and being served as genuine USA/Spain mortality. Assert those two by name.
