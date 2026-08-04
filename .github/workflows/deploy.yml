@@ -102,14 +102,18 @@ jobs:
       - name: Read candidate and production URLs
         id: service
         run: |
-          # --flatten expands the traffic list so --filter can select the single
-          # entry carrying the candidate tag; --tag on `run deploy` moves that tag
-          # onto the revision we just pushed.
+          # Reads the URL of the entry tagged `candidate` -- `--tag` on
+          # `run deploy` moves that tag onto the revision just pushed.
+          #
+          # Parsed from JSON rather than selected with `--filter`: that flag
+          # belongs to `gcloud run services list`, and `describe` rejects it
+          # outright ("unrecognized arguments: --filter"). The whole step
+          # therefore failed the first time it ran, and the cutover was
+          # correctly refused rather than performed blind.
           CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
             --region ${{ env.REGION }} \
-            --flatten 'status.traffic[]' \
-            --filter 'status.traffic.tag=candidate' \
-            --format 'value(status.traffic.url)' | head -n 1)
+            --format json \
+            | python3 -c "import json,sys; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((e.get('url','') for e in t if e.get('tag')=='candidate'), ''))")
 
           if [ -z "$CANDIDATE_URL" ]; then
             echo "::error::No candidate-tagged URL on ${{ env.SERVICE }}; refusing to cut over."
