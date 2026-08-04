@@ -1,34 +1,112 @@
-name: Deploy to Cloud Run
+name: Deploy
 
+# One workflow for both environments, because they were 85% identical and the
+# 15% that differed is exactly where the bugs hid: the candidate/validate/promote
+# sequence existed only in the production file, so its first-ever execution was
+# against production -- and it failed on a gcloud flag that `describe` does not
+# accept.
+#
+# Now dev runs the identical path. Anything wrong with the deploy logic fails on
+# dev, on a push, minutes after it is written.
+#
+#   push to dev            -> deploy to the dev environment
+#   CI green on main       -> deploy to production
+#   manual dispatch        -> pick the environment
 on:
+  push:
+    branches: [dev]
   workflow_run:
     workflows: [CI]
     branches: [main]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [dev, production]
+        default: dev
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: us-central1
-  SERVICE: sima
-  IMAGE: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/sima/sima
-  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
-  deploy:
+  # ---------------------------------------------------------------------------
+  # Resolve which environment this run targets, and gate on CI.
+  #
+  # A production run is only ever triggered by a *successful* CI run on main;
+  # anything else is dev. Keeping that decision in one place means the deploy
+  # job below never branches on the trigger.
+  # ---------------------------------------------------------------------------
+  setup:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     outputs:
-      service_url: ${{ steps.service.outputs.url }}
+      environment: ${{ steps.resolve.outputs.environment }}
+      service: ${{ steps.resolve.outputs.service }}
+      image: ${{ steps.resolve.outputs.image }}
+      app_env: ${{ steps.resolve.outputs.app_env }}
+      pages_branch: ${{ steps.resolve.outputs.pages_branch }}
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - id: resolve
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "workflow_run" ]; then
+            ENVIRONMENT=production
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            ENVIRONMENT="${INPUT_ENV:-dev}"
+          else
+            ENVIRONMENT=dev
+          fi
 
+          if [ "$ENVIRONMENT" = "production" ]; then
+            SERVICE=sima
+            APP_ENV=production
+            PAGES_BRANCH=main
+          else
+            SERVICE=sima-dev
+            APP_ENV=development
+            PAGES_BRANCH=dev
+          fi
+
+          SHA="${RUN_SHA:-$GIT_SHA}"
+
+          {
+            echo "environment=$ENVIRONMENT"
+            echo "service=$SERVICE"
+            echo "app_env=$APP_ENV"
+            echo "pages_branch=$PAGES_BRANCH"
+            echo "sha=$SHA"
+            echo "image=${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/sima/$SERVICE"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Deploying $ENVIRONMENT ($SERVICE) at $SHA"
+
+  # ---------------------------------------------------------------------------
+  # Backend. Identical for both environments, including the candidate/promote
+  # sequence -- that is the whole point of merging the two workflows.
+  # ---------------------------------------------------------------------------
+  backend:
+    needs: setup
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    outputs:
+      service_url: ${{ steps.urls.outputs.url }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.DEPLOY_SHA }}
+          ref: ${{ needs.setup.outputs.sha }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -49,45 +127,44 @@ jobs:
             --description "SIMA Cloud Run images"
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
 
+      # Dev pulls the same data as production, including HMD. Without it the
+      # cross-country pages fall back silently and dev stops being a rehearsal.
       - name: Download real data from GCS
         run: |
           mkdir -p backend/data/inegi backend/data/conapo backend/data/hmd/usa backend/data/hmd/spain
           gsutil -m cp gs://sima-mortality-data/inegi/inegi_deaths.csv backend/data/inegi/
           gsutil -m cp gs://sima-mortality-data/conapo/conapo_population.csv backend/data/conapo/
-          gsutil -m cp gs://sima-mortality-data/hmd/usa/*.txt backend/data/hmd/usa/
-          gsutil -m cp gs://sima-mortality-data/hmd/spain/*.txt backend/data/hmd/spain/
+          gsutil -m cp 'gs://sima-mortality-data/hmd/usa/*.txt' backend/data/hmd/usa/
+          gsutil -m cp 'gs://sima-mortality-data/hmd/spain/*.txt' backend/data/hmd/spain/
 
-      # Content gate. This step used to be six `test -f` existence checks, which
-      # pass on an empty or fabricated file -- that is precisely how synthetic HMD
-      # fixtures reached production and were served as real actuarial results for
-      # months. The checks below assert properties of the world, not of the file
-      # format, so a generator cannot satisfy them without reimplementing
-      # demography. Stdlib only: no pip install in the deploy path.
+      # Content gate. This used to be six `test -f` existence checks, which pass
+      # on an empty or fabricated file -- precisely how synthetic HMD fixtures
+      # reached production and were served as real actuarial results for months.
+      # These checks assert properties of the world, not of the file format.
+      # Stdlib only: no pip install in the deploy path.
       - name: Verify downloaded data is genuine
         run: python3 .github/scripts/data_gate.py
 
-      - name: Build and push Docker image
+      - name: Build and push image
         run: |
-          docker build -t ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }} .
-          docker push ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }}
+          docker build -t "${{ needs.setup.outputs.image }}:${{ needs.setup.outputs.sha }}" .
+          docker push "${{ needs.setup.outputs.image }}:${{ needs.setup.outputs.sha }}"
 
-      # Deploy WITHOUT traffic. The new revision goes live only on the `candidate`
-      # tag, reachable at its own URL; production keeps serving the previous
-      # revision until the validation step below passes. Previously the 22 checks
-      # in validate_production.py ran after 100% of traffic had already cut over,
-      # so they could only tell us we had already broken the site.
+      # Deployed WITHOUT traffic, on the `candidate` tag only. The live revision
+      # keeps serving until the validation below passes.
       #
-      # Sizing: measured peak RSS (VmHWM) for the full 9-pipeline startup load
-      # plus one pass over every endpoint is ~142MB, so 512Mi is about 3.7x
-      # headroom. --max-instances caps blast radius on a personal GCP account;
-      # without it Cloud Run defaults to 100 instances.
+      # Sizing: measured peak RSS (VmHWM) for the full 9-pipeline startup plus
+      # one pass over every endpoint is ~142MB, so 512Mi is ~3.7x headroom.
+      # --max-instances caps blast radius on a personal GCP account; Cloud Run
+      # otherwise defaults to 100.
       - name: Deploy candidate revision (no traffic)
         run: |
-          gcloud run deploy ${{ env.SERVICE }} \
-            --image ${{ env.IMAGE }}:${{ env.DEPLOY_SHA }} \
-            --region ${{ env.REGION }} \
+          gcloud run deploy "${{ needs.setup.outputs.service }}" \
+            --image "${{ needs.setup.outputs.image }}:${{ needs.setup.outputs.sha }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
@@ -96,70 +173,71 @@ jobs:
             --max-instances 3 \
             --no-traffic \
             --tag candidate \
-            --update-env-vars 'APP_ENV=production,CORS_ORIGINS=' \
+            --update-env-vars "APP_ENV=${{ needs.setup.outputs.app_env }},CORS_ORIGINS=" \
             --set-secrets 'SIMA_PROXY_SECRET=sima-pages-proxy:latest'
 
-      - name: Read candidate and production URLs
-        id: service
+      - name: Read candidate and live URLs
+        id: urls
         run: |
-          # Reads the URL of the entry tagged `candidate` -- `--tag` on
-          # `run deploy` moves that tag onto the revision just pushed.
-          #
           # Parsed from JSON rather than selected with `--filter`: that flag
           # belongs to `gcloud run services list`, and `describe` rejects it
-          # outright ("unrecognized arguments: --filter"). The whole step
-          # therefore failed the first time it ran, and the cutover was
-          # correctly refused rather than performed blind.
-          CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
-            --region ${{ env.REGION }} \
-            --format json \
-            | python3 -c "import json,sys; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((e.get('url','') for e in t if e.get('tag')=='candidate'), ''))")
+          # ("unrecognized arguments: --filter"). An absent candidate tag yields
+          # an empty string, which fails the guard below rather than cutting over
+          # to something unverified.
+          DESCRIBE=$(gcloud run services describe "${{ needs.setup.outputs.service }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --format json)
+
+          CANDIDATE_URL=$(printf '%s' "$DESCRIBE" | python3 -c "import json,sys; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((e.get('url','') for e in t if e.get('tag')=='candidate'), ''))")
+          SERVICE_URL=$(printf '%s' "$DESCRIBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',{}).get('url',''))")
 
           if [ -z "$CANDIDATE_URL" ]; then
-            echo "::error::No candidate-tagged URL on ${{ env.SERVICE }}; refusing to cut over."
+            echo "::error::No candidate-tagged URL on ${{ needs.setup.outputs.service }}; refusing to cut over."
             exit 1
           fi
 
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
-            --region ${{ env.REGION }} \
-            --format 'value(status.url)')
+          echo "Candidate: $CANDIDATE_URL"
+          echo "Live:      $SERVICE_URL"
+          {
+            echo "candidate_url=$CANDIDATE_URL"
+            echo "url=$SERVICE_URL"
+          } >> "$GITHUB_OUTPUT"
 
-          echo "Candidate URL: $CANDIDATE_URL"
-          echo "Service URL:   $SERVICE_URL"
-          echo "candidate_url=$CANDIDATE_URL" >> "$GITHUB_OUTPUT"
-          echo "url=$SERVICE_URL" >> "$GITHUB_OUTPUT"
-
-      # The gate. 22 actuarial and API checks against the revision that is about
-      # to take traffic. Non-zero exit here leaves production on the old revision.
-      - name: Validate candidate revision before cutover
+      # The gate. Actuarial and API checks against the revision that is about to
+      # take traffic. A non-zero exit here leaves the environment on its previous
+      # revision.
+      - name: Validate candidate before cutover
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
         run: |
-          # Warm the candidate first, exactly as deploy-dev.yml does. A
-          # --no-traffic tagged revision can be scaled to zero between the
-          # deploy step and this one, and validate_production.py uses a bare
-          # 60s urllib timeout with no retries -- so without this, a cold start
-          # fails a perfectly good production deploy while dev is protected.
+          # Warm it first: a --no-traffic tagged revision can be scaled to zero
+          # between steps, and a cold start runs all nine mortality pipelines --
+          # slower than validate_production.py's bare 60s timeout, which has no
+          # retries of its own.
           curl --fail --retry 10 --retry-delay 6 \
             -H "X-SIMA-Proxy-Secret: ${SIMA_PROXY_SECRET}" \
-            "${{ steps.service.outputs.candidate_url }}/api/health"
+            "${{ steps.urls.outputs.candidate_url }}/api/health"
 
-          python3 scripts/validate_production.py "${{ steps.service.outputs.candidate_url }}"
+          python3 scripts/validate_production.py "${{ steps.urls.outputs.candidate_url }}"
 
       - name: Promote candidate to 100% traffic
         run: |
-          gcloud run services update-traffic ${{ env.SERVICE }} \
-            --region ${{ env.REGION }} \
+          gcloud run services update-traffic "${{ needs.setup.outputs.service }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
             --to-latest
 
+  # ---------------------------------------------------------------------------
+  # Frontend. `--branch` decides production vs preview on Cloudflare Pages.
+  # ---------------------------------------------------------------------------
   frontend:
-    needs: deploy
+    needs: [setup, backend]
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.DEPLOY_SHA }}
+          ref: ${{ needs.setup.outputs.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -173,32 +251,38 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy production to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages
         working-directory: frontend
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler pages deploy dist --project-name sima --branch main
+        run: |
+          npx wrangler pages deploy dist \
+            --project-name sima \
+            --branch "${{ needs.setup.outputs.pages_branch }}"
 
-      # Confirmation, not the gate -- the gate ran against the candidate revision
-      # before any traffic moved. This re-runs the same checks against the live
-      # URL to catch anything specific to the promoted routing.
-      - name: Re-validate live production backend
+      # Confirmation, not the gate -- the gate ran against the candidate before
+      # any traffic moved. This re-runs the checks against the live URL to catch
+      # anything specific to the promoted routing.
+      - name: Re-validate live backend
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
-        run: python3 scripts/validate_production.py "${{ needs.deploy.outputs.service_url }}"
+        run: python3 scripts/validate_production.py "${{ needs.backend.outputs.service_url }}"
 
+  # ---------------------------------------------------------------------------
+  # Keep dev pointed at what production is actually running, so the next
+  # promotion PR contains only genuinely new work.
+  # ---------------------------------------------------------------------------
   sync-dev:
-    name: Fast-forward dev to deployed main
-    needs: [deploy, frontend]
+    if: needs.setup.outputs.environment == 'production'
+    needs: [setup, backend, frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.DEPLOY_SHA }}
+          ref: ${{ needs.setup.outputs.sha }}
           fetch-depth: 0
           ssh-key: ${{ secrets.DEV_SYNC_DEPLOY_KEY }}
 
