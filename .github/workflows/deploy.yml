@@ -27,6 +27,14 @@ on:
         options: [dev, production]
         default: dev
 
+# Serialised per environment. cancel-in-progress is deliberately false:
+# cancelling a runner does not cancel a `gcloud run` operation already in
+# flight, so a cancelled older run could still land its revision after a newer
+# one. Queue instead of cancel.
+concurrency:
+  group: deploy-${{ github.event_name == 'workflow_run' && 'production' || github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: us-central1
@@ -41,9 +49,14 @@ jobs:
   # ---------------------------------------------------------------------------
   setup:
     runs-on: ubuntu-latest
+    # `workflow_run.event == 'push'` matters: CI also runs on pull_request into
+    # dev, and a main -> dev resync PR produces a CI run whose head_branch is
+    # main. That matches the `branches: [main]` filter above and would fire an
+    # unintended *production* deploy. Only an actual push to main may promote.
     if: >-
       github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     outputs:
       environment: ${{ steps.resolve.outputs.environment }}
       service: ${{ steps.resolve.outputs.service }}
@@ -77,6 +90,16 @@ jobs:
             PAGES_BRANCH=dev
           fi
 
+          # The manual dropdown is the one path to production that skips CI,
+          # the promotion guard and the PR entirely -- and it is the path most
+          # likely to be reached for under the pressure of a failed promotion.
+          # Refuse loudly rather than skipping: a skipped job reports green.
+          if [ "$ENVIRONMENT" = "production" ] && [ "$EVENT" = "workflow_dispatch" ] \
+             && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Manual production deploy is only allowed from main; got $GITHUB_REF."
+            exit 1
+          fi
+
           SHA="${RUN_SHA:-$GIT_SHA}"
 
           {
@@ -94,7 +117,7 @@ jobs:
   # Backend. Identical for both environments, including the candidate/promote
   # sequence -- that is the whole point of merging the two workflows.
   # ---------------------------------------------------------------------------
-  backend:
+  deploy-backend:
     needs: setup
     runs-on: ubuntu-latest
     permissions:
@@ -190,17 +213,19 @@ jobs:
             --format json)
 
           CANDIDATE_URL=$(printf '%s' "$DESCRIBE" | python3 -c "import json,sys; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((e.get('url','') for e in t if e.get('tag')=='candidate'), ''))")
+          CANDIDATE_REV=$(printf '%s' "$DESCRIBE" | python3 -c "import json,sys; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((e.get('revisionName','') for e in t if e.get('tag')=='candidate'), ''))")
           SERVICE_URL=$(printf '%s' "$DESCRIBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',{}).get('url',''))")
 
-          if [ -z "$CANDIDATE_URL" ]; then
-            echo "::error::No candidate-tagged URL on ${{ needs.setup.outputs.service }}; refusing to cut over."
+          if [ -z "$CANDIDATE_URL" ] || [ -z "$CANDIDATE_REV" ]; then
+            echo "::error::No candidate-tagged revision on ${{ needs.setup.outputs.service }}; refusing to cut over."
             exit 1
           fi
 
-          echo "Candidate: $CANDIDATE_URL"
+          echo "Candidate: $CANDIDATE_REV at $CANDIDATE_URL"
           echo "Live:      $SERVICE_URL"
           {
             echo "candidate_url=$CANDIDATE_URL"
+            echo "candidate_revision=$CANDIDATE_REV"
             echo "url=$SERVICE_URL"
           } >> "$GITHUB_OUTPUT"
 
@@ -221,18 +246,22 @@ jobs:
 
           python3 scripts/validate_production.py "${{ steps.urls.outputs.candidate_url }}"
 
+      # Promotes the revision that was actually validated, by name -- not
+      # `--to-latest`, which promotes by recency. The gate validates a specific
+      # revision, so the cutover has to name that same one for the check to mean
+      # what the comments above claim.
       - name: Promote candidate to 100% traffic
         run: |
           gcloud run services update-traffic "${{ needs.setup.outputs.service }}" \
             --project "${{ env.PROJECT_ID }}" \
             --region "${{ env.REGION }}" \
-            --to-latest
+            --to-revisions "${{ steps.urls.outputs.candidate_revision }}=100"
 
   # ---------------------------------------------------------------------------
   # Frontend. `--branch` decides production vs preview on Cloudflare Pages.
   # ---------------------------------------------------------------------------
-  frontend:
-    needs: [setup, backend]
+  deploy-frontend:
+    needs: [setup, deploy-backend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -267,7 +296,16 @@ jobs:
       - name: Re-validate live backend
         env:
           SIMA_PROXY_SECRET: ${{ secrets.SIMA_PROXY_SECRET }}
-        run: python3 scripts/validate_production.py "${{ needs.backend.outputs.service_url }}"
+        run: |
+          # Warmed for the same reason the candidate gate is: npm ci, the Vite
+          # build and the Pages deploy take minutes, the service has no
+          # --min-instances, and validate_production.py has a bare 60s timeout
+          # with no retries. Without this a cold start fails a healthy deploy.
+          curl --fail --retry 10 --retry-delay 6 \
+            -H "X-SIMA-Proxy-Secret: ${SIMA_PROXY_SECRET}" \
+            "${{ needs.deploy-backend.outputs.service_url }}/api/health"
+
+          python3 scripts/validate_production.py "${{ needs.deploy-backend.outputs.service_url }}"
 
   # ---------------------------------------------------------------------------
   # Keep dev pointed at what production is actually running, so the next
@@ -275,7 +313,7 @@ jobs:
   # ---------------------------------------------------------------------------
   sync-dev:
     if: needs.setup.outputs.environment == 'production'
-    needs: [setup, backend, frontend]
+    needs: [setup, deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -290,9 +328,15 @@ jobs:
         run: |
           git fetch origin dev:refs/remotes/origin/dev
 
+          # A warning, not a failure. dev takes direct pushes by design, so a
+          # push landing between the promotion merge and this step legitimately
+          # diverges the two -- and that must not turn a healthy production
+          # deploy red. Nothing is lost: the push below is a plain fast-forward
+          # and dev's ruleset forbids non-fast-forward, so divergence simply
+          # self-heals at the next promotion.
           if ! git merge-base --is-ancestor origin/dev HEAD; then
-            echo "::error::Refusing to update dev: it is not an ancestor of deployed main."
-            exit 1
+            echo "::warning::dev has moved ahead of deployed main; skipping fast-forward."
+            exit 0
           fi
 
           git push origin HEAD:dev
