@@ -3,7 +3,12 @@
 These tests verify fundamental actuarial properties that must hold whether
 the app uses real INEGI/CONAPO data or mock Gompertz-Makeham synthetic data.
 They catch code regressions that break actuarial logic.
+
+The one exception is marked `@real_data` and says why at its docstring; it
+measures a property of the real series rather than a structural invariant.
 """
+
+from .conftest import real_data
 
 
 # --- Pricing Structural Properties ---
@@ -146,9 +151,14 @@ def test_coverage_proportionality(client):
 # --- Cross-Country Structural Properties ---
 
 
+@real_data
 def test_cross_country_drift_ordering(client):
     """THEORY: all three populations are improving, and Spain is improving
     materially faster than either Mexico or the USA.
+
+    Unlike the rest of this file, this one does NOT hold on both data sources:
+    the gap it measures is a fact about real HMD and INEGI series, while the
+    synthetic fixtures carry a planted per-country drift. Hence the marker.
 
     This test previously asserted a strict ordering Mexico > USA > Spain. That
     ordering came from synthetic Gompertz-Makeham fixtures, where the improvement

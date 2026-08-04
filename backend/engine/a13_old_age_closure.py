@@ -158,4 +158,8 @@ def close_qx(
     if force_terminal:
         qx[-1] = 1.0
 
-    return np.clip(qx, 0.0, 1.0)
+    # np.clip is typed as returning Any, which `mypy --strict` rejects against
+    # this function's declared ndarray return. Bind it first so the array type
+    # is stated once, here, rather than inferred from the stub.
+    closed: np.ndarray = np.clip(qx, 0.0, 1.0)
+    return closed

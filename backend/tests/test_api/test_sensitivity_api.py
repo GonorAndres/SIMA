@@ -2,6 +2,8 @@
 
 import pytest
 
+from .conftest import real_data
+
 
 def test_mortality_shock(client):
     """THEORY: Positive mortality shock should increase premiums; negative should decrease."""
@@ -37,8 +39,14 @@ def test_cross_country(client):
     assert len(data["bx_profiles"]) == 3
 
 
+@real_data
 def test_covid_comparison(client):
-    """THEORY: Full-period drift should be less negative than pre-COVID (COVID slowed improvement)."""
+    """THEORY: Full-period drift should be less negative than pre-COVID (COVID slowed improvement).
+
+    Real data only: the mock INEGI fixture has no pandemic in it, so both
+    windows fit the same planted drift and the comparison comes out equal
+    rather than ordered -- a failure that reports on the fixture, not the code.
+    """
     response = client.get("/api/sensitivity/covid-comparison")
     assert response.status_code == 200
     data = response.json()

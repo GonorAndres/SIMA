@@ -6,6 +6,8 @@ CONAPO extreme-age denominator artifact and produces a mortality curve that
 below it.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -15,6 +17,18 @@ from backend.engine.a13_old_age_closure import (
     kannisto_mx,
 )
 from backend.engine.exceptions import ActuarialValidationError
+
+_DATA_DIR = Path(__file__).parent.parent / "data"
+REAL_DEATHS = _DATA_DIR / "inegi" / "inegi_deaths.csv"
+REAL_POP = _DATA_DIR / "conapo" / "conapo_population.csv"
+
+# Same convention as test_open_interval_aggregate.py: anything asserting a
+# property of the real Mexican fit has to stand down when only the synthetic
+# fixtures are on disk, which is all CI ever has.
+real_data = pytest.mark.skipif(
+    not (REAL_DEATHS.exists() and REAL_POP.exists()),
+    reason="real INEGI/CONAPO files not present (they are gitignored; see DATA.md)",
+)
 
 
 def _gompertz_mx(ages, a=2.5e-5, b=0.095):
@@ -170,8 +184,15 @@ class TestCloseQx:
         assert np.max(np.abs(predicted - qx[window])) < 0.01
 
 
+@real_data
 class TestOnTheRealProjection:
-    """The defect as it actually appeared, on the real Mexican fit."""
+    """The defect as it actually appeared, on the real Mexican fit.
+
+    Every case here reads year 2049, which exists only because the real INEGI
+    window (1990-2019) projects 30 years past its end. On the mock fixtures the
+    projection stops at 2040 and each case died on a range error -- a false
+    failure that says nothing about the closure.
+    """
 
     @pytest.fixture(scope="class")
     def projection(self):
