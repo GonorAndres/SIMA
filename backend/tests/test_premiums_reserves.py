@@ -426,9 +426,7 @@ class TestPureEndowmentReserves:
 
     def test_zero_reserve_at_issue(self, rc):
         """THEORY: equivalence principle holds for pure endowment too: 0V = 0."""
-        result = rc.validate_zero_reserve(
-            SA=1_000_000, x=60, product="pure_endowment", n=3
-        )
+        result = rc.validate_zero_reserve(SA=1_000_000, x=60, product="pure_endowment", n=3)
         assert result["is_zero"], result
 
     def test_reserve_reaches_the_sum_assured_at_maturity(self, rc):
@@ -442,9 +440,7 @@ class TestPureEndowmentReserves:
 
     def test_reserve_increases_monotonically(self, rc):
         """THEORY: a pure savings product accumulates; it cannot give back."""
-        trajectory = rc.reserve_trajectory(
-            SA=1_000_000, x=60, product="pure_endowment", n=3
-        )
+        trajectory = rc.reserve_trajectory(SA=1_000_000, x=60, product="pure_endowment", n=3)
         values = [v for _, v in trajectory]
         assert all(b > a for a, b in pairwise(values)), values
 
