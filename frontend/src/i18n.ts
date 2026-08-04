@@ -11,6 +11,13 @@ const resources = {
         scr: 'RCS',
         sensibilidad: 'SENSIBILIDAD',
         metodologia: 'METODOLOGÍA',
+        ariaMain: 'Navegación principal',
+        ariaHome: 'SIMA, página principal',
+        ariaDemo: 'DEMO: iniciar recorrido guiado',
+        ariaOpenMenu: 'Abrir menú',
+        ariaCloseMenu: 'Cerrar menú',
+        skipToContent: 'Saltar al contenido',
+        onThisPage: 'En esta página',
       },
       mortalidad: {
         title: 'Mortalidad',
@@ -25,7 +32,10 @@ const resources = {
         axTitle: 'Parámetro a_x (nivel promedio): México',
         bxTitle: 'Parámetro b_x (sensibilidad al cambio): México',
         ktTitle: 'Índice temporal k_t: México 1990-2019',
-        projTitle: 'Proyección de k_t: 2020-2040, IC 95%',
+        // La ventana NO se escribe a mano: viene de projected_years en la
+        // respuesta, para que el titulo no pueda contradecir a la serie dibujada.
+        projTitle: 'Proyección de k_t: {{yearFrom}}-{{yearTo}}, IC 95%',
+        validationYearNote: 'La comparación evalúa la q_x proyectada al año {{year}}, el final del horizonte de proyección.',
         validationTitle: 'Comparación Regulatoria: q_x proyectada vs tablas oficiales',
         validationDescRatio: 'Ratio = q_x proyectada / q_x regulatoria',
         validationDescDiff: 'Diferencia = q_x proyectada - q_x regulatoria',
@@ -50,19 +60,54 @@ const resources = {
         maxAbsError: 'Error abs. máximo',
         meanAbsError: 'Error abs. medio',
         validationCnsf: 'CNSF 2000-I',
-        validationCnsf2013: 'CNSF 2013',
-        validationEmssa: 'EMSSA 2009',
+        validationCnsf2013: 'CNSF M 2013',
+        validationEmssa: 'EMSSAH-97 / EMSSAM-97',
         graduationInsightTitle: 'POR QUÉ GRADUAR',
         graduationInsight: 'Los conteos crudos de defunciones fluctúan aleatoriamente, especialmente en edades con poca exposición. La graduación revela la señal biológica verdadera: el patrón Gompertz de mortalidad creciente con la edad. Sin este paso, las primas tendrían picos erráticos.',
         surfaceInsightTitle: 'QUÉ BUSCAR',
-        surfaceInsight: 'La pendiente descendente en el eje de años muestra la mejora histórica en mortalidad. El ascenso en el eje de edades sigue la curva de Gompertz. Busca la anomalía del COVID (2020-2021) como un escalón hacia arriba en edades 40-70.',
+        // La superficie se construye con la misma ventana ajustada, 1990-2019
+        // (precomputed.py: year_min/year_max), asi que NO contiene 2020-2021 y
+        // no puede mostrar el escalon del COVID. El impacto pandemico vive en la
+        // pestaña COVID-19 de Sensibilidad, donde si se reajusta con 2020-2024.
+        surfaceInsight: 'La pendiente descendente en el eje de años muestra la mejora histórica en mortalidad. El ascenso en el eje de edades sigue la curva de Gompertz. La superficie muestra tasas por edad y año; no lleva dimensión de causa de muerte, así que puede mostrar dónde y cuándo cambia la mortalidad, pero no por qué.',
+        railGraduation: 'Graduación',
+        railSurface: 'Superficie',
+        railLeeCarter: 'Lee-Carter',
+        railParams: 'Parámetros',
+        railDiagnostics: 'Diagnósticos',
+        railProjection: 'Proyección',
+        railValidation: 'Validación',
+        controlSexLabel: 'Sexo',
+        controlSexHint: 'Recalcula toda la página: graduación, ajuste Lee-Carter, proyección y comparación regulatoria.',
+        controlTableLabel: 'Tabla de referencia',
+        controlTableHint: 'Elige contra qué tabla oficial se compara la q_x proyectada.',
+        // La sustitución no viene en la respuesta de la API: el frontend la deduce
+        // de (sexo unisex + tabla sexuada). Ver mortality_service.py.
+        validationUnisexFallback: 'CNSF 2000-I y EMSSAH/M-97 no publican columna unisex: con sexo unisex la proyección se compara contra la tabla masculina. CNSF M 2013 es mixta y no requiere sustitución.',
+        graduationExplainer: 'Punto de partida. Las tasas crudas del INEGI traen ruido muestral; aquí ves cuánto lo suaviza la graduación antes de modelar.',
+        surfaceExplainer: 'Los mismos datos en tres dimensiones: cómo cambia la mortalidad por edad y por año a la vez. Gira la superficie para explorarla.',
+        lcTitle: 'Modelo Lee-Carter: ajuste',
+        lcExplainer: 'El modelo descompone la mortalidad en un nivel por edad, una sensibilidad por edad y un solo índice temporal. Estas métricas dicen qué tan bien lo logra.',
+        paramsTitle: 'Parámetros estimados',
+        paramsExplainer: 'Los tres componentes del modelo por separado: a_x el nivel, b_x quién mejora más rápido, k_t la tendencia del país.',
+        svdExplainer: 'Qué tan cerca quedan las tasas ajustadas de las observadas. Errores grandes indican que un solo factor temporal no basta.',
+        projExplainer: 'k_t se extrapola como caminata aleatoria con deriva. La banda es el intervalo de confianza del 95%: la incertidumbre se abre con el horizonte.',
+        validationExplainer: 'La prueba decisiva: si nuestra proyección es más ligera que la tabla regulatoria, la tabla oficial deja margen de prudencia.',
         svdInsightTitle: 'CALIDAD DEL MODELO',
-        svdInsight: 'Un 77.7% de varianza explicada significa que un solo factor temporal captura la mayoría de la variación en mortalidad mexicana. Es menor que España (94.8%) porque México tiene mayor heterogeneidad: diferencias regionales, mortalidad juvenil, e impacto diferenciado del COVID.',
+        svdInsight: 'La varianza explicada del recuadro mide cuánta de la variación en mortalidad captura un solo factor temporal. En el ajuste unisex México llega a 77.5%, por debajo de España (95.2%) y de Estados Unidos (85.5%): en México la mortalidad por edad se mueve de forma menos sincronizada, así que un único índice k_t deja más residuo. Esas tres cifras son del ajuste unisex; al cambiar el sexo, el recuadro de arriba muestra el valor del ajuste seleccionado. Los tres países usan la misma ventana 1990-2019 y edades 0-100.',
       },
       tarificacion: {
         title: 'Tarificación',
         subtitle: 'Primas netas por principio de equivalencia',
         calcTitle: 'Calcular Prima',
+        calcExplainer: 'Define el asegurado y el producto. Al calcular, se llenan las cuatro secciones siguientes con ese mismo caso.',
+        emptyStateTitle: 'Aún no hay resultados',
+        emptyState: 'Completa el formulario y presiona calcular. Verás la prima, la trayectoria de reservas, la sensibilidad a la tasa y la comparación entre México, Estados Unidos y España.',
+        resultTitle: 'Resultado',
+        resultExplainer: 'La prima anual nivelada que iguala el valor presente de primas y beneficios, con la fórmula exacta que se aplicó.',
+        reserveExplainer: 'Cuánto capital debe reservarse en cada aniversario para cubrir los beneficios futuros de esta póliza.',
+        sensitivityExplainer: 'Cómo cambia la prima si la tasa de descuento se mueve entre 2% y 8%, dejando todo lo demás igual.',
+        crossCountryExplainer: 'El mismo asegurado tarificado con la mortalidad de tres países, para aislar el efecto de la demografía sobre el precio.',
         annualPremium: 'Prima anual neta',
         premiumRate: 'Tasa de prima',
         formula: 'Fórmula utilizada',
@@ -79,15 +124,15 @@ const resources = {
         heatmapTitle: 'Prima Vida Entera: Edad x Tasa',
         shockAxis: 'Choque en q_x',
         equivalenceTitle: 'PRINCIPIO DE EQUIVALENCIA',
-        equivalenceExplain: 'Una prima justa significa que ni la aseguradora ni el asegurado tienen ventaja esperada: el valor presente de las primas iguala el valor presente de los beneficios. Las funciones de conmutación (D_x, N_x, M_x) comprimen mortalidad e interés en cocientes compactos que hacen estas fórmulas elegantes.',
+        equivalenceExplain: 'Una prima justa significa que ni la aseguradora ni el asegurado tienen ventaja esperada: el valor presente de las primas iguala el valor presente de los beneficios. Las funciones de conmutación (D_x, N_x, M_x) comprimen mortalidad e interés en cocientes compactos: la prima completa queda escrita como la división de dos números leídos de la tabla.',
         reserveInsightTitle: 'POR QUÉ EXISTEN LAS RESERVAS',
         reserveInsight: 'Cobramos primas niveladas pero la mortalidad aumenta con la edad. Las primas iniciales exceden el costo del riesgo; las primas tardías no alcanzan. La reserva es el excedente acumulado que garantiza que la aseguradora pueda pagar siniestros futuros.',
         sensitivityInsightTitle: 'DOMINIO DE LA TASA DE INTERÉS',
         sensitivityInsight: 'Nota la convexidad: bajar la tasa incrementa las primas más de lo que subirla las reduce. Esto se debe a que el descuento se compone exponencialmente sobre décadas de obligaciones futuras. Por eso la gestión activo-pasivo es crítica para aseguradoras de vida.',
         crossCountryTitle: 'Comparación Internacional de Primas',
         crossCountryInsightTitle: 'TRES PAISAJES DE MORTALIDAD',
-        crossCountryInsight: 'La misma metodología Lee-Carter aplicada a datos de México (INEGI/CONAPO), Estados Unidos y España (HMD). Las diferencias en primas reflejan las distintas velocidades de mejora en mortalidad: España mejora más rápido (drift más negativo), lo que proyecta menor mortalidad y primas más bajas.',
-        crossCountryDynamic: 'Con la misma edad y producto, la prima en Mexico es {{mxPremium}}. Estados Unidos paga {{usaPct}}% y España {{spainPct}}% respecto a Mexico, reflejando sus distintas velocidades de mejora en mortalidad.',
+        crossCountryInsight: 'La misma metodología Lee-Carter aplicada a datos de México (INEGI/CONAPO), Estados Unidos y España (HMD), sobre la misma ventana 1990-2019 y edades 0-100. Las diferencias en primas reflejan tanto el nivel de mortalidad como la velocidad de mejora: España mejora 2.55 veces más rápido que México (drift -2.767 contra -1.086), mientras que Estados Unidos mejora a -1.021, esencialmente al mismo ritmo que México. Esas tres cifras son del ajuste unisex; la tabla y las primas de abajo se calculan con el sexo elegido en el formulario, y los drifts por sexo difieren (en el ajuste masculino, por ejemplo, Estados Unidos mejora más rápido que México). El drift mide una velocidad; no atribuye causa. Las primas de esta sección se calculan en vivo con el motor.',
+        crossCountryDynamic: 'Con la misma edad, producto y sexo, la prima en México es {{mxPremium}}. Frente a México, la de Estados Unidos cambia {{usaPct}}% y la de España {{spainPct}}%, reflejando sus distintas velocidades de mejora en mortalidad.',
         crossCountryCountry: 'País',
         crossCountryPremium: 'Prima Anual',
         crossCountryRate: 'Tasa',
@@ -96,7 +141,11 @@ const resources = {
       },
       sensibilidad: {
         title: 'Análisis de Sensibilidad',
-        subtitle: 'Impacto de la tasa de interés y parámetros de mortalidad sobre las primas',
+        subtitle: 'Impacto de la tasa y la mortalidad sobre las primas',
+        controlSexLabel: 'Sexo',
+        controlSexHint: 'Aplica a las vistas de tasa y choque; comparación y COVID se calculan en unisex.',
+        controlViewLabel: 'Vista',
+        controlViewHint: 'Cada vista aísla una fuente distinta de variación en la prima.',
         tabInterest: 'TASA DE INTERÉS',
         tabMortality: 'CHOQUE MORTALIDAD',
         tabComparison: 'COMPARACIÓN',
@@ -126,11 +175,12 @@ const resources = {
         axProfile: 'Perfil a_x por país: Nivel promedio de mortalidad',
         bxProfile: 'Perfil b_x por país: Sensibilidad al cambio temporal',
         ktOverlay: 'Trayectoria k_t por país: México, EUA, España (1990-2019)',
-        ktCaption: 'La pendiente de k_t (drift) refleja la velocidad de mejora en mortalidad: cuanto más empinada la caída, más rápido bajan las primas proyectadas, y España cae 2.7 veces más rápido que México.',
+        // Las cifras de esta leyenda se interpolan desde /sensitivity/cross-country
+        // en Sensibilidad.tsx: no se escriben a mano para que no se separen del ajuste.
+        ktCaption: 'La pendiente de k_t (drift) refleja la velocidad de mejora en mortalidad: cuanto más empinada la caída, más rápido bajan las primas proyectadas. España cae {{spainRatio}} veces más rápido que México ({{spainDrift}} contra {{mxDrift}}), mientras que Estados Unidos cae prácticamente al mismo ritmo que México ({{usaDrift}}).',
         axCaption: 'El perfil a_x muestra el nivel promedio de log-mortalidad por edad: México presenta un exceso en adultos jóvenes (violencia y accidentes) y valores más altos a todas las edades, lo que se traduce directamente en primas más altas.',
         bxCaption: 'El perfil b_x mide cuánto se beneficia cada edad de la mejora temporal en mortalidad: las edades con b_x alto (como la infancia) mejoran más rápido cuando k_t cae, mientras que las edades con b_x bajo (adultos jóvenes en México) resisten la tendencia general de mejora.',
         covidTitle: 'Impacto del COVID-19',
-        covidDesc: 'Incluir los años 2020-2024 en el modelo Lee-Carter revela cómo la pandemia redujo la velocidad de mejora en mortalidad. La deriva pasó de -1.076 (pre-COVID) a -0.855 (periodo completo), lo que se traduce en primas entre 3% y 10% más altas.',
         covidDriftPre: 'Drift pre-COVID',
         covidDriftFull: 'Drift periodo completo',
         covidDriftDiff: 'Cambio en drift',
@@ -140,27 +190,48 @@ const resources = {
         fullPeriod: 'Periodo completo (1990-2024)',
         pctChange: '% Cambio',
         interestHeader: 'La tasa de interés como lente del tiempo',
-        interestIntro: 'La tasa de interés técnica controla cuánto vale hoy una obligación futura. Mover la tasa de 2% a 8% genera un diferencial de 101% en la prima de vida entera, más que cualquier choque de mortalidad. Los productos de largo plazo (vida entera) son exponencialmente más sensibles que los de corto plazo (temporal), porque el factor de descuento v^n se compone sobre décadas. La CNSF fija un techo a la tasa técnica; si las tasas reales caen, las primas se disparan.',
+        // El diferencial 2%-8% depende del sexo elegido arriba, asi que no se
+        // escribe aqui: se calcula del barrido en Sensibilidad.tsx y se imprime
+        // con interestSpreadNote, debajo de la tabla que lo sustenta.
+        interestIntro: 'La tasa de interés técnica controla cuánto vale hoy una obligación futura. Mover la tasa de 2% a 8% desplaza la prima de vida entera más que cualquier choque de mortalidad plausible. Los productos de largo plazo (vida entera) son exponencialmente más sensibles que los de corto plazo (temporal), porque el factor de descuento v^n se compone sobre décadas. La CNSF fija un techo a la tasa técnica; si las tasas reales caen, las primas se disparan.',
+        interestSpreadNote: 'Con los parámetros de arriba, el diferencial entre 2% y 8% equivale al {{spread}}% de la prima al 5%.',
         shockHeader: 'Choques de mortalidad y la asimetría prima-q_x',
-        shockIntro: 'Un choque de mortalidad escala toda la tabla q_x por un factor uniforme, simulando pandemias (+30%) o avances médicos (-30%). La respuesta de la prima es convexa: un deterioro de +30% en q_x sube la prima 16.2%, pero una mejora de -30% la baja 18.2%. Esto ocurre porque A_x y ä_x se mueven en la misma dirección, compensándose parcialmente. El temporal es casi lineal (~30% choque produce ~30% cambio), mientras que el dotal es prácticamente insensible (<2%) porque lo domina su componente de ahorro.',
+        shockIntro: 'Un choque de mortalidad escala toda la tabla q_x por un factor uniforme, simulando pandemias (+30%) o avances médicos (-30%). La respuesta de la prima es convexa: una mejora de -30% en q_x baja la prima más de lo que un deterioro de +30% la sube (los recuadros de abajo dan ambas cifras para el estado actual). Esto ocurre porque A_x y ä_x se mueven en la misma dirección, compensándose parcialmente. El temporal es casi lineal (~30% choque produce ~30% cambio), mientras que el dotal es prácticamente insensible (<2%) porque lo domina su componente de ahorro.',
         crossHeader: 'Tres paisajes de mortalidad: México, EUA y España',
-        crossIntro: 'El drift de Lee-Carter mide la velocidad de mejora en mortalidad. España mejora 2.7 veces más rápido que México (drift -2.89 vs -1.08), reflejando su sistema de salud universal y su transición epidemiológica completada. Esta diferencia estructural se traduce en primas ~30% más altas en México a todas las edades. La varianza explicada (77.7% México vs 94.8% España) revela que la mortalidad mexicana tiene más ruido edad-específico, la violencia y los accidentes en adultos jóvenes no siguen la misma tendencia que la caída en mortalidad infantil.',
+        // Estas cifras salen del ajuste real (INEGI/CONAPO para México, HMD para
+        // EUA y España), ventana 1990-2019, edades 0-100. El drift de Lee-Carter
+        // es una TASA de mejora medida sobre k_t: no identifica su causa, asi que
+        // aqui se reporta lo medido y no se atribuye a sistemas de salud ni a
+        // transiciones epidemiologicas. El diferencial de primas no se fija a
+        // mano: se lee de la tabla comparativa que esta pagina calcula abajo.
+        // Drifts, razones y varianzas tampoco: se interpolan desde la respuesta
+        // de /sensitivity/cross-country en Sensibilidad.tsx.
+        crossIntro: 'El drift de Lee-Carter mide la velocidad de mejora en mortalidad. Sobre la ventana 1990-2019 y edades 0-100, España mejora {{spainRatio}} veces más rápido que México (drift {{spainDrift}} contra {{mxDrift}}). Estados Unidos, en cambio, mejora a {{usaDrift}}: {{usaRatio}} veces el ritmo mexicano, es decir prácticamente el mismo. El drift es una tasa medida, no una explicación: dice cuán rápido bajó la mortalidad, no por qué. La varianza explicada ({{mxVar}}% México, {{usaVar}}% EUA, {{spainVar}}% España) sí revela una diferencia de estructura: en México las edades no mejoran de forma sincronizada, y los adultos jóvenes se apartan de la tendencia que sigue la mortalidad infantil. El diferencial de primas que produce todo esto aparece calculado en la tabla de abajo.',
+        // El endpoint compara los tres países en unisex por diseño (ver el
+        // comentario en sensitivity_service.py): el selector de sexo de la página
+        // no lo altera, y decirlo evita que el lector lea estas cifras como si
+        // respondieran al control de arriba.
+        crossSexNote: 'Esta comparación se calcula siempre sobre el ajuste unisex de los tres países. El selector de sexo de arriba afecta a las demás vistas, no a esta: comparar países exige una misma base.',
         covidHeader: 'COVID-19: un cambio de régimen en la tendencia',
-        covidIntro: 'Incluir los años 2020-2024 en Lee-Carter desplaza el drift de -1.076 a -0.855: la mejora en mortalidad se frenó 20%. Este cambio no es solo estadístico, se traduce en primas entre 3% y 10% más altas dependiendo de la edad. Para el regulador y el actuario de pricing, esto plantea una decisión real: ¿debe la tarificación usar la tendencia pre-COVID (optimista) o la tendencia completa que incorpora el retroceso pandémico?',
-        interestInsightTitle: 'HALLAZGO CLAVE',
-        interestInsight: 'La tasa de interés domina porque el descuento se compone exponencialmente sobre décadas de obligaciones futuras. Un cambio de 2% a 8% produce una variación del 101% en la prima de vida entera. Esta es la razón principal por la que la gestión activo-pasivo (ALM) es crítica para aseguradoras de vida.',
-        shockInsightTitle: 'ASIMETRÍA FUNDAMENTAL',
-        shockInsight: 'Un choque de +30% en q_x eleva las primas 16.2%, pero una mejora de -30% las reduce 18.2%. Esta convexidad es una propiedad fundamental de los productos vinculados a mortalidad: las mejoras benefician más que los deterioros perjudican.',
-        crossInsightTitle: 'PRESIÓN COMPETITIVA',
-        crossInsight: 'Las primas mexicanas son ~30% más altas que las españolas a cualquier edad. Esto refleja mayor mortalidad base y mejora más lenta -- factores estructurales ligados a sistemas de salud y transiciones epidemiológicas, no a la tarificación.',
-        covidInsightTitle: 'DECISIÓN ACTUARIAL REAL',
-        covidInsight: 'Para un actuario fijando primas 2025: usar la tendencia pre-COVID (-1.076) o incorporar el retroceso (-0.855)? La respuesta depende de si COVID fue un choque temporal o un cambio permanente de régimen. SIMA permite modelar ambos escenarios.',
+        // El endpoint compara los dos ajustes en unisex, igual que la comparación
+        // internacional: el selector de sexo no lo altera.
+        covidSexNote: 'Esta comparación se calcula sobre el ajuste unisex; el selector de sexo de arriba no la altera.',
+        // Drifts, freno y rango de primas se interpolan desde /sensitivity/covid-comparison.
+        covidIntro: 'Incluir los años 2020-2024 en Lee-Carter desplaza el drift de {{preDrift}} a {{fullDrift}}: la mejora en mortalidad se frenó {{slowdown}}%. Este cambio no es solo estadístico, se traduce en primas entre {{premiumMin}}% y {{premiumMax}}% más altas dependiendo de la edad. Para el regulador y el actuario de pricing, esto plantea una decisión real: ¿debe la tarificación usar la tendencia pre-COVID (optimista) o la tendencia completa que incorpora el retroceso pandémico?',
+        interestInsightTitle: 'POR QUÉ DOMINA LA TASA',
+        interestInsight: 'La sensibilidad no es simétrica: bajar la tasa encarece la prima más de lo que subirla la abarata, porque el descuento se compone sobre décadas. Para una aseguradora de vida ese es el riesgo financiero central —garantizar hoy una tasa que el mercado quizá no pague mañana— y la razón de que la gestión activo-pasivo (ALM) sea una disciplina propia del ramo.',
+        shockInsightTitle: 'QUÉ AMORTIGUA EL CHOQUE',
+        shockInsight: 'La convexidad tiene una lectura práctica: A_x y ä_x se mueven en la misma dirección y se compensan en parte, así que la prima de vida entera amortigua el choque. La exposición real depende del producto: el temporal traslada el choque casi uno a uno, y el dotal apenas lo registra porque lo domina su componente de ahorro.',
+        crossInsightTitle: 'EL RESULTADO CONTRAINTUITIVO',
+        crossInsight: 'El hallazgo no es España. Es Estados Unidos. La mortalidad estadounidense mejora a {{usaDrift}} por año frente a {{mxDrift}} de México: {{usaRatio}} veces el ritmo mexicano, o sea el mismo ritmo, incluso marginalmente más lento. España, a {{spainDrift}}, mejora {{spainRatio}} veces más rápido que ambos. Los tres ajustes usan la misma ventana 1990-2019 y las mismas edades 0-100, así que la comparación es limpia. Lee-Carter mide la velocidad del cambio, no su causa: lo que se afirma aquí es la medición.',
+        covidInsightTitle: 'LA DECISIÓN DE TARIFICACIÓN',
+        covidInsight: 'Para un actuario que fija primas en 2025 la pregunta es concreta: ¿usar la tendencia pre-COVID ({{preDrift}}) o incorporar el retroceso ({{fullDrift}})? La respuesta depende de si la pandemia fue un choque transitorio o un cambio de régimen, y esa hipótesis —no la técnica— es la que mueve la prima. Ambos escenarios pueden calcularse en esta página.',
       },
       metodologia: {
         title: 'Metodología',
-        subtitle: 'Fundamentos teóricos y el camino de los datos a las decisiones de capital',
+        subtitle: 'De los datos al capital: fundamentos y trazabilidad',
         portfolioFramingTitle: 'SOBRE ESTE PROYECTO',
-        portfolioFraming: 'Este sistema demuestra cinco competencias clave: (1) manejo de datos demográficos reales (INEGI/CONAPO), (2) modelación estadística avanzada (Lee-Carter via SVD, Whittaker-Henderson), (3) valuación financiera (principio de equivalencia, funciones de conmutación), (4) gestión de riesgos regulatoria (RCS bajo LISF/CUSF), y (5) ingeniería de software full-stack (Python + FastAPI + React + GCP). Cada sección abajo detalla la teoría y conecta con la implementación.',
+        portfolioFraming: 'SIMA recorre el flujo de trabajo actuarial de principio a fin: parte de datos demográficos reales del INEGI y CONAPO, los gradúa y modela con Lee-Carter, tarifica y reserva bajo el principio de equivalencia, y cierra con el requerimiento de capital del marco LISF/CUSF, todo implementado como software verificable (Python, FastAPI, React). Cada sección de esta página presenta la teoría de un paso, sus parámetros reales y el enlace a la parte del sistema que lo implementa.',
         sections: {
           datos: 'Datos',
           graduacion: 'Graduación',
@@ -180,6 +251,29 @@ const resources = {
           prospectiveReserve: 'Reserva prospectiva',
           scrAggregation: 'Agregación del RCS',
         },
+        // Glosarios de variables bajo cada fórmula. Estaban en inglés dentro de
+        // Metodologia.tsx y se mostraban así también en la página en español.
+        formulaDescriptions: {
+          centralDeathRate: 'D = defunciones observadas, E = población expuesta al riesgo, x = edad, t = año',
+          graduation: 'W = matriz diagonal de pesos (exposiciones), D = matriz de diferencias (orden 2), lambda = parámetro de suavizamiento, m = tasas crudas',
+          leeCarter: 'a_x = log-mortalidad promedio por edad, b_x = sensibilidad al cambio, k_t = índice temporal, epsilon = residual',
+          rwd: 'd = deriva (mejora anual), sigma = volatilidad, Z = innovación normal estándar',
+          wholeLifePremium: 'P = prima neta anual, SA = suma asegurada, M_x = conmutación (seguro), N_x = conmutación (renta)',
+          prospectiveReserve: 'tV = reserva al tiempo t, A = valor actuarial del seguro, a-doble-punto = renta anticipada, P = prima neta',
+          scrAggregation: 'S = vector de módulos individuales de RCS, C = matriz de correlación entre riesgos',
+        },
+        // Los cuerpos de texto se renderizan con <Trans>: <em> y <hl> son marcas
+        // tipográficas, no HTML libre. Toda cifra entre {{...}} llega en vivo de la
+        // API; no debe volver a escribirse en el texto.
+        narrative: {
+          datos: 'Empecé con los datos crudos de mortalidad del INEGI: 30 años de defunciones registradas en México (1990-2019), cruzados con las proyecciones de población del CONAPO para obtener exposiciones. Para cada edad <em>x</em> y año <em>t</em>, calculé la tasa central de mortalidad dividiendo las defunciones observadas entre la población expuesta al riesgo. Estos datos cubren edades de 0 a 100 años, con todas las particularidades de la experiencia mexicana: la mortalidad infantil elevada, el pico de mortalidad en jóvenes adultos por causas externas, y el crecimiento exponencial en edades avanzadas siguiendo un patrón tipo Gompertz.',
+          graduacion: 'Los datos crudos de mortalidad contienen ruido estadístico considerable: fluctuaciones aleatorias año con año, especialmente en edades con pocas observaciones. Necesitaba un método que suavizara este ruido sin destruir la señal biológica subyacente. Utilicé la graduación Whittaker-Henderson, que resuelve un problema de optimización elegante: minimizar simultáneamente la infidelidad a los datos observados y la rugosidad de la curva graduada. El parámetro <hl>lambda = 10^5</hl> controla el balance entre fidelidad y suavidad. Cuando lambda tiende a cero, la curva graduada reproduce exactamente los datos crudos; cuando lambda crece, la curva se acerca a un polinomio de grado z-1. La solución es un sistema lineal simétrico definido positivo con estructura de banda, lo que permite resolverlo en tiempo O(n).',
+          leeCarter: 'Con las tasas ya graduadas, apliqué el modelo Lee-Carter para descomponer la mortalidad en un perfil por edad y una tendencia temporal. La idea central es que el logaritmo de la tasa de mortalidad se puede expresar como una combinación de tres componentes: un nivel promedio <em>a_x</em> (que captura la forma de la curva por edad), una sensibilidad al cambio <em>b_x</em> (que mide cuánto mejora cada edad), y un índice temporal <em>k_t</em> (que captura la mejora general). Resolví el sistema por SVD con las restricciones de identificabilidad: la suma de b_x igual a 1 y la suma de k_t igual a 0. Para México, el primer componente singular explica el <hl>{{mxVar}}</hl> de la variabilidad, menos que en España ({{spainVar}}) o Estados Unidos ({{usaVar}}), lo que refleja mayor heterogeneidad en la experiencia mexicana.',
+          proyeccion: 'Una vez estimado el modelo, el siguiente paso fue proyectar la mortalidad hacia el futuro. El índice temporal k_t sigue una caminata aleatoria con deriva, donde la deriva representa la velocidad promedio de mejora de la mortalidad. Para México pre-COVID, la deriva fue de <hl>{{mxDrift}} por año</hl>, una mejora sostenida pero más lenta que en España ({{spainDrift}}) o Estados Unidos ({{usaDrift}}). Extender la ventana a 2020-2024 fue revelador: el COVID-19 redujo la deriva a {{covidDrift}}, lo que se traduce en primas entre {{premiumMin}} y {{premiumMax}} más altas según el producto y la edad. La proyección central con banda de confianza al 95% produce las tablas de mortalidad proyectadas que alimentan al motor de tarificación.',
+          tarificacion: 'Con la tabla de mortalidad proyectada, construí funciones de conmutación (D_x, N_x, C_x, M_x) que condensan toda la información de mortalidad y descuento en cantidades que simplifican el cálculo de primas. La tarificación sigue el principio de equivalencia: la prima es el precio tal que el valor presente esperado de lo que paga el asegurado iguala al valor presente esperado de lo que recibirá. Todas las cifras de esta sección son de vida entera a edad 40 con suma asegurada de 1,000,000 y tabla unisex. El resultado más notable del análisis de sensibilidad fue que la <hl>tasa de interés domina</hl>: la prima es {{premium2}} al 2% y {{premium8}} al 8%, un diferencial equivalente al {{rateSpread}} de la prima al 5% ({{premium5}}). Un choque de +30% en mortalidad, en cambio, sube la prima {{mortShock}}. Esa misma prima aparece más alta en Tarificación porque aquel formulario parte del ajuste masculino: la diferencia es el diferencial de mortalidad por sexo, no un cambio de método.',
+          reservas: 'Las reservas existen porque cobramos primas niveladas pero la mortalidad crece con la edad. En los primeros años la prima excede el costo real del riesgo y genera un excedente que se acumula; en los años posteriores, cuando la mortalidad supera la prima, ese excedente cubre el déficit. Utilicé el método prospectivo: la reserva al tiempo t es el valor presente de las obligaciones futuras menos el valor presente de las primas futuras por cobrar. Lo crucial para el marco de Solvencia II es que esta reserva prospectiva es exactamente la <hl>Mejor Estimación (BEL)</hl> de la obligación. No fue necesario inventar matemáticas nuevas: la reserva actuarial clásica, calculada con supuestos de mejor estimación, es la BEL que exige la regulación de la CNSF. Las cifras de abajo son las del portafolio de ejemplo que también usa la página de RCS (tabla regulatoria, i=5%).',
+          rcs: 'El Requerimiento de Capital de Solvencia (RCS) es el colchón que una aseguradora debe mantener para sobrevivir un escenario adverso de 1 en 200 años (VaR al 99.5%). Implementé cuatro módulos de riesgo siguiendo el marco de Solvencia II adaptado por la CNSF: mortalidad (+15% permanente en q_x), longevidad (-20% permanente en q_x), tasa de interés (+/- 1% paralelo) y catástrofe (+35% puntual, calibrado con la experiencia COVID-19 mexicana). La agregación usa una matriz de correlación que captura las coberturas naturales del portafolio: dentro del módulo de vida, mortalidad y longevidad correlacionan a -0.25, y el módulo de vida correlaciona a +0.25 con el de mercado. Agregados ya los cuatro módulos, el <hl>beneficio por diversificación total es del {{divPct}}</hl>: un RCS de {{totalScr}} sobre provisiones técnicas de {{techProv}}. El riesgo de tasa de interés domina con el {{irPct}} del capital requerido, porque afecta a todas las pólizas del portafolio.',
+        },
         metrics: {
           dataYears: 'Años de datos',
           yearsUnit: 'años',
@@ -196,9 +290,13 @@ const resources = {
           driftSpain: 'Drift España',
           driftUSA: 'Drift EUA',
           perYear: '/año',
-          premiumAge40: 'Prima edad 40',
-          rateSpread: 'Rango i=2%-8%',
-          mortalityImpact: 'Choque mort. +30%',
+          // Las tres primas "edad 40" del sitio difieren solo por sexo y tasa; la
+          // etiqueta debe decir cuál es esta (unisex, 5%) para que sean reconciliables.
+          premiumAge40: 'Prima edad 40 · unisex, i=5%',
+          // El 101% es (P al 2% - P al 8%) / P al 5%: la etiqueta debe nombrar el denominador,
+          // porque contra la prima al 8% el mismo diferencial da ~154%.
+          rateSpread: 'Rango i=2%-8% / prima al 5%',
+          mortalityImpact: 'Choque mort. +30% · vida entera',
           belTotal: 'BEL Total',
           belAnnuity: 'BEL Rentas',
           belDeath: 'BEL Muerte',
@@ -206,7 +304,9 @@ const resources = {
           techProvisions: 'Provisiones Técnicas',
           diversification: 'Diversificación',
           dominantRisk: 'Riesgo dominante',
-          interestRateRisk: 'Tasa de interés (79.7%)',
+          // Sin porcentaje: el peso del riesgo de tasa se calcula en vivo y se pasa
+          // como unidad del bloque, para que no pueda desfasarse del RCS mostrado.
+          interestRateRisk: 'Tasa de interés',
         },
         links: {
           seeMortality: 'Ver análisis de mortalidad',
@@ -260,6 +360,7 @@ const resources = {
         wholeLife: 'Vida Entera',
         termLife: 'Temporal',
         endowment: 'Dotal',
+        pureEndowment: 'Dotal Puro',
         lifeAnnuity: 'Renta Vitalicia',
         netPremium: 'Prima Neta',
         years: 'años',
@@ -279,6 +380,8 @@ const resources = {
         year: 'Año',
         age: 'Edad',
         lnMx: 'ln(m_x)',
+        // La superficie 3D no se explica sola en una pantalla tactil.
+        rotateHint: 'Arrastra para girar la superficie; pellizca para acercar',
       },
       tables: {
         age: 'Edad',
@@ -314,18 +417,39 @@ const resources = {
         policyId: 'ID',
         meanRatio: 'Ratio medio',
         ages: 'Edades',
+        // Los endpoints devuelven el nombre del pais en español; en la version
+        // inglesa se traduce a traves de countryLabel() (src/utils/format.ts).
+        countries: {
+          mexico: 'México',
+          usa: 'Estados Unidos',
+          spain: 'España',
+        },
       },
       scr: {
         title: 'Requerimiento de Capital de Solvencia',
-        subtitle: 'SCR con módulos de riesgo de mortalidad, longevidad, tasa de interés y catástrofe',
+        subtitle: 'Módulos de mortalidad, longevidad, tasa de interés y catástrofe',
         aggFormula: 'Agregación por correlación',
         portfolio: 'Portafolio',
+        railFramework: 'Marco LISF',
+        railPortfolio: 'Portafolio',
+        railBel: 'BEL',
+        railModules: 'Módulos',
+        railAggregation: 'Agregación',
+        railLimitations: 'Limitaciones',
+        regulatoryExplainer: 'Los cuatro riesgos que la LISF exige capitalizar, con el choque estándar que aplica cada uno.',
+        portfolioExplainer: 'Las pólizas sobre las que se calcula todo. Agrega una para ver cómo se mueve el capital requerido.',
+        computeHint: 'Con el portafolio listo, calcula el RCS para ver la mejor estimación, los cuatro módulos de riesgo y el margen de solvencia.',
+        belExplainer: 'El valor presente de las obligaciones con el portafolio actual, antes de aplicar cualquier choque.',
+        riskModulesExplainer: 'Cada módulo vuelve a valuar el portafolio bajo su choque regulatorio. La diferencia contra la mejor estimación es el capital de ese riesgo.',
+        aggExplainer: 'Los módulos se agregan con la matriz de correlación: como no todos los riesgos ocurren juntos, el total es menor que su suma.',
+        coverageExplainer: 'Qué queda fuera de este cálculo y por qué, para no sobreinterpretar el resultado.',
         loadingPortfolio: 'Cargando portafolio...',
         policies: 'Pólizas',
         death: 'Muerte',
         annuities: 'Rentas',
         totalSA: 'SA Total',
         addPolicy: 'Agregar póliza',
+        close: 'Cerrar',
         reset: 'Reiniciar',
         compute: 'CALCULAR SCR',
         computing: 'CALCULANDO...',
@@ -352,8 +476,14 @@ const resources = {
         catastrophe: 'Catástrofe',
         totalScr: 'SCR Total',
         regulatoryTitle: 'MARCO REGULATORIO LISF/CUSF',
+        regulatorySectionTitle: 'Marco regulatorio LISF/CUSF',
+        whatIsScrTitle: 'QUÉ ES EL RCS',
         diversificationInsight: 'BENEFICIO DE DIVERSIFICACIÓN',
-        diversificationExplain: 'La mortalidad y la longevidad son opuestos naturales: una pandemia incrementa siniestros por muerte pero reduce pagos de rentas. Una aseguradora con ambos tipos de productos obtiene un descuento de capital del ~14.4%. Esta correlación negativa (-0.25) es central en el marco de Solvencia II.',
+        // Se muestran los dos porcentajes en vivo (vida y total) en vez de afirmar
+        // cual es mayor: el orden depende del portafolio, que el usuario puede
+        // modificar en esta misma pagina agregando polizas.
+        diversificationExplain: 'Aquí conviven dos porcentajes. El del módulo de vida agrega mortalidad, longevidad y catástrofe, entre las que la correlación mortalidad-longevidad es negativa (-0.25): son opuestos naturales, porque una pandemia incrementa siniestros por muerte y reduce pagos de rentas. El total agrega además el riesgo de tasa de interés, que correlaciona positivamente (+0.25) con vida y afecta a todas las pólizas. Ambos se calculan sobre el portafolio actual y se mueven al agregar pólizas.',
+        diversificationLife: 'Diversificación (módulo de vida)',
         belExplainTitle: 'MEJOR ESTIMACIÓN (BEL)',
         belExplain: 'La BEL es el valor presente esperado de todos los flujos futuros del portafolio. Para productos de muerte, BEL = reserva prospectiva. Para rentas vitalicias, BEL = pensión anual por valor presente de la anualidad. Las rentas dominan (~83%) porque sus obligaciones se extienden décadas.',
         ofTotal: 'del total',
@@ -364,15 +494,15 @@ const resources = {
       },
       inicio: {
         title: 'Sistema Integral de Modelación Actuarial',
-        subtitle: 'Motor de cálculo actuarial con Lee-Carter, valuación de reservas y requerimientos de capital',
-        desc: 'Plataforma integral que conecta datos demográficos reales (INEGI/CONAPO) con modelos actuariales modernos. Desde la graduación de mortalidad hasta el cálculo de requerimientos de capital bajo Solvencia II.',
+        subtitle: 'Lee-Carter, reservas y capital de solvencia en un solo motor',
+        desc: 'De las defunciones que registra el INEGI al capital que exige el regulador: graduación, Lee-Carter, primas, reservas y RCS, calculados por un mismo motor sobre datos demográficos reales.',
         contextTitle: 'Qué es SIMA',
-        contextP1: 'SIMA es una plataforma de modelación actuarial construida como proyecto de conclusión en mi licenciatura en actuaría. Conecta datos demográficos reales con tarificación de seguros y requerimientos de capital. Combina métodos tradicionales (funciones de conmutación, reservas prospectivas) con técnicas modernas (Lee-Carter, proyección estocástica).',
-        contextP2: 'Los datos provienen de mortalidad real mexicana del INEGI (defunciones) y CONAPO (población), periodo 1990-2019 (pre-COVID), edades 0-100. Se gradúan con Whittaker-Henderson y se validan contra tres tablas regulatorias: CNSF 2000-I, CNSF 2013 y EMSSA 2009. Además, se compara la mortalidad mexicana con la de Estados Unidos y España: el drift de Lee-Carter revela que España mejora 2.7 veces más rápido que México, lo que se traduce en primas ~30% más altas en México a cualquier edad.',
-        contextP3: 'El pipeline completo va desde datos crudos de mortalidad, pasando por estimación y proyección Lee-Carter, hasta cálculo de primas netas por principio de equivalencia, reservas prospectivas, y requerimientos de capital estilo Solvencia II con cuatro módulos de riesgo.',
-        contextP4: 'El repositorio contiene 12 módulos de motor actuarial, 238 tests (unitarios + API), una API REST con 23 endpoints y 6 documentos LaTeX compilados con fundamentos matemáticos. Todo el código fuente, datos de ejemplo y documentación están disponibles en GitHub.',
+        contextP1: 'SIMA es una plataforma de modelación actuarial construida como proyecto de conclusión de mi licenciatura en actuaría. Conecta datos demográficos reales con la tarificación de seguros y el cálculo de capital regulatorio, combinando los métodos clásicos (funciones de conmutación, reservas prospectivas) con técnicas modernas (Lee-Carter, proyección estocástica).',
+        contextP2: 'La mortalidad mexicana proviene del INEGI (defunciones) y de CONAPO (población), periodo 1990-2019 (pre-COVID) y edades 0-100. Las tasas se gradúan con Whittaker-Henderson y se validan contra las tablas regulatorias mexicanas. La misma metodología se aplica a Estados Unidos y España con datos del Human Mortality Database, lo que permite comparar la velocidad de mejora de los tres países sobre una ventana común.',
+        contextP3: 'El pipeline completo va de los datos crudos de mortalidad, pasando por la estimación y proyección Lee-Carter, al cálculo de primas netas por principio de equivalencia, reservas prospectivas y un requerimiento de capital con cuatro módulos de riesgo bajo el marco LISF/CUSF.',
+        contextP4: 'El repositorio contiene {{modules}} módulos de motor actuarial, una suite de pruebas unitarias y de API ejecutada en CI, una API REST documentada con OpenAPI y 6 documentos LaTeX compilados con fundamentos matemáticos. Todo el código fuente, datos de ejemplo y documentación están disponibles en GitHub.',
         portfolioTitle: 'PROYECTO DE PORTAFOLIO',
-        portfolioPitch: 'Este sistema demuestra tres competencias actuariales avanzadas implementadas como software de producción: (1) modelación estocástica de mortalidad con Lee-Carter y SVD, (2) valuación financiera bajo el principio de equivalencia con funciones de conmutación, y (3) gestión de capital regulatorio con cuatro módulos de riesgo bajo el marco LISF/CUSF de México. Construido con datos reales de mortalidad mexicana (INEGI/CONAPO), 12 módulos de motor, 238 tests y una API REST desplegada en Google Cloud.',
+        portfolioPitch: 'Este proyecto recorre el flujo de trabajo actuarial completo como software real: modela la mortalidad mexicana con Lee-Carter sobre datos del INEGI y CONAPO, tarifica y reserva bajo el principio de equivalencia, y calcula el requerimiento de capital con los cuatro módulos de riesgo del marco LISF/CUSF. Detrás corren {{modules}} módulos de motor en Python, una suite de pruebas ejecutada en CI y una API REST desplegada en Google Cloud.',
         pipelineTitle: 'De los Datos a Decisiones de Capital',
         liveSystem: 'El Sistema en Vivo',
         statsTitle: 'Estadísticas de SIMA',
@@ -383,19 +513,19 @@ const resources = {
         solvencyRatio: 'Índice de solvencia',
         ktTrend: 'Tendencia de Mortalidad (k_t): México 1990-2019, pre-COVID',
         mortalityPipeline: 'Ciencia de Mortalidad',
-        mortalityDesc: '¿Cuánto vivirán los asegurados? Los datos crudos del INEGI son ruidosos. Aquí se gradúan con Whittaker-Henderson, se modelan con Lee-Carter (SVD), y se proyectan 30 años al futuro. Pipelines separados para hombres, mujeres y unisex.',
+        mortalityDesc: 'Todo empieza por estimar cuánto vivirán los asegurados. Las tasas crudas del INEGI traen ruido muestral; aquí se gradúan con Whittaker-Henderson, se modelan con Lee-Carter (SVD) y se proyectan 30 años al futuro, con pipelines separados para hombres, mujeres y unisex.',
         viewMortality: 'Ver análisis de mortalidad',
         pricing: 'Valuación Actuarial',
-        pricingDesc: '¿Cuánto debe costar una póliza? El principio de equivalencia dice que las primas deben igualar los beneficios esperados. Las funciones de conmutación convierten esa igualdad en cocientes elegantes de M entre N.',
+        pricingDesc: 'Una prima justa iguala, en valor presente, lo que paga el asegurado con lo que espera recibir. Las funciones de conmutación reducen esa igualdad a un cociente de dos cantidades, M entre N, leídas directamente de la tabla de vida.',
         calcPremiums: 'Calcular primas',
         capitalReqs: 'Cumplimiento Regulatorio',
-        capitalDesc: '¿Puede la aseguradora sobrevivir una crisis? Cuatro escenarios de estrés agregados bajo regulación LISF/CUSF responden esta pregunta. La correlación negativa entre mortalidad y longevidad genera un ahorro de capital del 14.4%.',
+        capitalDesc: 'El RCS mide el capital necesario para resistir un escenario adverso de 1 en 200. Cuatro módulos de estrés se agregan con una matriz de correlación bajo el marco LISF/CUSF; como mortalidad y longevidad se mueven en sentidos opuestos, la diversificación ahorra capital sobre la suma de los módulos.',
         viewSCR: 'Ver análisis SCR',
         loadingMortality: 'Cargando datos de mortalidad...',
         loadingSCR: 'Cargando métricas SCR...',
         dataYears: 'Años de datos',
         covidTeaser: 'Impacto COVID-19',
-        covidTeaserDesc: 'Incluir datos 2020-2024 hace la deriva 0.22 menos negativa, lo que aumenta las primas entre 3% y 10%. El COVID-19 frenó la mejora histórica en mortalidad mexicana.',
+        covidTeaserDesc: 'La pandemia frenó la mejora histórica de la mortalidad mexicana: reajustar el modelo con los años 2020-2024 hace la deriva menos negativa y encarece las primas. Las dos cifras de abajo se calculan en vivo con el motor.',
         covidTeaserDrift: 'Cambio en drift',
         covidTeaserPremium: 'Impacto en primas',
         viewCovid: 'Ver análisis COVID-19',
@@ -403,21 +533,25 @@ const resources = {
       },
       demo: {
         stop: 'SALIR',
-        step1: 'Esta es la página de inicio de SIMA. A la derecha se calculan métricas en tiempo real directamente desde el motor actuarial: la varianza explicada del modelo Lee-Carter, la velocidad de mejora en mortalidad y el requerimiento de capital. Todo lo que ves aquí viene del mismo código que corre los 238 tests del proyecto.',
+        // Las flechas solas no tienen nombre accesible.
+        prev: 'Paso anterior',
+        next: 'Paso siguiente',
+        progress: 'Paso {{step}} de {{total}}',
+        step1: 'Esta es la página de inicio de SIMA. A la derecha se calculan métricas en tiempo real directamente desde el motor actuarial: la varianza explicada del modelo Lee-Carter, la velocidad de mejora en mortalidad y el requerimiento de capital. Todo lo que ves aquí viene del mismo código que corre la suite de pruebas del proyecto.',
         step2: 'Aquí empezamos con los datos crudos de mortalidad del INEGI, esas son las líneas grises. La curva roja es el resultado de la graduación Whittaker-Henderson, un método que suaviza el ruido estadístico sin perder la forma biológica de la mortalidad. Fíjate como la curva graduada elimina los picos aleatorios pero conserva el crecimiento exponencial típico de Gompertz.',
         step3: 'Esta superficie tridimensional muestra la mortalidad a través del tiempo y la edad. Los tonos más oscuros son mortalidad más alta. Lo que se observa es que, en general, la mortalidad ha ido bajando a lo largo de las décadas en todas las edades, pero el ritmo de mejora no es uniforme.',
-        step4: 'El modelo Lee-Carter toma toda esa superficie y la descompone en tres piezas: el perfil promedio por edad, la sensibilidad de cada edad al cambio general, y un índice temporal que captura la mejora histórica. Con un solo factor conseguimos explicar el 77.7% de la variabilidad, lo cual es razonable para un país con tanta heterogeneidad como México.',
+        step4: 'El modelo Lee-Carter toma toda esa superficie y la descompone en tres piezas: el perfil promedio por edad, la sensibilidad de cada edad al cambio general, y un índice temporal que captura la mejora histórica. Con un solo factor conseguimos explicar el 77.5% de la variabilidad (ajuste unisex), lo cual es razonable para un país con tanta heterogeneidad como México.',
         step5: 'Una vez estimado el modelo, proyectamos el índice temporal hacia el futuro usando una caminata aleatoria con deriva. La banda gris es el intervalo de confianza al 95%. Nota como la incertidumbre se abre con el tiempo, pero la tendencia descendente es robusta: la mortalidad sigue mejorando.',
-        step6: 'Finalmente validamos nuestras proyecciones comparándolas contra las tablas regulatorias oficiales: la CNSF 2000-I y la EMSSA 2009. Un ratio cercano a 1 significa que nuestro modelo es coherente con los estándares que usa la industria mexicana. Las diferencias sistemáticas revelan donde la regulación podría estar desactualizada.',
+        step6: 'Finalmente validamos nuestras proyecciones comparándolas contra las tablas regulatorias oficiales: la CNSF 2000-I y la EMSSAH-97 / EMSSAM-97 (CUSF Anexo 14.2.4-a, que cubre edades 15-110). Un ratio cercano a 1 significa que nuestro modelo es coherente con los estándares que usa la industria mexicana. Las diferencias sistemáticas revelan donde la regulación podría estar desactualizada.',
         step7: 'Ahora pasamos de mortalidad a dinero. Las primas se calculan con el principio de equivalencia: lo que paga el asegurado tiene que valer lo mismo, en términos actuariales, que lo que recibiría como beneficio. Las funciones de conmutación simplifican esta igualdad a un cociente elegante de M entre N.',
-        step8: 'El requerimiento de capital (RCS bajo LISF/CUSF) mide cuánto dinero necesita la aseguradora para sobrevivir un escenario adverso con probabilidad de 1 en 200. Se modelan cuatro tipos de riesgo conforme al Título 5 de la CUSF y se agregan con una matriz de correlación. La diversificación entre mortalidad y longevidad genera un ahorro del 14.4% porque son riesgos naturalmente opuestos.',
-        step9: 'Lo más sorprendente del análisis de sensibilidad es que la tasa de interés importa mucho más que la mortalidad. Mover la tasa técnica de 2% a 8% produce una variación de 101% en la prima de vida entera. Esto es porque el descuento se compone exponencialmente sobre décadas de obligaciones futuras.',
-        step10: 'Cuando comparamos México con España y Estados Unidos, se ve que la mortalidad española mejora 2.7 veces más rápido que la mexicana. Esa diferencia estructural, que refleja sistemas de salud y transiciones epidemiológicas distintas, se traduce directamente en primas 30% más altas en México a cualquier edad.',
-        step11: 'Incluir los datos del COVID-19 cambia las cosas. La pandemia frenó la tendencia de mejora en mortalidad: la velocidad de mejora pasó de -1.076 a -0.855 por año. Eso puede parecer poco, pero se traduce en primas entre 3% y 10% más altas. Para un actuario de pricing, es una decisión real: usar la tendencia pre-COVID o incorporar el retroceso.',
+        step8: 'El requerimiento de capital (RCS bajo LISF/CUSF) mide cuánto dinero necesita la aseguradora para sobrevivir un escenario adverso con probabilidad de 1 en 200. Se modelan cuatro tipos de riesgo conforme al Título 5 de la CUSF y se agregan con una matriz de correlación. La diversificación entre mortalidad y longevidad genera el mayor ahorro de capital porque son riesgos naturalmente opuestos.',
+        step9: 'Lo más sorprendente del análisis de sensibilidad es que la tasa de interés importa mucho más que la mortalidad. Mover la tasa técnica de 2% a 8% mueve la prima de vida entera más que cualquier choque de mortalidad; la tabla de abajo da el diferencial exacto para el sexo seleccionado. Esto es porque el descuento se compone exponencialmente sobre décadas de obligaciones futuras.',
+        step10: 'Cuando comparamos México con España y Estados Unidos sobre la misma ventana 1990-2019, la mortalidad española mejora 2.55 veces más rápido que la mexicana: drift -2.767 contra -1.086. El dato realmente llamativo es el otro: Estados Unidos mejora a -1.021, o sea 0.94 veces el ritmo de México, esencialmente el mismo. El drift de Lee-Carter mide la velocidad del cambio; explicar por qué difiere ya es otra pregunta. El efecto sobre las primas se calcula en vivo en la tabla comparativa de esta página.',
+        step11: 'Incluir los datos del COVID-19 cambia las cosas. La pandemia frenó la tendencia de mejora en mortalidad: la velocidad de mejora pasó de -1.086 a -0.877 por año. Eso puede parecer poco, pero se traduce en primas entre 3% y 5% más altas. Para un actuario de pricing, es una decisión real: usar la tendencia pre-COVID o incorporar el retroceso.',
         step12: 'Toda la metodología está documentada aquí: desde las fórmulas exactas hasta las métricas de bondad de ajuste. El proyecto incluye 6 documentos LaTeX compilados que cubren los fundamentos matemáticos completos de cada módulo del sistema.',
       },
       hints: {
-        product: 'Vitalicio: paga al fallecer. Temporal: solo dentro de n años. Dotal: al fallecer o al sobrevivir.',
+        product: 'Vitalicio: paga al fallecer. Temporal: solo dentro de n años. Dotal: al fallecer o al sobrevivir. Dotal puro: solo si sobrevive al plazo.',
         sex: 'Modelo Lee-Carter ajustado por separado para cada sexo.',
         sumAssured: 'Monto pagado a beneficiarios. Típico: $100K-$5M.',
         interestRate: 'Tasa técnica de descuento. Menor tasa = primas más altas.',
@@ -431,6 +565,24 @@ const resources = {
         languageEs: 'Español',
         languageEn: 'English',
       },
+      table: {
+        // Solo se muestran cuando la tabla realmente se desborda. "Desplaza",
+        // no "desliza": la tabla tambien se desborda en pantallas con raton.
+        scrollHint: 'Desplaza para ver todas las columnas',
+        ariaScrollable: 'Tabla con desplazamiento horizontal',
+      },
+      footer: {
+        // La ventana de años NO se escribe a mano: se lee de
+        // GET /mortality/data/summary -> year_range, que refleja el ajuste real
+        // de precomputed.py (year_min=1990, year_max=2019). Este texto solo
+        // aparece si la API responde.
+        dataMexico: 'INEGI/CONAPO ({{yearFrom}}-{{yearTo}})',
+        dataDemo: 'Datos sintéticos de demostración',
+        hmdCitation: 'HMD. Human Mortality Database. Max Planck Institute for Demographic Research (Germany), University of California, Berkeley (USA), and French Institute for Demographic Studies (France). Available at www.mortality.org.',
+        hmdLicense: 'Datos HMD bajo licencia CC BY 4.0.',
+        hmdWindow: 'El ajuste Lee-Carter usa la ventana común {{yearFrom}}-{{yearTo}}.',
+        hmdVintage: 'Series descargadas el 2 de agosto de 2026: EUA 1933-2024, España 1908-2023.',
+      },
     },
   },
   en: {
@@ -442,18 +594,25 @@ const resources = {
         scr: 'SCR',
         sensibilidad: 'SENSITIVITY',
         metodologia: 'METHODOLOGY',
+        ariaMain: 'Main navigation',
+        ariaHome: 'SIMA, home page',
+        ariaDemo: 'DEMO: start guided tour',
+        ariaOpenMenu: 'Open menu',
+        ariaCloseMenu: 'Close menu',
+        skipToContent: 'Skip to content',
+        onThisPage: 'On this page',
       },
       inicio: {
         title: 'Integral Actuarial Modeling System',
-        subtitle: 'Actuarial calculation engine with Lee-Carter, reserve valuation and capital requirements',
-        desc: 'Comprehensive platform connecting real demographic data (INEGI/CONAPO) with modern actuarial models. From mortality graduation to Solvency II capital requirements.',
+        subtitle: 'Lee-Carter, reserves and solvency capital in one engine',
+        desc: 'From the deaths INEGI records to the capital the regulator requires: graduation, Lee-Carter, premiums, reserves and SCR, computed by a single engine on real demographic data.',
         contextTitle: 'What is SIMA',
-        contextP1: 'SIMA is an actuarial modeling platform built as a bachelor\'s portfolio project in actuarial science. It connects real demographic data to insurance pricing and capital requirements. Traditional methods (commutation functions, prospective reserves) alongside modern techniques (Lee-Carter, stochastic projection).',
-        contextP2: 'The data comes from real Mexican mortality via INEGI (deaths) and CONAPO (population), spanning 1990-2019 (pre-COVID), ages 0-100. Graduated with Whittaker-Henderson and validated against three regulatory tables: CNSF 2000-I, CNSF 2013, and EMSSA 2009. Additionally, Mexican mortality is compared with the United States and Spain: the Lee-Carter drift reveals that Spain improves 2.7 times faster than Mexico, translating to ~30% higher premiums in Mexico at every age.',
-        contextP3: 'The full pipeline runs from raw mortality data through Lee-Carter estimation and projection, to net premium calculation by equivalence principle, prospective reserves, and Solvency II-style capital requirements with four risk modules.',
-        contextP4: 'The repository contains 12 actuarial engine modules, 238 tests (unit + API), a REST API with 23 endpoints, and 6 compiled LaTeX documents with mathematical foundations. All source code, sample data, and documentation are available on GitHub.',
+        contextP1: 'SIMA is an actuarial modeling platform built as the capstone project of my bachelor\'s degree in actuarial science. It connects real demographic data to insurance pricing and regulatory capital, combining classical methods (commutation functions, prospective reserves) with modern techniques (Lee-Carter, stochastic projection).',
+        contextP2: 'Mexican mortality comes from INEGI (deaths) and CONAPO (population), covering 1990-2019 (pre-COVID) and ages 0-100. Rates are graduated with Whittaker-Henderson and validated against the Mexican regulatory tables. The same methodology is applied to the United States and Spain using Human Mortality Database data, which lets the three countries\' improvement speeds be compared over a common window.',
+        contextP3: 'The full pipeline runs from raw mortality data through Lee-Carter estimation and projection, to net premiums by the equivalence principle, prospective reserves, and a capital requirement with four risk modules under the LISF/CUSF framework.',
+        contextP4: 'The repository contains {{modules}} actuarial engine modules, a unit and API test suite gated in CI, an OpenAPI-documented REST API, and 6 compiled LaTeX documents with mathematical foundations. All source code, sample data, and documentation are available on GitHub.',
         portfolioTitle: 'PORTFOLIO PROJECT',
-        portfolioPitch: 'This system demonstrates three advanced actuarial competencies implemented as production software: (1) stochastic mortality modeling with Lee-Carter and SVD, (2) financial valuation under the equivalence principle with commutation functions, and (3) regulatory capital management with four risk modules under Mexico\'s LISF/CUSF framework. Built with real Mexican mortality data (INEGI/CONAPO), 12 engine modules, 238 tests, and a REST API deployed on Google Cloud.',
+        portfolioPitch: 'This project walks the full actuarial workflow as real software: it models Mexican mortality with Lee-Carter on INEGI/CONAPO data, prices and reserves under the equivalence principle, and computes the capital requirement with the four risk modules of Mexico\'s LISF/CUSF framework. Behind it run {{modules}} Python engine modules, a test suite gated in CI, and a REST API deployed on Google Cloud.',
         pipelineTitle: 'From Data to Capital Decisions',
         liveSystem: 'Live System',
         statsTitle: 'SIMA Statistics',
@@ -464,19 +623,19 @@ const resources = {
         solvencyRatio: 'Solvency ratio',
         ktTrend: 'Mortality Trend (k_t): Mexico 1990-2019, Pre-COVID',
         mortalityPipeline: 'Mortality Science',
-        mortalityDesc: 'How long will policyholders live? Raw INEGI data is noisy. Here it is graduated with Whittaker-Henderson, modeled with Lee-Carter (SVD), and projected 30 years forward. Separate pipelines for male, female, and unisex mortality.',
+        mortalityDesc: 'Everything starts with estimating how long policyholders will live. Raw INEGI rates carry sampling noise; here they are graduated with Whittaker-Henderson, modeled with Lee-Carter (SVD) and projected 30 years forward, with separate pipelines for male, female and unisex mortality.',
         viewMortality: 'View mortality analysis',
         pricing: 'Actuarial Valuation',
-        pricingDesc: 'What should a policy cost? The equivalence principle says premiums must equal expected benefits. Commutation functions turn that equality into elegant ratios of M over N.',
+        pricingDesc: 'A fair premium equates, in present value, what the policyholder pays with what they expect to receive. Commutation functions reduce that equality to a ratio of two quantities, M over N, read directly off the life table.',
         calcPremiums: 'Calculate premiums',
         capitalReqs: 'Regulatory Compliance',
-        capitalDesc: 'Can the insurer survive a crisis? Four stress scenarios aggregated under LISF/CUSF regulation answer this question. The negative mortality-longevity correlation yields a 14.4% capital discount.',
+        capitalDesc: 'The SCR measures the capital needed to withstand a 1-in-200 adverse scenario. Four stress modules are aggregated with a correlation matrix under the LISF/CUSF framework; because mortality and longevity move in opposite directions, diversification saves capital against the sum of the modules.',
         viewSCR: 'View SCR analysis',
         loadingMortality: 'Loading mortality data...',
         loadingSCR: 'Loading SCR metrics...',
         dataYears: 'Data years',
         covidTeaser: 'COVID-19 Impact',
-        covidTeaserDesc: 'Including 2020-2024 data makes the drift 0.22 less negative, increasing premiums by 3-10%. COVID-19 slowed the historical mortality improvement trend in Mexico.',
+        covidTeaserDesc: 'The pandemic slowed Mexico\'s historical mortality improvement: refitting the model with the 2020-2024 years makes the drift less negative and pushes premiums up. Both figures below are computed live by the engine.',
         covidTeaserDrift: 'Drift change',
         covidTeaserPremium: 'Premium impact',
         viewCovid: 'View COVID-19 analysis',
@@ -495,7 +654,10 @@ const resources = {
         axTitle: 'Parameter a_x (average level): Mexico',
         bxTitle: 'Parameter b_x (sensitivity to change): Mexico',
         ktTitle: 'Temporal Index k_t: Mexico 1990-2019',
-        projTitle: 'k_t Projection: 2020-2040, 95% CI',
+        // The window is NOT hardcoded: it comes from projected_years in the
+        // response, so the title cannot contradict the series it labels.
+        projTitle: 'k_t Projection: {{yearFrom}}-{{yearTo}}, 95% CI',
+        validationYearNote: 'The comparison evaluates projected q_x at {{year}}, the end of the projection horizon.',
         validationTitle: 'Regulatory Comparison: Projected q_x vs Official Tables',
         validationDescRatio: 'Ratio = projected q_x / regulatory q_x',
         validationDescDiff: 'Difference = projected q_x - regulatory q_x',
@@ -520,19 +682,54 @@ const resources = {
         maxAbsError: 'Max abs. error',
         meanAbsError: 'Mean abs. error',
         validationCnsf: 'CNSF 2000-I',
-        validationCnsf2013: 'CNSF 2013',
-        validationEmssa: 'EMSSA 2009',
+        validationCnsf2013: 'CNSF M 2013',
+        validationEmssa: 'EMSSAH-97 / EMSSAM-97',
         graduationInsightTitle: 'WHY GRADUATE',
         graduationInsight: 'Raw death counts fluctuate randomly, especially at ages with low exposure. Graduation reveals the true biological signal: the Gompertz pattern of mortality increasing with age. Without this step, premiums would have erratic spikes at noisy ages.',
         surfaceInsightTitle: 'WHAT TO LOOK FOR',
-        surfaceInsight: 'The downward slope along the year axis shows historical mortality improvement. The steep rise along the age axis follows the Gompertz curve. Look for the COVID anomaly (2020-2021) as an abrupt step upward at ages 40-70.',
+        // The surface is built from the same fitted window, 1990-2019
+        // (precomputed.py: year_min/year_max), so it does NOT contain 2020-2021
+        // and cannot show the COVID step. The pandemic impact lives in the
+        // COVID-19 tab of Sensitivity, which does refit including 2020-2024.
+        surfaceInsight: 'The downward slope along the year axis shows historical mortality improvement. The steep rise along the age axis follows the Gompertz curve. The surface carries rates by age and year and no cause-of-death dimension, so it can show where and when mortality changes, but not why.',
+        railGraduation: 'Graduation',
+        railSurface: 'Surface',
+        railLeeCarter: 'Lee-Carter',
+        railParams: 'Parameters',
+        railDiagnostics: 'Diagnostics',
+        railProjection: 'Projection',
+        railValidation: 'Validation',
+        controlSexLabel: 'Sex',
+        controlSexHint: 'Recalculates the whole page: graduation, Lee-Carter fit, projection and regulatory comparison.',
+        controlTableLabel: 'Reference table',
+        controlTableHint: 'Choose which official table the projected q_x is compared against.',
+        // The substitution is absent from the API response: the frontend infers it
+        // from (unisex sex + sex-differentiated table). See mortality_service.py.
+        validationUnisexFallback: 'CNSF 2000-I and EMSSAH/M-97 publish no unisex column: with unisex selected the projection is compared against the male table. CNSF M 2013 is itself unisex and needs no substitution.',
+        graduationExplainer: 'The starting point. Raw INEGI rates carry sampling noise; this shows how much graduation smooths it out before modelling.',
+        surfaceExplainer: 'The same data in three dimensions: how mortality changes by age and by year at once. Rotate the surface to explore it.',
+        lcTitle: 'Lee-Carter model: fit',
+        lcExplainer: 'The model splits mortality into a level per age, a sensitivity per age and a single time index. These metrics say how well it does.',
+        paramsTitle: 'Estimated parameters',
+        paramsExplainer: 'The three components on their own: a_x the level, b_x who improves fastest, k_t the country trend.',
+        svdExplainer: 'How close the fitted rates land to the observed ones. Large errors mean a single time factor is not enough.',
+        projExplainer: 'k_t is extrapolated as a random walk with drift. The band is the 95% confidence interval: uncertainty widens with the horizon.',
+        validationExplainer: 'The decisive test: if our projection is lighter than the regulatory table, the official table leaves a margin of prudence.',
         svdInsightTitle: 'MODEL QUALITY',
-        svdInsight: '77.7% explained variance means one temporal factor captures most of the variation in Mexican mortality. Lower than Spain (94.8%) because Mexico has greater heterogeneity: regional differences, young-adult mortality hump, and differentiated COVID impact.',
+        svdInsight: 'The explained-variance tile measures how much of the variation in mortality a single temporal factor captures. On the unisex fit Mexico reaches 77.5%, below Spain (95.2%) and the United States (85.5%): in Mexico the age-specific rates move less in sync, so a single k_t index leaves more residual. Those three figures are the unisex fits; switch sex and the tile above shows the value for the selected fit. All three countries use the same 1990-2019 window and ages 0-100.',
       },
       tarificacion: {
         title: 'Pricing',
         subtitle: 'Net premiums by equivalence principle',
         calcTitle: 'Calculate Premium',
+        calcExplainer: 'Define the insured and the product. Calculating fills the four sections below with that same case.',
+        emptyStateTitle: 'No results yet',
+        emptyState: 'Fill in the form and calculate. You will see the premium, the reserve trajectory, interest-rate sensitivity and the comparison across Mexico, the United States and Spain.',
+        resultTitle: 'Result',
+        resultExplainer: 'The level annual premium that equates the present value of premiums and benefits, with the exact formula applied.',
+        reserveExplainer: 'How much capital must be held at each anniversary to cover this policy\'s future benefits.',
+        sensitivityExplainer: 'How the premium moves if the discount rate ranges from 2% to 8%, holding everything else equal.',
+        crossCountryExplainer: 'The same insured priced with three countries\' mortality, to isolate the effect of demography on price.',
         annualPremium: 'Annual net premium',
         premiumRate: 'Premium rate',
         formula: 'Formula used',
@@ -549,15 +746,15 @@ const resources = {
         heatmapTitle: 'Whole Life Premium: Age x Rate',
         shockAxis: 'Shock on q_x',
         equivalenceTitle: 'EQUIVALENCE PRINCIPLE',
-        equivalenceExplain: 'A fair premium means neither the insurer nor the policyholder has an expected advantage: the present value of premiums equals the present value of benefits. Commutation functions (D_x, N_x, M_x) compress mortality and interest into compact ratios that make these formulas elegant.',
+        equivalenceExplain: 'A fair premium means neither the insurer nor the policyholder has an expected advantage: the present value of premiums equals the present value of benefits. Commutation functions (D_x, N_x, M_x) compress mortality and interest into compact ratios: the entire premium ends up written as a division of two numbers read off the table.',
         reserveInsightTitle: 'WHY RESERVES EXIST',
         reserveInsight: 'We charge level premiums but mortality increases with age. Early premiums exceed risk cost; later premiums fall short. The reserve is the accumulated surplus that ensures the insurer can pay future claims.',
         sensitivityInsightTitle: 'INTEREST RATE DOMINANCE',
         sensitivityInsight: 'Notice the convexity: lowering rates increases premiums more than raising rates decreases them. This is because discounting compounds exponentially over decades of future obligations. This is why asset-liability management is critical for life insurers.',
         crossCountryTitle: 'International Premium Comparison',
         crossCountryInsightTitle: 'THREE MORTALITY LANDSCAPES',
-        crossCountryInsight: 'The same Lee-Carter methodology applied to data from Mexico (INEGI/CONAPO), the United States, and Spain (HMD). Premium differences reflect different mortality improvement speeds: Spain improves fastest (most negative drift), projecting lower mortality and cheaper premiums.',
-        crossCountryDynamic: 'For the same age and product, Mexico premiums are {{mxPremium}}. The US pays {{usaPct}}% and Spain {{spainPct}}% relative to Mexico, reflecting their different mortality improvement speeds.',
+        crossCountryInsight: 'The same Lee-Carter methodology applied to data from Mexico (INEGI/CONAPO), the United States, and Spain (HMD), over the same 1990-2019 window and ages 0-100. Premium differences reflect both the mortality level and the improvement speed: Spain improves 2.55 times faster than Mexico (drift -2.767 against -1.086), while the United States improves at -1.021, essentially the same rate as Mexico. Those three figures are the unisex fits; the table and premiums below are computed for the sex selected in the form, and the per-sex drifts differ (on the male fit, for instance, the United States improves faster than Mexico). Drift measures a speed; it does not attribute a cause. The premiums in this section are computed live by the engine.',
+        crossCountryDynamic: 'For the same age, product and sex, the Mexican premium is {{mxPremium}}. Against Mexico, the US premium changes {{usaPct}}% and the Spanish one {{spainPct}}%, reflecting their different mortality improvement speeds.',
         crossCountryCountry: 'Country',
         crossCountryPremium: 'Annual Premium',
         crossCountryRate: 'Rate',
@@ -566,15 +763,29 @@ const resources = {
       },
       scr: {
         title: 'Solvency Capital Requirement',
-        subtitle: 'SCR with mortality, longevity, interest rate and catastrophe risk modules',
+        subtitle: 'Mortality, longevity, interest rate and catastrophe modules',
         aggFormula: 'Correlation aggregation',
         portfolio: 'Portfolio',
+        railFramework: 'LISF framework',
+        railPortfolio: 'Portfolio',
+        railBel: 'BEL',
+        railModules: 'Modules',
+        railAggregation: 'Aggregation',
+        railLimitations: 'Limitations',
+        regulatoryExplainer: 'The four risks LISF requires capital for, with the standard shock each one applies.',
+        portfolioExplainer: 'The policies everything is computed on. Add one to see how the capital requirement moves.',
+        computeHint: 'With the portfolio ready, compute the SCR to see the best estimate, the four risk modules and the solvency margin.',
+        belExplainer: 'The present value of obligations under the current portfolio, before any shock is applied.',
+        riskModulesExplainer: 'Each module revalues the portfolio under its regulatory shock. The gap against the best estimate is that risk\'s capital.',
+        aggExplainer: 'Modules are aggregated with the correlation matrix: because risks do not all strike together, the total is less than their sum.',
+        coverageExplainer: 'What this calculation leaves out and why, so the result is not over-read.',
         loadingPortfolio: 'Loading portfolio...',
         policies: 'Policies',
         death: 'Death',
         annuities: 'Annuities',
         totalSA: 'Total SA',
         addPolicy: 'Add policy',
+        close: 'Close',
         reset: 'Reset',
         compute: 'COMPUTE SCR',
         computing: 'COMPUTING...',
@@ -601,8 +812,11 @@ const resources = {
         catastrophe: 'Catastrophe',
         totalScr: 'Total SCR',
         regulatoryTitle: 'LISF/CUSF REGULATORY FRAMEWORK',
+        regulatorySectionTitle: 'LISF/CUSF regulatory framework',
+        whatIsScrTitle: 'WHAT THE SCR IS',
         diversificationInsight: 'DIVERSIFICATION BENEFIT',
-        diversificationExplain: 'Mortality and longevity are natural opposites: a pandemic increases death claims but reduces annuity payments. An insurer writing both product types earns a ~14.4% capital discount. This negative correlation (-0.25) is central to the Solvency II framework.',
+        diversificationExplain: 'Two percentages sit side by side. The life module aggregates mortality, longevity and catastrophe, among which the mortality-longevity correlation is negative (-0.25): they are natural opposites, since a pandemic raises death claims and lowers annuity payments. The total also aggregates interest-rate risk, which correlates positively (+0.25) with life and touches every policy. Both are computed on the current portfolio and move as policies are added.',
+        diversificationLife: 'Diversification (life module)',
         belExplainTitle: 'BEST ESTIMATE LIABILITY (BEL)',
         belExplain: 'BEL is the expected present value of all future portfolio cash flows. For death products, BEL = prospective reserve. For annuities, BEL = annual pension times present value of annuity-due. Annuities dominate (~83%) because their obligations extend over decades.',
         ofTotal: 'of total',
@@ -613,7 +827,11 @@ const resources = {
       },
       sensibilidad: {
         title: 'Sensitivity Analysis',
-        subtitle: 'Impact of interest rate and mortality parameters on premiums',
+        subtitle: 'Impact of interest rate and mortality on premiums',
+        controlSexLabel: 'Sex',
+        controlSexHint: 'Drives the rate and shock views; comparison and COVID are computed unisex.',
+        controlViewLabel: 'View',
+        controlViewHint: 'Each view isolates a different source of variation in the premium.',
         tabInterest: 'INTEREST RATE',
         tabMortality: 'MORTALITY SHOCK',
         tabComparison: 'COMPARISON',
@@ -643,11 +861,13 @@ const resources = {
         axProfile: 'a_x Profile by Country: Average Mortality Level',
         bxProfile: 'b_x Profile by Country: Sensitivity to Temporal Change',
         ktOverlay: 'k_t Trajectory by Country: Mexico, USA, Spain (1990-2019)',
-        ktCaption: 'The slope of k_t (drift) reflects the speed of mortality improvement: the steeper the decline, the faster projected premiums fall --Spain declines 2.7 times faster than Mexico.',
+        // The figures in this caption are interpolated from /sensitivity/cross-country
+        // in Sensibilidad.tsx: they are not written by hand, so they cannot drift
+        // away from the fit.
+        ktCaption: 'The slope of k_t (drift) reflects the speed of mortality improvement: the steeper the decline, the faster projected premiums fall. Spain declines {{spainRatio}} times faster than Mexico ({{spainDrift}} against {{mxDrift}}), while the United States declines at practically the same rate as Mexico ({{usaDrift}}).',
         axCaption: 'The a_x profile shows the average log-mortality level by age: Mexico exhibits an excess in young adults (violence and accidents) and higher values at all ages, which translates directly into higher premiums.',
         bxCaption: 'The b_x profile measures how much each age benefits from the temporal mortality improvement: ages with high b_x (such as infancy) improve faster when k_t declines, while ages with low b_x (young adults in Mexico) resist the overall improvement trend.',
         covidTitle: 'COVID-19 Impact',
-        covidDesc: 'Including 2020-2024 data in the Lee-Carter model reveals how the pandemic slowed mortality improvement. The drift shifted from -1.076 (pre-COVID) to -0.855 (full period), translating to 3-10% higher premiums.',
         covidDriftPre: 'Pre-COVID drift',
         covidDriftFull: 'Full period drift',
         covidDriftDiff: 'Drift change',
@@ -657,27 +877,48 @@ const resources = {
         fullPeriod: 'Full period (1990-2024)',
         pctChange: '% Change',
         interestHeader: 'Interest rate as a time lens',
-        interestIntro: 'The technical interest rate controls how much a future obligation is worth today. Moving the rate from 2% to 8% produces a 101% spread in whole life premiums --larger than any mortality shock. Long-duration products (whole life) are exponentially more sensitive than short-duration ones (term) because the discount factor v^n compounds over decades. CNSF sets a ceiling on the technical rate; if real rates fall, premiums spike.',
+        // The 2%-8% spread depends on the sex selected above, so it is not written
+        // here: it is computed from the sweep in Sensibilidad.tsx and printed by
+        // interestSpreadNote, under the table that supports it.
+        interestIntro: 'The technical interest rate controls how much a future obligation is worth today. Moving the rate from 2% to 8% shifts the whole life premium more than any plausible mortality shock. Long-duration products (whole life) are exponentially more sensitive than short-duration ones (term) because the discount factor v^n compounds over decades. CNSF sets a ceiling on the technical rate; if real rates fall, premiums spike.',
+        interestSpreadNote: 'With the parameters above, the 2%-to-8% spread is worth {{spread}}% of the premium at 5%.',
         shockHeader: 'Mortality shocks and premium-q_x asymmetry',
-        shockIntro: 'A mortality shock scales the entire q_x table by a uniform factor, simulating pandemics (+30%) or medical breakthroughs (-30%). The premium response is convex: a +30% deterioration in q_x raises the premium by 16.2%, but a -30% improvement lowers it by 18.2%. This happens because both A_x and ä_x shift in the same direction, partially offsetting each other. Term insurance responds almost linearly (~30% shock yields ~30% change), while endowment is nearly insensitive (<2%) because its savings component dominates.',
+        shockIntro: 'A mortality shock scales the entire q_x table by a uniform factor, simulating pandemics (+30%) or medical breakthroughs (-30%). The premium response is convex: a -30% improvement in q_x lowers the premium by more than a +30% deterioration raises it (the tiles below give both figures for the current state). This happens because both A_x and ä_x shift in the same direction, partially offsetting each other. Term insurance responds almost linearly (~30% shock yields ~30% change), while endowment is nearly insensitive (<2%) because its savings component dominates.',
         crossHeader: 'Three mortality landscapes: Mexico, USA and Spain',
-        crossIntro: 'The Lee-Carter drift measures the speed of mortality improvement. Spain improves 2.7 times faster than Mexico (drift -2.89 vs -1.08), reflecting its universal healthcare system and completed epidemiological transition. This structural gap translates to ~30% higher premiums in Mexico at all ages. The explained variance (77.7% Mexico vs 94.8% Spain) reveals that Mexican mortality has more age-specific noise --violence and accidents among young adults do not follow the same trend as the decline in infant mortality.',
+        // These figures come from the actual fit (INEGI/CONAPO for Mexico, HMD
+        // for USA and Spain), window 1990-2019, ages 0-100. The Lee-Carter drift
+        // is a RATE of improvement measured on k_t: it does not identify its
+        // cause, so this copy reports what was measured and does not attribute
+        // it to healthcare systems or epidemiological transitions. The premium
+        // gap is not hardcoded: it is read off the comparison table below.
+        // Neither are the drifts, ratios and variances: they are interpolated from
+        // the /sensitivity/cross-country response in Sensibilidad.tsx.
+        crossIntro: 'The Lee-Carter drift measures the speed of mortality improvement. Over the 1990-2019 window and ages 0-100, Spain improves {{spainRatio}} times faster than Mexico (drift {{spainDrift}} against {{mxDrift}}). The United States, by contrast, improves at {{usaDrift}}: {{usaRatio}} times the Mexican rate, that is, essentially the same. Drift is a measured rate, not an explanation: it says how fast mortality fell, not why. Explained variance ({{mxVar}}% Mexico, {{usaVar}}% USA, {{spainVar}}% Spain) does reveal a structural difference: in Mexico the ages do not improve in sync, and young adults depart from the trend that infant mortality follows. The premium gap all this produces is computed in the table below.',
+        // The endpoint compares the three countries on the unisex fit by design
+        // (see the comment in sensitivity_service.py): the page's sex selector does
+        // not change it, and saying so stops the reader from reading these figures
+        // as an answer to the control above.
+        crossSexNote: 'This comparison is always computed on the unisex fit for all three countries. The sex selector above drives the other views, not this one: comparing countries requires a common basis.',
         covidHeader: 'COVID-19: a regime shift in the trend',
-        covidIntro: 'Including 2020-2024 in the Lee-Carter model shifts the drift from -1.076 to -0.855: mortality improvement slowed by 20%. This is not just a statistical artifact --it translates to 3-10% higher premiums depending on age. For regulators and pricing actuaries, this poses a real decision: should pricing use the pre-COVID trend (optimistic) or the full trend that incorporates the pandemic setback?',
-        interestInsightTitle: 'KEY FINDING',
-        interestInsight: 'Interest rate dominates because discounting compounds exponentially over decades of future obligations. A shift from 2% to 8% produces a 101% variation in whole life premium. This is the primary reason why asset-liability management (ALM) is critical for life insurers.',
-        shockInsightTitle: 'FUNDAMENTAL ASYMMETRY',
-        shockInsight: 'A +30% mortality shock raises premiums 16.2%, but a -30% improvement lowers them 18.2%. This convexity is a fundamental property of mortality-linked products: improvements benefit more than deteriorations harm.',
-        crossInsightTitle: 'COMPETITIVE PRESSURE',
-        crossInsight: 'Mexican premiums are ~30% higher than Spanish at every age. This reflects higher base mortality and slower improvement -- structural factors tied to healthcare systems and epidemiological transitions, not to pricing methodology.',
-        covidInsightTitle: 'REAL ACTUARIAL DECISION',
-        covidInsight: 'For an actuary setting 2025 premiums: use the pre-COVID trend (-1.076) or incorporate the setback (-0.855)? The answer depends on whether COVID was a temporary shock or a permanent regime change. SIMA allows modeling both scenarios.',
+        // The endpoint compares both fits on the unisex basis, like the cross-country
+        // view: the sex selector does not change it.
+        covidSexNote: 'This comparison is computed on the unisex fit; the sex selector above does not change it.',
+        // Drifts, slowdown and premium range are interpolated from /sensitivity/covid-comparison.
+        covidIntro: 'Including 2020-2024 in the Lee-Carter model shifts the drift from {{preDrift}} to {{fullDrift}}: mortality improvement slowed by {{slowdown}}%. This is not just a statistical artifact --it translates to {{premiumMin}}-{{premiumMax}}% higher premiums depending on age. For regulators and pricing actuaries, this poses a real decision: should pricing use the pre-COVID trend (optimistic) or the full trend that incorporates the pandemic setback?',
+        interestInsightTitle: 'WHY THE RATE DOMINATES',
+        interestInsight: 'The sensitivity is not symmetric: cutting the rate raises the premium more than raising it lowers it, because discounting compounds over decades. For a life insurer that is the central financial risk --guaranteeing today a rate the market may not pay tomorrow-- and the reason asset-liability management (ALM) is a discipline of its own in life insurance.',
+        shockInsightTitle: 'WHAT CUSHIONS THE SHOCK',
+        shockInsight: 'The convexity has a practical reading: A_x and ä_x move in the same direction and partially offset, so the whole life premium cushions the shock. Real exposure depends on the product: term passes the shock through almost one to one, while endowment barely registers it because its savings component dominates.',
+        crossInsightTitle: 'THE COUNTERINTUITIVE RESULT',
+        crossInsight: 'The finding is not Spain. It is the United States. US mortality improves at {{usaDrift}} per year against Mexico\'s {{mxDrift}}: {{usaRatio}} times the Mexican rate, that is, the same rate, and marginally slower. Spain, at {{spainDrift}}, improves {{spainRatio}} times faster than both. All three fits use the same 1990-2019 window and the same ages 0-100, so the comparison is clean. Lee-Carter measures the speed of change, not its cause: what is asserted here is the measurement.',
+        covidInsightTitle: 'THE PRICING DECISION',
+        covidInsight: 'For an actuary setting premiums in 2025 the question is concrete: use the pre-COVID trend ({{preDrift}}) or incorporate the setback ({{fullDrift}})? The answer depends on whether the pandemic was a passing shock or a regime change, and that hypothesis --not the technique-- is what moves the premium. Both scenarios can be computed on this page.',
       },
       metodologia: {
         title: 'Methodology',
-        subtitle: 'Theoretical foundations and the path from data to capital decisions',
+        subtitle: 'From data to capital: foundations and traceability',
         portfolioFramingTitle: 'ABOUT THIS PROJECT',
-        portfolioFraming: 'This system demonstrates five key competencies: (1) real demographic data handling (INEGI/CONAPO), (2) advanced statistical modeling (Lee-Carter via SVD, Whittaker-Henderson), (3) financial valuation (equivalence principle, commutation functions), (4) regulatory risk management (SCR under LISF/CUSF), and (5) full-stack software engineering (Python + FastAPI + React + GCP). Each section below details the theory and connects to the implementation.',
+        portfolioFraming: 'SIMA walks the actuarial workflow end to end: it starts from real INEGI and CONAPO demographic data, graduates and models them with Lee-Carter, prices and reserves under the equivalence principle, and closes with the capital requirement of the LISF/CUSF framework, all implemented as verifiable software (Python, FastAPI, React). Each section below presents the theory of one step, its actual parameters, and a link to the part of the system that implements it.',
         sections: {
           datos: 'Data',
           graduacion: 'Graduation',
@@ -697,6 +938,29 @@ const resources = {
           prospectiveReserve: 'Prospective reserve',
           scrAggregation: 'SCR aggregation',
         },
+        // Variable glossaries under each formula. They used to live in
+        // Metodologia.tsx in English only, and showed in English on the Spanish page.
+        formulaDescriptions: {
+          centralDeathRate: 'D = observed deaths, E = exposure-to-risk, x = age, t = year',
+          graduation: 'W = diagonal weight matrix (exposures), D = difference matrix (order 2), lambda = smoothing parameter, m = raw rates',
+          leeCarter: 'a_x = average log-mortality by age, b_x = age sensitivity, k_t = temporal index, epsilon = residual',
+          rwd: 'd = drift (annual improvement rate), sigma = volatility, Z = standard normal innovation',
+          wholeLifePremium: 'P = net annual premium, SA = sum assured, M_x = commutation (insurance), N_x = commutation (annuity)',
+          prospectiveReserve: 'tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium',
+          scrAggregation: 'S = vector of individual SCR modules, C = correlation matrix capturing risk dependencies',
+        },
+        // Body copy is rendered through <Trans>: <em> and <hl> are typographic
+        // marks, not free HTML. Every {{...}} figure arrives live from the API and
+        // must never be written back into the text.
+        narrative: {
+          datos: 'I started from raw INEGI mortality data: 30 years of registered deaths in Mexico (1990-2019), matched against CONAPO population projections to obtain exposure-to-risk. For each age <em>x</em> and year <em>t</em> I computed the central death rate as observed deaths over the population exposed to risk. The data span ages 0 to 100 and carry every feature of Mexican experience: high infant mortality, the young-adult peak from external causes, and exponential growth at older ages along a Gompertz-like pattern.',
+          graduacion: 'Raw mortality data carry considerable statistical noise: year-to-year random fluctuation, especially at ages with few observations. I needed a method that smoothed that noise without destroying the underlying biological signal. I used Whittaker-Henderson graduation, which solves an elegant optimization problem: minimizing at once the infidelity to the observed data and the roughness of the graduated curve. The parameter <hl>lambda = 10^5</hl> sets the balance between fit and smoothness. As lambda tends to zero the graduated curve reproduces the raw data exactly; as lambda grows the curve approaches a polynomial of degree z-1. The solution is a symmetric positive-definite banded linear system, which is what makes it solvable in O(n) time.',
+          leeCarter: 'With the rates graduated, I applied the Lee-Carter model to split mortality into an age profile and a time trend. The core idea is that log mortality can be written as three components: an average level <em>a_x</em> (the shape of the age curve), a sensitivity to change <em>b_x</em> (how much each age improves), and a temporal index <em>k_t</em> (the general improvement). I solved the system by SVD under the identifiability constraints: b_x summing to 1 and k_t summing to 0. For Mexico the first singular component explains <hl>{{mxVar}}</hl> of the variability, less than in Spain ({{spainVar}}) or the United States ({{usaVar}}), which reflects greater heterogeneity in Mexican experience.',
+          proyeccion: 'With the model estimated, the next step was projecting mortality forward. The temporal index k_t follows a random walk with drift, where the drift is the average speed of mortality improvement. For pre-COVID Mexico the drift was <hl>{{mxDrift}} per year</hl>, a sustained improvement but slower than Spain ({{spainDrift}}) or the United States ({{usaDrift}}). Extending the window to 2020-2024 was revealing: COVID-19 cut the drift to {{covidDrift}}, which translates into premiums between {{premiumMin}} and {{premiumMax}} higher depending on product and age. The central projection with a 95% confidence band yields the projected life tables that feed the pricing engine.',
+          tarificacion: 'With the projected mortality table I built commutation functions (D_x, N_x, C_x, M_x), which condense all mortality and discounting information into quantities that simplify the premium calculation. Pricing follows the equivalence principle: the premium is the price at which the expected present value of what the policyholder pays equals the expected present value of what they will receive. Every figure in this section is whole life at age 40, sum assured 1,000,000, unisex table. The most striking result of the sensitivity analysis was that <hl>the interest rate dominates</hl>: the premium is {{premium2}} at 2% and {{premium8}} at 8%, a spread worth {{rateSpread}} of the premium at 5% ({{premium5}}). A +30% mortality shock, by contrast, raises the premium {{mortShock}}. That same premium reads higher on the Pricing page because its form starts from the male fit: the difference is the sex mortality differential, not a change of method.',
+          reservas: 'Reserves exist because premiums are level while mortality rises with age. In the early years the premium exceeds the true cost of risk and the surplus accumulates; in later years, when mortality outruns the premium, that surplus covers the shortfall. I used the prospective method: the reserve at time t is the present value of future obligations minus the present value of future premiums receivable. What matters for the Solvency II framework is that this prospective reserve is exactly the <hl>best estimate liability (BEL)</hl>. No new mathematics was needed: the classical actuarial reserve, computed on best-estimate assumptions, is the BEL that CNSF regulation requires. The figures below come from the sample portfolio the SCR page also uses (regulatory table, i=5%).',
+          rcs: 'The Solvency Capital Requirement (SCR) is the buffer an insurer must hold to survive a 1-in-200-year adverse scenario (99.5% VaR). I implemented four risk modules following the Solvency II framework as adapted by CNSF: mortality (+15% permanent on q_x), longevity (-20% permanent on q_x), interest rate (parallel +/- 1%) and catastrophe (+35% one-off, calibrated on Mexican COVID-19 experience). Aggregation uses a correlation matrix that captures the portfolio\'s natural hedges: inside the life module, mortality and longevity correlate at -0.25, and the life module correlates at +0.25 with market risk. Once the four modules are aggregated, the <hl>total diversification benefit is {{divPct}}</hl>: an SCR of {{totalScr}} against technical provisions of {{techProv}}. Interest-rate risk dominates at {{irPct}} of required capital, because it hits every policy in the portfolio.',
+        },
         metrics: {
           dataYears: 'Data years',
           yearsUnit: 'years',
@@ -713,9 +977,13 @@ const resources = {
           driftSpain: 'Drift Spain',
           driftUSA: 'Drift USA',
           perYear: '/year',
-          premiumAge40: 'Premium age 40',
-          rateSpread: 'Range i=2%-8%',
-          mortalityImpact: 'Mort. shock +30%',
+          // The site's three "age 40" premiums differ only by sex and rate; the label
+          // must say which one this is (unisex, 5%) so a reader can reconcile them.
+          premiumAge40: 'Premium age 40 · unisex, i=5%',
+          // The 101% is (P at 2% - P at 8%) / P at 5%: the label must name the denominator,
+          // since against the premium at 8% the same spread reads ~154%.
+          rateSpread: 'Range i=2%-8% / premium at 5%',
+          mortalityImpact: 'Mort. shock +30% · whole life',
           belTotal: 'Total BEL',
           belAnnuity: 'Annuity BEL',
           belDeath: 'Death BEL',
@@ -723,7 +991,9 @@ const resources = {
           techProvisions: 'Technical Provisions',
           diversification: 'Diversification',
           dominantRisk: 'Dominant risk',
-          interestRateRisk: 'Interest rate (79.7%)',
+          // No percentage here: the interest-rate share is computed live and passed
+          // as the block's unit, so it cannot drift from the SCR on screen.
+          interestRateRisk: 'Interest rate',
         },
         links: {
           seeMortality: 'View mortality analysis',
@@ -777,6 +1047,7 @@ const resources = {
         wholeLife: 'Whole Life',
         termLife: 'Term',
         endowment: 'Endowment',
+        pureEndowment: 'Pure Endowment',
         lifeAnnuity: 'Life Annuity',
         netPremium: 'Net Premium',
         years: 'years',
@@ -796,6 +1067,8 @@ const resources = {
         year: 'Year',
         age: 'Age',
         lnMx: 'ln(m_x)',
+        // A 3D surface does not explain itself on a touch screen.
+        rotateHint: 'Drag to rotate the surface; pinch to zoom',
       },
       tables: {
         age: 'Age',
@@ -831,24 +1104,33 @@ const resources = {
         policyId: 'ID',
         meanRatio: 'Mean ratio',
         ages: 'Ages',
+        countries: {
+          mexico: 'Mexico',
+          usa: 'United States',
+          spain: 'Spain',
+        },
       },
       demo: {
         stop: 'EXIT',
-        step1: 'This is the SIMA landing page. On the right, metrics are computed in real time directly from the actuarial engine: Lee-Carter explained variance, mortality improvement speed, and capital requirements. Everything you see here comes from the same codebase that passes 238 tests.',
+        // Bare arrow glyphs carry no accessible name.
+        prev: 'Previous step',
+        next: 'Next step',
+        progress: 'Step {{step}} of {{total}}',
+        step1: 'This is the SIMA landing page. On the right, metrics are computed in real time directly from the actuarial engine: Lee-Carter explained variance, mortality improvement speed, and capital requirements. Everything you see here comes from the same codebase the project test suite runs against.',
         step2: 'We start with raw INEGI mortality data -- those are the gray lines. The red curve is the result of Whittaker-Henderson graduation, a method that smooths statistical noise without destroying the biological shape of mortality. Notice how the graduated curve eliminates random spikes while preserving the exponential Gompertz growth pattern.',
         step3: 'This three-dimensional surface shows mortality across time and age. Darker tones mean higher mortality. What you can observe is that mortality has been declining over the decades at all ages, but the pace of improvement is not uniform.',
-        step4: 'The Lee-Carter model takes that entire surface and decomposes it into three pieces: the average age profile, each age\'s sensitivity to the overall change, and a temporal index capturing the historical improvement. With just one factor we explain 77.7% of the variability, which is reasonable for a country with as much heterogeneity as Mexico.',
+        step4: 'The Lee-Carter model takes that entire surface and decomposes it into three pieces: the average age profile, each age\'s sensitivity to the overall change, and a temporal index capturing the historical improvement. With just one factor we explain 77.5% of the variability (unisex fit), which is reasonable for a country with as much heterogeneity as Mexico.',
         step5: 'Once the model is estimated, we project the temporal index into the future using a random walk with drift. The gray band is the 95% confidence interval. Notice how uncertainty widens over time, but the downward trend is robust: mortality keeps improving.',
-        step6: 'Finally, we validate our projections by comparing them against the official regulatory tables: CNSF 2000-I and EMSSA 2009. A ratio close to 1 means our model is consistent with the standards used by the Mexican insurance industry. Systematic differences reveal where regulation might be outdated.',
+        step6: 'Finally, we validate our projections by comparing them against the official regulatory tables: CNSF 2000-I and EMSSAH-97 / EMSSAM-97 (CUSF Annex 14.2.4-a, which covers ages 15-110). A ratio close to 1 means our model is consistent with the standards used by the Mexican insurance industry. Systematic differences reveal where regulation might be outdated.',
         step7: 'Now we move from mortality to money. Premiums are calculated using the equivalence principle: what the policyholder pays must equal, in actuarial terms, what they would receive as a benefit. Commutation functions simplify this equality into an elegant M over N ratio.',
-        step8: 'The solvency capital requirement (SCR under LISF/CUSF regulation) measures how much money an insurer needs to survive a 1-in-200-year adverse scenario. Four risk types are modeled per CUSF Title 5 and aggregated through a correlation matrix. Diversification between mortality and longevity saves 14.4% because they are naturally opposing risks.',
-        step9: 'The most surprising finding from the sensitivity analysis is that the interest rate matters far more than mortality. Moving the technical rate from 2% to 8% produces a 101% variation in the whole life premium. This is because discounting compounds exponentially over decades of future obligations.',
-        step10: 'When we compare Mexico with Spain and the United States, Spanish mortality improves 2.7 times faster than Mexican mortality. This structural difference, reflecting distinct healthcare systems and epidemiological transitions, translates directly into 30% higher premiums in Mexico at every age.',
-        step11: 'Including COVID-19 data changes things. The pandemic slowed the mortality improvement trend: the speed shifted from -1.076 to -0.855 per year. That may sound small, but it translates to 3-10% higher premiums. For a pricing actuary, this is a real decision: use the pre-COVID trend or incorporate the pandemic setback.',
+        step8: 'The solvency capital requirement (SCR under LISF/CUSF regulation) measures how much money an insurer needs to survive a 1-in-200-year adverse scenario. Four risk types are modeled per CUSF Title 5 and aggregated through a correlation matrix. Diversification between mortality and longevity produces the largest capital saving because they are naturally opposing risks.',
+        step9: 'The most surprising finding from the sensitivity analysis is that the interest rate matters far more than mortality. Moving the technical rate from 2% to 8% shifts the whole life premium more than any mortality shock; the table below gives the exact spread for the selected sex. This is because discounting compounds exponentially over decades of future obligations.',
+        step10: 'When we compare Mexico with Spain and the United States over the same 1990-2019 window, Spanish mortality improves 2.55 times faster than Mexican: drift -2.767 against -1.086. The genuinely striking number is the other one: the United States improves at -1.021, that is 0.94 times Mexico\'s rate, essentially the same. The Lee-Carter drift measures the speed of change; explaining why it differs is a separate question. The effect on premiums is computed live in the comparison table on this page.',
+        step11: 'Including COVID-19 data changes things. The pandemic slowed the mortality improvement trend: the speed shifted from -1.086 to -0.877 per year. That may sound small, but it translates to 3-5% higher premiums. For a pricing actuary, this is a real decision: use the pre-COVID trend or incorporate the pandemic setback.',
         step12: 'The complete methodology is documented here: from exact formulas to goodness-of-fit metrics. The project includes 6 compiled LaTeX documents covering the complete mathematical foundations of every system module.',
       },
       hints: {
-        product: 'Whole life: pays on death at any age. Term: only within n years. Endowment: on death or survival.',
+        product: 'Whole life: pays on death at any age. Term: only within n years. Endowment: on death or survival. Pure endowment: only on survival to the end of the term.',
         sex: 'Lee-Carter model fitted separately for each sex.',
         sumAssured: 'Benefit amount paid to beneficiaries. Typical: $100K-$5M.',
         interestRate: 'Technical discount rate. Lower rate = higher premiums.',
@@ -862,6 +1144,24 @@ const resources = {
         languageEs: 'Spanish',
         languageEn: 'English',
       },
+      table: {
+        // Shown only when the table actually overflows. "Scroll", not
+        // "swipe": it overflows on pointer screens too.
+        scrollHint: 'Scroll to see all columns',
+        ariaScrollable: 'Horizontally scrollable table',
+      },
+      footer: {
+        // The year window is NOT hardcoded: it is read from
+        // GET /mortality/data/summary -> year_range, which mirrors the actual
+        // fit in precomputed.py (year_min=1990, year_max=2019). This text only
+        // renders once the API responds.
+        dataMexico: 'INEGI/CONAPO ({{yearFrom}}-{{yearTo}})',
+        dataDemo: 'Synthetic demo data',
+        hmdCitation: 'HMD. Human Mortality Database. Max Planck Institute for Demographic Research (Germany), University of California, Berkeley (USA), and French Institute for Demographic Studies (France). Available at www.mortality.org.',
+        hmdLicense: 'HMD data licensed under CC BY 4.0.',
+        hmdWindow: 'The Lee-Carter fit uses the common {{yearFrom}}-{{yearTo}} window.',
+        hmdVintage: 'Series downloaded 2 August 2026: USA 1933-2024, Spain 1908-2023.',
+      },
     },
   },
 };
@@ -874,5 +1174,13 @@ i18n.use(initReactI18next).init({
     escapeValue: false,
   },
 });
+
+// El atributo lang del documento se quedaba en "es" al cambiar de idioma, con lo
+// que un lector de pantalla pronunciaba el ingles con fonetica española.
+const syncDocumentLang = (lng: string) => {
+  if (typeof document !== 'undefined') document.documentElement.lang = lng;
+};
+syncDocumentLang(i18n.language);
+i18n.on('languageChanged', syncDocumentLang);
 
 export default i18n;

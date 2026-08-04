@@ -12,7 +12,7 @@
 .label {
   text-transform: uppercase;
   font-size: var(--text-xs);
-  color: var(--color-gray-400);
+  color: var(--color-gray-700);
   letter-spacing: 0.05em;
   font-weight: 500;
 }
@@ -24,14 +24,66 @@
   color: var(--color-black);
 }
 
+/* The visible rail stays 4px, but the element itself is a full 44px tall so
+   there is a thumb-sized strip to grab. Track and thumb are drawn by the
+   vendor pseudo-elements, which is why the input background is transparent. */
 .slider {
   width: 100%;
   appearance: none;
   -webkit-appearance: none;
-  height: 4px;
-  background: var(--color-gray-200);
+  height: var(--tap-target);
+  background: transparent;
   outline: none;
   border-radius: 0;
   cursor: pointer;
-  accent-color: var(--color-accent);
+  margin: 0;
+  /* A horizontal drag belongs to the slider; a vertical one must still
+     scroll the page. */
+  touch-action: pan-y;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--color-gray-200);
+  border-radius: 0;
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  background: var(--color-gray-200);
+  border-radius: 0;
+}
+
+/* Square thumb — zero radius is the house style. 24px is the smallest
+   comfortable grab; the 44px element height supplies the rest of the target. */
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: var(--color-accent);
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  /* Centres the thumb on the 4px track: (4 - 24) / 2 */
+  margin-top: -10px;
+}
+
+.slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: var(--color-accent);
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-black);
+  outline-offset: 2px;
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-black);
+  outline-offset: 2px;
 }

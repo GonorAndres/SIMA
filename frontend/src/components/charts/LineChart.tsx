@@ -1,5 +1,6 @@
 import Plot from './Plot';
-import { defaultLayout, defaultConfig } from './chartDefaults';
+import { defaultLayout, chartConfig, chartLayout, chartLegend, chartHeight } from './chartDefaults';
+import { useIsCompact } from '../../hooks/useMediaQuery';
 
 interface Trace {
   x: number[] | string[];
@@ -17,6 +18,7 @@ interface LineChartProps {
 }
 
 export default function LineChart({ traces, title, xTitle, yTitle, height = 400 }: LineChartProps) {
+  const isCompact = useIsCompact();
   const data = traces.map((t) => ({
     x: t.x,
     y: t.y,
@@ -26,15 +28,24 @@ export default function LineChart({ traces, title, xTitle, yTitle, height = 400 
     line: { color: t.color, width: 2 },
   }));
 
+  const showlegend = traces.length > 1;
   const layout = {
-    ...defaultLayout,
+    ...chartLayout(isCompact, showlegend),
     title: title ? { text: title, font: { size: 14, color: '#000' } } : undefined,
     xaxis: { ...defaultLayout.xaxis, title: xTitle ? { text: xTitle } : undefined },
     yaxis: { ...defaultLayout.yaxis, title: yTitle ? { text: yTitle } : undefined },
-    height,
-    showlegend: traces.length > 1,
-    legend: { orientation: 'h' as const, y: -0.15 },
+    height: chartHeight(height, isCompact),
+    showlegend,
+    legend: chartLegend(isCompact),
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return (
+    <Plot
+      data={data}
+      layout={layout}
+      config={chartConfig(isCompact)}
+      style={{ width: '100%' }}
+      useResizeHandler
+    />
+  );
 }

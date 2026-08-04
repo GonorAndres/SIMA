@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './DataTable.module.css';
 
 export interface Column<T = Record<string, unknown>> {
@@ -16,8 +17,11 @@ interface DataTableProps<T = Record<string, unknown>> {
 }
 
 export default function DataTable<T extends Record<string, unknown>>({ columns, data, sortable = true }: DataTableProps<T>) {
+  const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
 
   const handleSort = (key: string) => {
     if (!sortable) return;
@@ -43,6 +47,20 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
     });
   }, [data, sortKey, sortAsc]);
 
+  // A table that clips its right-hand columns with no cue reads as a table
+  // with fewer columns. Watch the box rather than the viewport, because the
+  // rail and the drawer change the available width without a resize event.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [columns, data]);
+
   const formatCell = (col: Column<T>, value: unknown): string => {
     if (col.format) return col.format(value);
     if (typeof value === 'number') return value.toLocaleString();
@@ -50,21 +68,53 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   };
 
   return (
-    <div className={styles.wrapper}>
+    <>
+    <div
+      ref={scrollRef}
+      className={styles.wrapper}
+      // Only a scrollable box earns a tab stop; adding one unconditionally
+      // would litter the page with focus stops that go nowhere.
+      {...(overflowing
+        ? { tabIndex: 0, role: 'region', 'aria-label': t('table.ariaScrollable') }
+        : {})}
+    >
       <table className={styles.table}>
         <thead>
           <tr>
             {columns.map((col) => (
+              // aria-sort tells a screen reader which column orders the table
+              // and in which direction; the arrow glyph alone conveys that to
+              // sighted users only.
               <th
                 key={col.key}
                 className={col.align === 'right' ? styles.alignRight : ''}
-                onClick={() => handleSort(col.key)}
+                aria-sort={
+                  !sortable || sortKey !== col.key
+                    ? undefined
+                    : sortAsc
+                      ? 'ascending'
+                      : 'descending'
+                }
               >
-                {col.label}
-                {sortable && (
-                  <span className={`${styles.sortArrow} ${sortKey === col.key ? styles.sortArrowActive : ''}`}>
-                    {sortKey === col.key ? (sortAsc ? '\u25B2' : '\u25BC') : '\u25B2'}
-                  </span>
+                {sortable ? (
+                  // A real button, not an onClick on the <th>. The header was
+                  // clickable but not focusable, so sorting was unreachable by
+                  // keyboard and had no focus ring.
+                  <button
+                    type="button"
+                    className={styles.sortButton}
+                    onClick={() => handleSort(col.key)}
+                  >
+                    {col.label}
+                    <span
+                      aria-hidden="true"
+                      className={`${styles.sortArrow} ${sortKey === col.key ? styles.sortArrowActive : ''}`}
+                    >
+                      {sortKey === col.key ? (sortAsc ? '\u25B2' : '\u25BC') : '\u25B2'}
+                    </span>
+                  </button>
+                ) : (
+                  col.label
                 )}
               </th>
             ))}
@@ -89,5 +139,11 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
         </tbody>
       </table>
     </div>
+    {overflowing && (
+      <p className={styles.scrollHint} aria-hidden="true">
+        {t('table.scrollHint')}
+      </p>
+    )}
+    </>
   );
 }

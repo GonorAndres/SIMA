@@ -20,6 +20,15 @@ from backend.api.services.precomputed import (
 )
 from backend.engine.a10_validation import MortalityComparison
 
+# Display names for the regulatory benchmarks, as published in the CUSF annexes.
+# Kept out of table_type.upper() because "EMSSA_97" is not what the regulator
+# calls that table, and the comparison name is surfaced to the client.
+REGULATORY_TABLE_LABELS = {
+    "cnsf": "CNSF 2000-I",
+    "cnsf_2013": "CNSF M 2013 (mixta)",
+    "emssa_97": "EMSSAH-97 / EMSSAM-97",
+}
+
 
 def get_data_summary(sex: str = "unisex") -> dict:
     """Return summary of the loaded mortality data."""
@@ -58,16 +67,30 @@ def get_lee_carter_params(sex: str = "unisex") -> dict:
 
 def get_projection_data(
     horizon: int = 30,
-    projection_year: int = 2040,
+    projection_year: int | None = None,
     sex: str = "unisex",
 ) -> dict:
-    """Return projection data including a projected life table."""
+    """Return projection data including a projected life table.
+
+    ``projection_year=None`` means "the end of the projected window", derived
+    from the fit at runtime. It used to default to a hardcoded 2040, which
+    silently became a mid-horizon year (and, on a short enough refresh, an
+    out-of-range one) as soon as the input data gained a year.
+    """
     proj = get_projection(sex)
 
-    # Build a life table for the requested year
+    # Build a life table for the requested year.
+    #
+    # `horizon` truncates the k_t series the chart plots; it does NOT narrow
+    # which years a life table may be built for. Validity is checked against
+    # the full projected window, while the default follows the plotted window
+    # so the chart title and the table always describe the same horizon.
     lt = None
+    horizon_years = proj.projected_years[:horizon]
     last_year = int(proj.projected_years[-1])
     first_year = int(proj.projected_years[0])
+    if projection_year is None:
+        projection_year = int(horizon_years[-1])
 
     if first_year <= projection_year <= last_year:
         lt_obj = proj.to_life_table(year=projection_year, radix=100_000)
@@ -81,11 +104,12 @@ def get_projection_data(
         }
 
     return {
-        "projected_years": [int(y) for y in proj.projected_years[:horizon]],
+        "projected_years": [int(y) for y in horizon_years],
         "kt_central": [float(v) for v in proj.kt_central[:horizon]],
         "drift": proj.drift,
         "sigma": proj.sigma,
         "sex": sex,
+        "projection_year": projection_year,
         "life_table": lt,
     }
 
@@ -193,25 +217,35 @@ def get_diagnostics_data(sex: str = "unisex") -> dict:
 
 
 def get_validation(
-    projection_year: int = 2040,
+    projection_year: int | None = None,
     table_type: str = "cnsf",
     sex: str = "unisex",
 ) -> dict:
-    """Compare projected life table against a regulatory benchmark."""
+    """Compare projected life table against a regulatory benchmark.
+
+    ``projection_year=None`` means the end of the projected window. See
+    :func:`get_projection_data` for why this is derived rather than hardcoded.
+    """
     proj = get_projection(sex)
     last_year = int(proj.projected_years[-1])
     first_year = int(proj.projected_years[0])
+    if projection_year is None:
+        projection_year = last_year
 
     if not (first_year <= projection_year <= last_year):
         raise ValueError(f"projection_year must be between {first_year} and {last_year}")
 
     projected_lt = proj.to_life_table(year=projection_year, radix=100_000)
-    # Regulatory tables have no unisex -- use male for comparison when sex=unisex
+    # CNSF 2000-I and EMSSAH/M-97 are sex-differentiated and publish no unisex
+    # column, so a unisex projection is compared against the male table. CNSF M
+    # 2013 is published MIXTA and resolves to the same table for every sex.
     reg_sex = "male" if sex == "unisex" else sex
     regulatory_lt = get_regulatory_lt(table_type, sex=reg_sex)
 
     comp = MortalityComparison(
-        projected_lt, regulatory_lt, name=f"Projected-{projection_year} vs {table_type.upper()}"
+        projected_lt,
+        regulatory_lt,
+        name=f"Projected-{projection_year} vs {REGULATORY_TABLE_LABELS.get(table_type, table_type)}",
     )
     summary = comp.summary()
     ratios = comp.qx_ratio()
@@ -220,6 +254,7 @@ def get_validation(
 
     return {
         "name": summary["name"],
+        "projection_year": projection_year,
         "rmse": summary["rmse"],
         "max_ratio": summary["max_ratio"],
         "min_ratio": summary["min_ratio"],

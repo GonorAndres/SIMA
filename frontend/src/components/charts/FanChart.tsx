@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import Plot from './Plot';
-import { defaultLayout, defaultConfig } from './chartDefaults';
+import { defaultLayout, chartConfig, chartLayout, chartLegend, chartHeight } from './chartDefaults';
+import { useIsCompact } from '../../hooks/useMediaQuery';
 
 interface FanChartProps {
   x: number[] | string[];
@@ -16,6 +17,7 @@ interface FanChartProps {
 
 export default function FanChart({ x, central, lower, upper, title, xTitle, yTitle, height = 400, labels }: FanChartProps) {
   const { t } = useTranslation();
+  const isCompact = useIsCompact();
 
   const ciLabel = labels?.ci ?? t('charts.ci');
   const centralLabel = labels?.central ?? t('charts.central');
@@ -60,14 +62,22 @@ export default function FanChart({ x, central, lower, upper, title, xTitle, yTit
   ];
 
   const layout = {
-    ...defaultLayout,
+    ...chartLayout(isCompact, true),
     title: title ? { text: title, font: { size: 14, color: '#000' } } : undefined,
     xaxis: { ...defaultLayout.xaxis, title: xTitle ? { text: xTitle } : undefined },
     yaxis: { ...defaultLayout.yaxis, title: yTitle ? { text: yTitle } : undefined },
-    height,
+    height: chartHeight(height, isCompact),
     showlegend: true,
-    legend: { orientation: 'h' as const, y: -0.15 },
+    legend: chartLegend(isCompact),
   };
 
-  return <Plot data={data} layout={layout} config={defaultConfig} style={{ width: '100%' }} />;
+  return (
+    <Plot
+      data={data}
+      layout={layout}
+      config={chartConfig(isCompact)}
+      style={{ width: '100%' }}
+      useResizeHandler
+    />
+  );
 }

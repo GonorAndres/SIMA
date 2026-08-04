@@ -20,7 +20,7 @@ API services:          Also consumers. Returns JSON-serializable dicts.
 | Output | Python objects (LifeTable, dict) | Text reports (.txt) |
 | Data source | Receives data as arguments | Hardcodes file paths |
 | Side effects | None | Writes files, prints progress |
-| Tests | 191 tests | No dedicated tests |
+| Tests | covered by the CI-gated suite | No dedicated tests |
 | Used by | API, tests, scripts | Standalone execution |
 
 ---

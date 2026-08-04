@@ -285,7 +285,7 @@ pc = PremiumCalculator(comm)
 premium = pc.whole_life(SA=1_000_000, x=40)
 
 # Regulatory validation
-reg_lt = LifeTable.from_regulatory_table("backend/data/cnsf/emssa_2009.csv", sex="male")
+reg_lt = LifeTable.from_regulatory_table("backend/data/cnsf/emssah_emssam_97.csv", sex="male")
 comp = MortalityComparison(projected_lt, reg_lt, name="EMSSA 2009")
 print(comp.summary())
 ```
@@ -305,4 +305,4 @@ print(comp.summary())
 | `backend/data/cnsf/cnsf_2000_i.csv` | CNSF 2000-I regulatory table (gitignored) |
 | `backend/data/cnsf/cnsf_2000_g.csv` | CNSF 2000-G regulatory table (gitignored) |
 | `backend/data/cnsf/cnsf_2013.csv` | CNSFM 2013 regulatory table (gitignored) |
-| `backend/data/cnsf/emssa_2009.csv` | EMSSA 2009 regulatory table (gitignored) |
+| `backend/data/cnsf/emssah_emssam_97.csv` | EMSSAH-97 / EMSSAM-97, CUSF Anexo 14.2.4-a, ages 15-110 (git-tracked; `backend/data/cnsf/` is NOT ignored) |

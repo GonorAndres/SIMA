@@ -30,13 +30,24 @@ Thumbs.db
 *~
 
 # HMD data (CC BY 4.0 -- do not redistribute, download from www.mortality.org)
-backend/data/hmd/
+# The download guide itself IS tracked: README points readers at it, and a fresh
+# clone otherwise has no instructions for obtaining the data. Note the trailing
+# `/*` -- a bare negation under a directory-level ignore does not work, because
+# git will not re-include a file whose parent directory is excluded.
+backend/data/hmd/*
+!backend/data/hmd/DOWNLOAD_GUIDE.md
 
 # Mexican data (do not redistribute -- download from original sources)
-backend/data/inegi/
-backend/data/conapo/
-# NOTE: CNSF/EMSSA tables are PUBLIC regulatory data (published in CUSF/DOF).
-# They are tracked in git with sex-differentiated qx_male/qx_female columns.
+backend/data/inegi/*
+!backend/data/inegi/DOWNLOAD_GUIDE.md
+backend/data/conapo/*
+!backend/data/conapo/DOWNLOAD_GUIDE.md
+# NOTE: the CNSF / EMSSA tables under backend/data/cnsf/ are PUBLIC regulatory
+# data (published in the CUSF and the DOF), so they ARE tracked here. Their
+# shape follows whatever the annex publishes, not a fixed convention:
+# CNSF M 2013 (Anexo 5.3.3-a) is unisex -- "experiencia demografica de
+# mortalidad MIXTA (hombres y mujeres)" -- while EMSSAH-97 / EMSSAM-97
+# (Anexo 14.2.4-a) is sex-differentiated and starts at age 15. See DATA.md.
 
 # Frontend build artifacts and dependencies
 frontend/node_modules/
@@ -47,7 +58,10 @@ frontend/dist/
 node_modules/
 playwright-report/
 test-results/
-e2e/**/*-snapshots/
+# NOTE: `e2e/**/*-snapshots/` is deliberately NOT ignored. Those directories
+# hold the visual-regression baselines, which are the reference the tests
+# compare against -- ignoring them made those tests unable to pass on a fresh
+# clone. Run artifacts (above) stay ignored.
 
 # PDF reference docs (large binaries -- not authored docs)
 backend/data/mortality_tables/*.pdf

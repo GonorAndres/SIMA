@@ -116,7 +116,13 @@ class CommutationResponse(BaseModel):
 class SensitivityRequest(BaseModel):
     """Request for interest rate sensitivity analysis."""
 
-    product_type: Literal["whole_life", "term", "endowment"] = Field(default="whole_life")
+    # Kept in step with PremiumRequest: the pricing service prices all four
+    # products, and Tarificacion runs the sensitivity sweep for whatever the
+    # form selected. Omitting pure_endowment here 422'd that call while the
+    # premium beside it computed fine.
+    product_type: Literal["whole_life", "term", "endowment", "pure_endowment"] = Field(
+        default="whole_life"
+    )
     age: int = Field(default=40, ge=0, le=100)
     sum_assured: float = Field(default=1_000_000, gt=0, le=1e12)
     term: int | None = Field(default=20, ge=1)

@@ -1,0 +1,101 @@
+/* "On this page" rail.
+   Mobile: a 2-column x 4-row matrix so every section is visible at once —
+   no horizontal swiping, nothing hidden off-screen.
+   Desktop: a sticky column beside the content. */
+
+.rail {
+  margin-bottom: var(--space-lg);
+}
+
+.label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-bottom: var(--space-sm);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 2 columns -> 7 sections land as a 4x2 matrix */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-warm-50);
+  border: 1px solid var(--color-gray-200);
+  border-left: 3px solid transparent;
+  color: var(--color-gray-700);
+  font-size: var(--text-xs);
+  text-align: left;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.item:hover {
+  color: var(--color-black);
+  border-left-color: var(--color-gray-400);
+}
+
+/* Where you are now. */
+.itemActive {
+  border-left-color: var(--color-accent);
+  color: var(--color-black);
+  font-weight: 600;
+}
+
+/* Section not rendered yet (its data is still loading). */
+.itemPending {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.step {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.itemPending .step {
+  color: var(--color-gray-400);
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+@media (min-width: 1024px) {
+  .rail {
+    position: sticky;
+    /* clears the sticky top bar */
+    top: calc(var(--nav-height) + var(--space-lg));
+    margin-bottom: 0;
+  }
+
+  .list {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .item {
+    background: none;
+    border: none;
+    border-left: 3px solid var(--color-gray-200);
+    padding: var(--space-sm);
+    min-height: 0;
+  }
+}

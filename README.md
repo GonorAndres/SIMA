@@ -4,7 +4,7 @@
 
 End-to-end actuarial modeling platform for life insurance: from raw demographic data to solvency capital requirements under Mexican regulation (LISF/CUSF).
 
-**[Live Demo](https://sima-451451662791.us-central1.run.app)** | **[Methodology](https://sima-451451662791.us-central1.run.app/#/metodologia)**
+**[Live Demo](https://sima.gonor.me)** | **[Methodology](https://sima.gonor.me/metodologia)**
 
 ---
 
@@ -76,18 +76,18 @@ INEGI/CONAPO Data
 | API | FastAPI, Pydantic v2, Uvicorn -- 24 REST endpoints across 5 routers plus health |
 | Frontend | React 19, TypeScript, Vite, Plotly.js (custom bundle), i18n (ES/EN) |
 | Deployment | Docker (multi-stage), Google Cloud Run |
-| Testing | pytest, Ruff, mypy -- 367 backend tests |
+| Testing | pytest, Ruff, mypy -- full backend suite + coverage gate enforced on every push (see CI badge) |
 
 ---
 
 ## Key Features
 
-- **12 engine modules** (a01-a12) with progressive dependency chain
+- **13 engine modules** (a01-a13) with progressive dependency chain
 - **Sex-differentiated analysis**: separate Lee-Carter fits for male, female, and unisex mortality
 - **Real Mexican data pipeline**: INEGI deaths + CONAPO population (1990-2024)
-- **Regulatory validation**: projected mortality compared against CNSF 2000-I and EMSSA 2009 tables
+- **Regulatory validation**: projected mortality compared against CNSF 2000-I, CNSF M 2013 (mixta) and EMSSAH-97 / EMSSAM-97 (CUSF Anexo 14.2.4-a)
 - **Sensitivity analysis**: interest rate sweeps, mortality shocks (+/-30%), cross-country comparison (Mexico/USA/Spain), COVID-19 impact
-- **SCR with diversification**: mortality-longevity negative correlation (-0.25) yields 14.4% capital discount
+- **SCR with diversification**: mortality-longevity negative correlation (-0.25) yields an 18.97% capital discount on the demo portfolio (computed by `POST /api/scr/defaults`, not a stored constant)
 - **6 authored LaTeX documents**: graduate-level mathematical derivations (SVD identifiability, W-H graduation, k_t re-estimation problem, EU Gender Directive analysis)
 
 ---
@@ -160,7 +160,7 @@ This project includes 64+ documentation files:
 - **12 project logs** -- session decisions, tradeoffs, findings (`docs/project/`)
 - **6 LaTeX PDFs** -- graduate-level derivations (`docs/latex/`)
 
-See the [Methodology page](https://sima-451451662791.us-central1.run.app/#/metodologia) for an interactive overview.
+See the [Methodology page](https://sima.gonor.me/metodologia) for an interactive overview.
 
 ---
 
@@ -172,11 +172,13 @@ See the [Methodology page](https://sima-451451662791.us-central1.run.app/#/metod
 
 HMD data are licensed under **CC BY 4.0**. Raw data files are not included in this repository -- see `backend/data/hmd/DOWNLOAD_GUIDE.md`.
 
+Vintages used (downloaded 2026-08-02): USA 1933-2024 (HMD last modified 2026-06-09), Spain 1908-2023 (HMD last modified 2025-02-20), both Methods Protocol v6. The deploy pipeline runs statistical authenticity checks on these files -- year coverage, implied national population, and 2020 excess mortality -- so synthetic fixtures cannot reach production.
+
 ### Mexican Demographic Data
 
 - **INEGI**: Deaths by age and sex (1990-2024)
 - **CONAPO**: Mid-year population estimates
-- **CNSF**: Regulatory mortality tables (CNSF 2000-I, CNSF 2013, EMSSA 2009)
+- **CNSF**: Regulatory mortality tables (CNSF 2000-I, CNSF M 2013, EMSSAH-97 / EMSSAM-97). There is no "EMSSA 2009" CUSF annex; a file by that name was removed on 2026-08-02 -- see DATA.md.
 
 Real data files are gitignored. Mock synthetic data in `backend/data/mock/` enables testing without real sources.
 
@@ -186,10 +188,10 @@ Real data files are gitignored. Mock synthetic data in `backend/data/mock/` enab
 
 ```
 backend/
-  engine/          # 12 actuarial modules (a01-a12)
+  engine/          # 13 actuarial modules (a01-a13)
   api/             # FastAPI application (routers, schemas, services)
   analysis/        # Standalone analysis scripts (Mexico, sensitivity, capital)
-  tests/           # 242 tests (unit + API)
+  tests/           # Unit + API test suite (run `pytest backend/tests/`)
   data/            # Mortality data (HMD, INEGI/CONAPO, mock)
 frontend/
   src/pages/       # 6 pages (Inicio, Mortalidad, Tarificacion, SCR, Sensibilidad, Metodologia)
@@ -212,4 +214,6 @@ Bachelor's in Actuarial Science, UNAM (Universidad Nacional Autonoma de Mexico)
 
 ## License
 
-This project is for educational and portfolio purposes.
+Source code is released under the MIT License -- see [LICENSE](LICENSE).
+
+The licence covers the code only. Third-party data retain their own terms: HMD estimates are CC BY 4.0 (HMD *input* data are not, and are never redistributed here), and INEGI/CONAPO/CNSF material is governed by the terms of its publisher. None of those files are committed to this repository.

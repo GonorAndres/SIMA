@@ -163,7 +163,7 @@ def calculate_sensitivity(
 
 
 COUNTRY_LABELS = {
-    "mexico": "Mexico",
+    "mexico": "México",
     "usa": "Estados Unidos",
     "spain": "España",
 }

@@ -1,0 +1,62 @@
+/* A labelled set of mutually-exclusive options.
+   Replaces bare rows of buttons, which give no clue that they are a choice,
+   which one is active, or what changes when you press one. */
+
+.group {
+  margin-bottom: var(--space-lg);
+}
+
+.label {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  margin-bottom: var(--space-xs);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.option {
+  padding: var(--space-sm) 0;
+  min-height: var(--tap-target);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-gray-700);
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.option:hover {
+  color: var(--color-black);
+}
+
+.optionActive {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-black);
+  font-weight: 600;
+}
+
+/* Tells the user what pressing an option actually does. */
+.hint {
+  font-size: var(--text-small);
+  color: var(--color-gray-700);
+  margin: var(--space-xs) 0 0;
+  max-width: 70ch;
+}
+
+@media (max-width: 480px) {
+  .options {
+    gap: var(--space-md);
+  }
+}

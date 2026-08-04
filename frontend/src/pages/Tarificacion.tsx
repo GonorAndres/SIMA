@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageLayout from '../components/layout/PageLayout';
+import Section from '../components/layout/Section';
+import EmptyState from '../components/common/EmptyState';
 import PremiumForm from '../components/forms/PremiumForm';
 import type { PremiumRequest as PremiumFormData } from '../components/forms/PremiumForm';
 import MetricBlock from '../components/data/MetricBlock';
@@ -11,20 +13,24 @@ import LineChart from '../components/charts/LineChart';
 import Plot from '../components/charts/Plot';
 import { defaultLayout, defaultConfig } from '../components/charts/chartDefaults';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { usePost } from '../hooks/useApi';
 import type { PremiumResponse, ReserveResponse, SensitivityResponse, CrossCountryPremiumResponse } from '../types';
+import { countryKey, countryLabel, wholeMoney } from '../utils/format';
 import styles from './Tarificacion.module.css';
 
 const formulaSrcMap: Record<string, string> = {
   whole_life: '/formulas/whole_life_premium.png',
   term: '/formulas/term_premium.png',
   endowment: '/formulas/endowment_premium.png',
+  pure_endowment: '/formulas/pure_endowment_premium.png',
 };
 
 const formulaAltMap: Record<string, string> = {
   whole_life: 'P = SA * M_x / N_x',
   term: 'P = SA * (M_x - M_{x+n}) / (N_x - N_{x+n})',
   endowment: 'P = SA * (M_x - M_{x+n} + D_{x+n}) / (N_x - N_{x+n})',
+  pure_endowment: 'P = SA * D_{x+n} / (N_x - N_{x+n})',
 };
 
 export default function Tarificacion() {
@@ -39,6 +45,7 @@ export default function Tarificacion() {
     whole_life: t('forms.wholeLife'),
     term: t('forms.termLife'),
     endowment: t('forms.endowment'),
+    pure_endowment: t('forms.pureEndowment'),
   }), [t]);
 
   const handleSubmit = (req: PremiumFormData) => {
@@ -50,6 +57,9 @@ export default function Tarificacion() {
       age: req.age,
       sum_assured: req.sum_assured,
       term: req.term,
+      // El barrido de tasas debe usar el mismo sexo que la prima de arriba; sin
+      // este campo la API cae a "male" y la curva contradice la tarjeta.
+      sex: req.sex,
       rates: [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
     });
     crossCountry.execute(req);
@@ -57,10 +67,21 @@ export default function Tarificacion() {
 
   const loading = premium.loading || reserve.loading || sensitivity.loading || crossCountry.loading;
 
+  // El envio dispara cuatro peticiones independientes. La prima ya tenia rama de
+  // error, pero reserva, sensibilidad y comparacion internacional se pintaban
+  // solo con {x.data && ...}: si una fallaba, su seccion desaparecia en silencio
+  // y el usuario veia una prima sin el resto del analisis, sin saber por que.
+  const downstreamError = reserve.error ?? sensitivity.error ?? crossCountry.error;
+  const retryLastRequest = () => {
+    if (lastRequest) handleSubmit(lastRequest);
+  };
+
+  // Se empareja por clave normalizada (countryKey), no por la ortografia exacta
+  // que emita COUNTRY_LABELS en backend/api/services/pricing_service.py.
   const countryColors: Record<string, string> = useMemo(() => ({
-    'Mexico': '#C41E3A',
-    'Estados Unidos': '#1A365D',
-    'España': '#D4A843',
+    mexico: '#C41E3A',
+    usa: '#1A365D',
+    spain: '#D4A843',
   }), []);
 
   const crossCountryColumns = useMemo(() => [
@@ -80,54 +101,71 @@ export default function Tarificacion() {
         <p>{t('tarificacion.equivalenceExplain')}</p>
       </InsightCard>
 
-      <div className={styles.splitLayout} data-demo-section="top">
-        <div>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.calcTitle')}</h3>
+      <Section
+        step="1"
+        title={t('tarificacion.calcTitle')}
+        explainer={t('tarificacion.calcExplainer')}
+        demoSection="top"
+      >
+        <div className={styles.splitLayout}>
           <PremiumForm onSubmit={handleSubmit} loading={loading} />
-        </div>
 
-        <div>
-          {premium.loading && <LoadingState />}
-          {premium.error && <p className={styles.errorText}>Error: {premium.error}</p>}
+          <div>
+            {premium.loading && <LoadingState />}
+            {premium.error && !premium.loading && (
+              <ErrorState message={premium.error} onRetry={retryLastRequest} />
+            )}
 
-          {premium.data && (
-            <div className={styles.resultPanel}>
-              <div className={styles.productLabel}>
-                {productLabels[premium.data.product_type] ?? premium.data.product_type}
-                {` -- ${t('tarificacion.ageLabel')} `}{premium.data.age}
-              </div>
-              <MetricBlock
-                label={t('tarificacion.annualPremium')}
-                value={`$${premium.data.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            {!premium.data && !premium.loading && !premium.error && (
+              <EmptyState
+                title={t('tarificacion.emptyStateTitle')}
+                message={t('tarificacion.emptyState')}
               />
-              <MetricBlock
-                label={t('tarificacion.premiumRate')}
-                value={`${(premium.data.premium_rate * 100).toFixed(4)}%`}
-              />
+            )}
 
-              {lastRequest && formulaSrcMap[lastRequest.product_type] && (
-                <FormulaBlock
-                  src={formulaSrcMap[lastRequest.product_type]}
-                  alt={formulaAltMap[lastRequest.product_type]}
-                  label={t('tarificacion.formula')}
+            {premium.data && (
+              <div className={styles.resultPanel}>
+                <div className={styles.productLabel}>
+                  {productLabels[premium.data.product_type] ?? premium.data.product_type}
+                  {` \u00b7 ${t('tarificacion.ageLabel')} `}{premium.data.age}
+                </div>
+                <MetricBlock
+                  label={t('tarificacion.annualPremium')}
+                  value={wholeMoney(premium.data.annual_premium)}
                 />
-              )}
-            </div>
-          )}
+                <MetricBlock
+                  label={t('tarificacion.premiumRate')}
+                  value={`${(premium.data.premium_rate * 100).toFixed(4)}%`}
+                />
+
+                {lastRequest && formulaSrcMap[lastRequest.product_type] && (
+                  <FormulaBlock
+                    src={formulaSrcMap[lastRequest.product_type]}
+                    alt={formulaAltMap[lastRequest.product_type]}
+                    label={t('tarificacion.formula')}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Section>
+
+      {downstreamError && !loading && premium.data && (
+        <ErrorState message={downstreamError} onRetry={retryLastRequest} />
+      )}
 
       {reserve.data && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.reserveTitle')}</h3>
-          <InsightCard variant="info" title={t('tarificacion.reserveInsightTitle')}>
-            <p>{t('tarificacion.reserveInsight')}</p>
-          </InsightCard>
+        <Section
+          step="2"
+          title={t('tarificacion.reserveTitle')}
+          explainer={t('tarificacion.reserveExplainer')}
+        >
           <FormulaBlock
             src="/formulas/prospective_reserve.png"
             alt="tV = SA * A_{x+t} - P * a-double-dot_{x+t}"
             label={t('tarificacion.reserveFormula')}
-            description="tV = reserve at time t, A = insurance actuarial value, a-double-dot = annuity-due, P = net premium"
+            description={t('metodologia.formulaDescriptions.prospectiveReserve')}
           />
           <LineChart
             traces={[{
@@ -140,15 +178,18 @@ export default function Tarificacion() {
             yTitle={t('tarificacion.reserveAmount')}
             height={350}
           />
-        </div>
+          <InsightCard variant="info" title={t('tarificacion.reserveInsightTitle')}>
+            <p>{t('tarificacion.reserveInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {sensitivity.data && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('tarificacion.sensitivityTitle')}</h3>
-          <InsightCard variant="warning" title={t('tarificacion.sensitivityInsightTitle')}>
-            <p>{t('tarificacion.sensitivityInsight')}</p>
-          </InsightCard>
+        <Section
+          step="3"
+          title={t('tarificacion.sensitivityTitle')}
+          explainer={t('tarificacion.sensitivityExplainer')}
+        >
           <LineChart
             traces={[{
               x: sensitivity.data.results.map(r => `${(r.interest_rate * 100).toFixed(0)}%`),
@@ -160,7 +201,10 @@ export default function Tarificacion() {
             yTitle={t('tarificacion.annualPremiumAxis')}
             height={350}
           />
-        </div>
+          <InsightCard variant="warning" title={t('tarificacion.sensitivityInsightTitle')}>
+            <p>{t('tarificacion.sensitivityInsight')}</p>
+          </InsightCard>
+        </Section>
       )}
 
       {crossCountry.data && (() => {
@@ -170,8 +214,11 @@ export default function Tarificacion() {
           ((e.annual_premium - mxPremium) / mxPremium * 100).toFixed(0);
 
         return (
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t('tarificacion.crossCountryTitle')}</h3>
+          <Section
+            step="4"
+            title={t('tarificacion.crossCountryTitle')}
+            explainer={t('tarificacion.crossCountryExplainer')}
+          >
             <InsightCard variant="insight" title={t('tarificacion.crossCountryInsightTitle')}>
               <p>{t('tarificacion.crossCountryInsight')}</p>
               {entries.length >= 3 && (
@@ -189,9 +236,9 @@ export default function Tarificacion() {
               {entries.map(e => (
                 <MetricBlock
                   key={e.country}
-                  label={e.country}
+                  label={countryLabel(t, e.country)}
                   value={`$${e.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                  unit={e.country === 'Mexico'
+                  unit={countryKey(e.country) === 'mexico'
                     ? `drift ${e.drift.toFixed(2)}`
                     : `${pctDiff(e)}% vs MX`}
                 />
@@ -200,10 +247,10 @@ export default function Tarificacion() {
 
             <Plot
               data={[{
-                x: entries.map(e => e.country),
+                x: entries.map(e => countryLabel(t, e.country)),
                 y: entries.map(e => e.annual_premium),
                 type: 'bar' as const,
-                marker: { color: entries.map(e => countryColors[e.country] || '#666') },
+                marker: { color: entries.map(e => countryColors[countryKey(e.country) ?? ''] || '#666') },
                 text: entries.map(e => `$${e.annual_premium.toLocaleString(undefined, { maximumFractionDigits: 0 })}`),
                 textposition: 'outside' as const,
                 hovertemplate: '%{x}<br>$%{y:,.0f}<extra></extra>',
@@ -221,9 +268,14 @@ export default function Tarificacion() {
               }}
               config={defaultConfig}
               style={{ width: '100%' }}
+              useResizeHandler
             />
-            <DataTable columns={crossCountryColumns} data={crossCountry.data.entries as unknown as Record<string, unknown>[]} sortable={false} />
-          </div>
+            <DataTable
+              columns={crossCountryColumns}
+              data={crossCountry.data.entries.map((e) => ({ ...e, country: countryLabel(t, e.country) })) as unknown as Record<string, unknown>[]}
+              sortable={false}
+            />
+          </Section>
         );
       })()}
     </PageLayout>

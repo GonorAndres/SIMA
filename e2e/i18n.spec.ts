@@ -8,17 +8,20 @@ const ROUTES = ['/', '/mortalidad', '/tarificacion', '/scr', '/sensibilidad', '/
  * Uses word boundaries to avoid false positives within longer words.
  */
 const ACCENT_CHECKS: Array<{ wrong: RegExp; correct: string }> = [
-  { wrong: /\bEspana\b/g, correct: 'Espana -> Espana (tilde on n)' },
-  { wrong: /\banos\b/gi, correct: 'anos -> anos (tilde on n)' },
-  { wrong: /\bcalculo\b/gi, correct: 'calculo -> calculo (accent on a)' },
-  { wrong: /\bfuncion\b/gi, correct: 'funcion -> funcion (accent on o)' },
-  { wrong: /\bfunciones\b/gi, correct: 'funciones -> funciones (accent on second syllable)' },
-  { wrong: /\binteres\b/gi, correct: 'interes -> interes (accent on e)' },
-  { wrong: /\bformula\b/gi, correct: 'formula -> formula (accent on o)' },
-  { wrong: /\bformulas\b/gi, correct: 'formulas -> formulas (accent on o)' },
-  { wrong: /\bmetodo\b/gi, correct: 'metodo -> metodo (accent on e)' },
-  { wrong: /\bparametro\b/gi, correct: 'parametro -> parametro (accent on a)' },
-  { wrong: /\bparametros\b/gi, correct: 'parametros -> parametros (accent on a)' },
+  { wrong: /\bEspana\b/g, correct: 'Espana -> España (tilde on the n)' },
+  { wrong: /\banos\b/gi, correct: 'anos -> años (tilde on the n)' },
+  { wrong: /\bcalculo\b/gi, correct: 'calculo -> cálculo (accent on the a)' },
+  { wrong: /\bfuncion\b/gi, correct: 'funcion -> función (accent on the o)' },
+  { wrong: /\binteres\b/gi, correct: 'interes -> interés (accent on the e)' },
+  { wrong: /\bformula\b/gi, correct: 'formula -> fórmula (accent on the o)' },
+  { wrong: /\bformulas\b/gi, correct: 'formulas -> fórmulas (accent on the o)' },
+  { wrong: /\bmetodo\b/gi, correct: 'metodo -> método (accent on the e)' },
+  { wrong: /\bparametro\b/gi, correct: 'parametro -> parámetro (accent on the a)' },
+  { wrong: /\bparametros\b/gi, correct: 'parametros -> parámetros (accent on the a)' },
+  // NOTE: there is deliberately no rule for "funciones". Spanish drops the
+  // written accent in the plural (función -> funciones), so the unaccented
+  // spelling is the correct one and there is no misspelling to catch. The
+  // rule that used to live here flagged correct copy on three pages.
 ];
 
 /** Wait for React SPA content to render after navigation */

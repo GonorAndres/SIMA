@@ -8,8 +8,16 @@
   font-weight: 500;
 }
 
+/* The button really is 44x44 — a hit area faked with a pseudo-element cannot
+   be measured by a test, and this one is meant to stay honest. The tight
+   two-letter pill the Swiss layout wants is painted on `.ink` inside it. */
 .btn {
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  padding: 0;
   border: none;
   border-radius: 0;
   cursor: pointer;
@@ -17,10 +25,21 @@
   font-size: var(--text-xs);
   letter-spacing: 0.1em;
   background: transparent;
-  color: var(--color-gray-400);
+  color: var(--color-gray-700);
 }
 
-.btnActive {
+/* Where the ink goes: unchanged in size from before, so the bar looks the
+   same while the target around it grew. */
+.ink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+}
+
+/* The fill sits on the ink, not the 44px button, or the nav bar would grow a
+   black square where it used to have a small marker. */
+.btnActive .ink {
   background: var(--color-black);
   color: var(--color-white);
 }

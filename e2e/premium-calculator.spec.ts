@@ -134,12 +134,14 @@ test.describe('Premium Calculator -- Form Mechanics', () => {
     await expect(page.locator('form button[type="submit"]')).toBeVisible();
   });
 
-  test('product dropdown has three options', async ({ page }) => {
+  // Four, not three: pure endowment joined whole life, term and endowment when
+  // the product was exposed in the UI. The expectation here was left behind.
+  test('product dropdown has four options', async ({ page }) => {
     await goToCalculator(page);
 
     const productSelect = page.locator('form select').first();
     const options = productSelect.locator('option');
-    await expect(options).toHaveCount(3);
+    await expect(options).toHaveCount(4);
   });
 
   test('sex dropdown has three options', async ({ page }) => {

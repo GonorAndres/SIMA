@@ -31,7 +31,7 @@ cd /home/andtega349/SIMA/frontend && npx vite --host 0.0.0.0 --port 5173
 | Graduation | Whittaker-Henderson, lambda=1e5, diff_order=2, weight_by_exposure=True |
 | Lee-Carter | `LeeCarter.fit(graduated, reestimate_kt=False)` |
 | Projection | 30-year horizon, 500 simulations, seed=42 |
-| Regulatory tables | CNSF 2000-I (male), EMSSA 2009 (male), ages 0-99 |
+| Regulatory tables | CNSF 2000-I (male, ages 0-99), CNSF M 2013 (mixta, 0-110), EMSSAH-97 (male, 15-110) |
 | Interest rate | 5% (i=0.05) default for pricing and SCR |
 
 Reference: `backend/api/services/precomputed.py:72-112`
@@ -224,7 +224,7 @@ curl http://localhost:8000/mortality/surface
 
 Reference: `backend/api/services/mortality_service.py:141-156`
 
-### 2.5 Validation Tab (CNSF/EMSSA)
+### 2.5 Validation Tab (CNSF / EMSSAH-97)
 
 **Endpoint:** `GET /mortality/validation?projection_year=2040&table_type=cnsf`
 
@@ -245,9 +245,9 @@ Expected for CNSF: `mean_ratio ~ 0.95` (projected slightly below regulatory)
 >
 > **A:** CNSF 2000-I is based on year-2000 mortality experience. Mortality has improved since then (20+ years of improvement). So a Lee-Carter projection to 2040 should project LOWER mortality than a table frozen at year-2000 levels. mean_ratio < 1 means "projected is lower than regulatory" which is correct and expected.
 
-> **Q:** "What about EMSSA 2009?"
+> **Q:** "What about EMSSAH-97 / EMSSAM-97?"
 >
-> **A:** EMSSA 2009 is designed for social security pensioners. At ages 60+, the ratio goes to 1.7-2.9, meaning projected mortality is much HIGHER than EMSSA assumes. This suggests EMSSA is optimistic for current mortality experience at older ages -- a known regulatory concern.
+> **A:** CUSF Anexo 14.2.4-a, sex-differentiated, ages 15-110 -- it prices working-life and pension obligations, which is why it starts at 15. Read the ratio off the page rather than quoting one from here: the file that used to back this tab was a fabrication (it matched the published annex almost nowhere) and was replaced on 2026-08-02, so any ratio recorded before that date is meaningless. There is no "EMSSA 2009" CUSF annex.
 
 Reference: `backend/api/services/mortality_service.py:188-221`
 
@@ -856,7 +856,7 @@ Top 15 questions an examiner might ask, with expected answer summaries.
 
 ### Q8: "What regulatory tables are you comparing against?"
 
-**Expected answer:** CNSF 2000-I (Circular Unica de Seguros y Fianzas, year 2000) and EMSSA 2009 (Experiencia Mexicana de Mortalidad del Seguro Social, 2009). CNSF is the general insurance regulatory table; EMSSA is specifically for social security pensioners. Both have separate male/female columns.
+**Expected answer:** CNSF 2000-I (Circular Unica de Seguros y Fianzas, year 2000), CNSF M 2013 (Anexo 5.3.3-a, published MIXTA/unisex -- one q_x column, no official sex split) and EMSSAH-97 / EMSSAM-97 (Anexo 14.2.4-a, sex-differentiated, ages 15-110). CNSF is the general insurance regulatory table; the EMSSAH/M pair covers social security. Do not say "EMSSA 2009" -- no such annex exists.
 
 ### Q9: "Why does your term reserve have a hump shape?"
 

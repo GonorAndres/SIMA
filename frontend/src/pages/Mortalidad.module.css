@@ -1,72 +1,76 @@
-/* === Mortalidad Page === */
+/* === Mortalidad Page ===
+   Section chrome now lives in Section.module.css; what remains here is
+   content layout inside a section body. */
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
-  margin: 32px 0;
+  /* min() guard: a bare 140px minimum overflows below a 140px column.
+     140px so figures pair up on a phone rather than one per screen. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
+  margin: 0 0 var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .metricsRow {
+    gap: var(--space-lg);
+  }
 }
 
 .chartGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
 }
 
-.section {
-  padding: 32px 0;
-  border-top: 1px solid var(--color-gray-200);
-}
-
-.sectionTitle {
-  font-size: 1.563rem;
+/* Label above each of the three parameter charts. */
+.chartTitle {
+  font-size: var(--text-small);
   font-weight: 600;
-  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-gray-700);
+  margin: 0 0 var(--space-sm);
 }
 
 .errorText {
   color: var(--color-accent);
 }
 
-.validationSection {
-  padding: 32px 0;
-  border-top: 1px solid var(--color-gray-200);
-}
-
 .narrative {
   color: var(--color-gray-700);
   max-width: 720px;
   line-height: 1.75;
-  margin: 0 0 24px 0;
-  text-align: justify;
+  margin: 0 0 var(--space-lg);
+  text-align: left;
+  hyphens: auto;
 }
 
-.validationTabs {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.validationTab {
-  padding: 8px 0;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--color-gray-500);
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.validationTabActive {
-  border-bottom-color: var(--color-accent);
-  color: var(--color-black);
-}
-
-@media (max-width: 900px) {
+/* Three parameter charts fit side by side only once each has room to
+   stay readable. */
+@media (min-width: 900px) {
   .chartGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* Justified prose is part of the Swiss look, but a narrow column
+   cannot justify without rivers of whitespace. Restore it only once
+   the measure is wide enough. */
+@media (min-width: 1024px) {
+  .narrative {
+    text-align: justify;
+  }
+}
+
+/* Aviso discreto: una salvedad que el lector encuentra junto al dato que
+   califica, sin competir con el cuerpo del texto. */
+.footnote {
+  color: var(--color-gray-700);
+  max-width: 720px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0 0 var(--space-lg);
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--color-gray-200);
 }

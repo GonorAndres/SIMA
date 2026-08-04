@@ -1,28 +1,33 @@
 .wrapper {
   padding: var(--space-md) 0;
+  /* Lets the block shrink inside a grid track instead of forcing it wider */
+  min-width: 0;
 }
 
 .label {
   text-transform: uppercase;
   font-size: var(--text-xs);
-  color: var(--color-gray-400);
+  color: var(--color-gray-700);
   letter-spacing: 0.05em;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .value {
-  font-size: 1.953rem;
+  /* Fluid: long figures ($1,234,567) must fit a narrow mobile column
+     without pushing the page sideways. */
+  font-size: clamp(1.375rem, 0.9rem + 2vw, 1.953rem);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--color-black);
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .unit {
   font-size: 0.875rem;
-  color: var(--color-gray-400);
+  color: var(--color-gray-700);
   margin-left: var(--space-sm);
   font-weight: 400;
 }

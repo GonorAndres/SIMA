@@ -31,10 +31,13 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Ruff check
-        run: ruff check backend/
+        # .github/scripts/ is included explicitly: pyproject's `include` is
+        # ["backend*"], so the deploy-gate script sits outside every configured
+        # lint path and would otherwise never be checked again.
+        run: ruff check backend/ .github/scripts/
 
       - name: Ruff format check
-        run: ruff format --check backend/
+        run: ruff format --check backend/ .github/scripts/
 
   backend-typecheck:
     runs-on: ubuntu-latest
@@ -76,6 +79,22 @@ jobs:
           mkdir -p backend/data/hmd/usa backend/data/hmd/spain
           cp backend/data/mock/hmd/usa/* backend/data/hmd/usa/
           cp backend/data/mock/hmd/spain/* backend/data/hmd/spain/
+
+      # Inversion test for the production content gate. CI only ever has the
+      # synthetic fixtures, so the correct outcome is that the gate REJECTS what
+      # is on disk -- and rejects it for the right reason. If this step stops
+      # finding the year-coverage complaint, the gate has stopped discriminating
+      # and synthetic data could reach production again, which is the exact
+      # failure this whole mechanism exists to prevent.
+      - name: Assert the deploy data gate rejects synthetic fixtures
+        run: |
+          output=$(python3 .github/scripts/data_gate.py 2>&1 || true)
+          echo "$output"
+          if ! echo "$output" | grep -q "genuine HMD starts"; then
+            echo "::error::data_gate.py did not reject the mock HMD fixtures on year coverage."
+            exit 1
+          fi
+          echo "OK: the deploy gate still rejects synthetic HMD data."
 
       # Single test run with coverage. The previous workflow ran
       # `pytest backend/tests/test_api/` separately, which duplicated the
@@ -125,6 +144,10 @@ jobs:
       - name: TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit
+
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
 
       - name: Build
         working-directory: frontend
