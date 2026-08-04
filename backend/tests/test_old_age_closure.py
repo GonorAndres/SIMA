@@ -6,6 +6,7 @@ CONAPO extreme-age denominator artifact and produces a mortality curve that
 below it.
 """
 
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -216,7 +217,7 @@ class TestOnTheRealProjection:
     def test_closed_projection_increases_through_the_tail(self, projection):
         lt = projection.to_life_table(year=2049)
         tail = [lt.q_x[x] for x in range(90, 100)]
-        assert all(b > a for a, b in zip(tail, tail[1:])), tail
+        assert all(b > a for a, b in pairwise(tail)), tail
 
     def test_closure_does_not_disturb_working_ages(self, projection):
         """THEORY: pricing at ordinary ages must be unaffected by the closure."""
@@ -240,8 +241,8 @@ class TestOnTheRealProjection:
 
         ages = sorted(lt.l_x)
         lx = [lt.l_x[a] for a in ages]
-        assert all(b <= a for a, b in zip(lx, lx[1:])), "l_x must be non-increasing"
-        for a, a_next in zip(ages, ages[1:]):
+        assert all(b <= a for a, b in pairwise(lx)), "l_x must be non-increasing"
+        for a, a_next in pairwise(ages):
             assert lt.d_x[a] == pytest.approx(lt.l_x[a] - lt.l_x[a_next], abs=1e-9)
 
     def test_close_old_age_false_is_the_untouched_extrapolation(self, projection):

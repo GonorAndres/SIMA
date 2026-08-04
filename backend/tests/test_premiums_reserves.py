@@ -8,6 +8,7 @@ These tests validate the equivalence principle and reserve properties.
 """
 
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -445,7 +446,7 @@ class TestPureEndowmentReserves:
             SA=1_000_000, x=60, product="pure_endowment", n=3
         )
         values = [v for _, v in trajectory]
-        assert all(b > a for a, b in zip(values, values[1:])), values
+        assert all(b > a for a, b in pairwise(values)), values
 
     def test_reserve_exceeds_endowment_reserve_is_false(self, rc):
         """THEORY: a pure endowment costs less than an endowment on the same
