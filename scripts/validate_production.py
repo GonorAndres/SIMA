@@ -145,7 +145,11 @@ cc = post("/pricing/cross-country", {
     "sum_assured": 1_000_000, "interest_rate": 0.05, "sex": "male"
 })
 entries = {e["country"]: e for e in cc["entries"]}
-mx_p = entries["Mexico"]["annual_premium"]
+# "México", not "Mexico": these keys are the labels the API actually emits,
+# from COUNTRY_LABELS in pricing_service.py. The accent arrived when the
+# cross-country figures started coming from the engine instead of constants,
+# and this lookup was left behind -- a KeyError here aborts the cutover.
+mx_p = entries["México"]["annual_premium"]
 usa_p = entries["Estados Unidos"]["annual_premium"]
 spain_p = entries["España"]["annual_premium"]
 check("C6", mx_p > usa_p > spain_p,
