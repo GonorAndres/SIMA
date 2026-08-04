@@ -29,12 +29,14 @@ def mortality_shock(request: MortalityShockRequest) -> MortalityShockResponse:
 
 
 @router.get("/cross-country", response_model=CrossCountryResponse)
+@safe_route
 def cross_country():
     """Get cross-country Lee-Carter comparison (Mexico/USA/Spain)."""
     return sensitivity_service.cross_country_data()
 
 
 @router.get("/covid-comparison", response_model=CovidComparisonResponse)
+@safe_route
 def covid_comparison():
     """Get pre-COVID vs full-period mortality comparison."""
     return sensitivity_service.covid_comparison()

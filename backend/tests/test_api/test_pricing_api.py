@@ -222,3 +222,107 @@ def test_invalid_product_type(client):
         },
     )
     assert response.status_code == 422
+
+
+def test_pure_endowment_premium_and_reserve(client):
+    """THEORY: pure endowment is priceable and reservable through the API.
+
+    The product reached the API before it reached the UI, so nothing exercised
+    this path end to end.
+    """
+    premium = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "pure_endowment",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "term": 20,
+            "sex": "male",
+        },
+    )
+    assert premium.status_code == 200
+    assert premium.json()["annual_premium"] > 0
+
+    reserve = client.post(
+        "/api/pricing/reserve",
+        json={
+            "product_type": "pure_endowment",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "term": 20,
+            "sex": "male",
+        },
+    )
+    assert reserve.status_code == 200
+    trajectory = reserve.json()["trajectory"]
+    # Survival benefit only: the reserve must arrive at the full sum assured.
+    assert trajectory[0]["reserve"] == pytest.approx(0.0, abs=1e-6)
+    assert trajectory[-1]["reserve"] == pytest.approx(1_000_000, rel=1e-9)
+
+
+def test_pure_endowment_requires_a_term(client):
+    """THEORY: a survival benefit with no maturity date is not a product."""
+    response = client.post(
+        "/api/pricing/premium",
+        json={
+            "product_type": "pure_endowment",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "interest_rate": 0.05,
+            "sex": "male",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_pure_endowment_sensitivity_sweep(client):
+    """THEORY: every product the form offers must survive the sensitivity sweep.
+
+    The sweep schema had a narrower product list than the premium schema, so
+    selecting pure endowment priced the policy and then 422'd on the panel
+    beneath it.
+    """
+    response = client.post(
+        "/api/pricing/sensitivity",
+        json={
+            "product_type": "pure_endowment",
+            "age": 40,
+            "sum_assured": 1_000_000,
+            "term": 20,
+            "rates": [0.02, 0.05, 0.08],
+        },
+    )
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 3
+    # A pure endowment is a savings product: a higher discount rate means less
+    # has to be put aside, so the premium must fall as the rate rises.
+    premiums = [r["annual_premium"] for r in results]
+    assert premiums[0] > premiums[1] > premiums[2]
+
+
+def test_sensitivity_schema_accepts_every_premium_product():
+    """THEORY: the sensitivity sweep must price every product the premium
+    endpoint prices. The two Literals drifted apart once (pure_endowment was
+    missing from SensitivityRequest), so assert set equality structurally
+    rather than enumerating product names — a new product added to one schema
+    but not the other fails this immediately.
+    """
+    from typing import get_args
+
+    from backend.api.schemas.pricing import (
+        PremiumRequest,
+        ReserveRequest,
+        SensitivityRequest,
+    )
+
+    def products(model):
+        return set(get_args(model.model_fields["product_type"].annotation))
+
+    premium_products = products(PremiumRequest)
+    assert premium_products, "PremiumRequest.product_type is not a Literal"
+    assert products(SensitivityRequest) == premium_products
+    # ReserveRequest shares the same product universe.
+    assert products(ReserveRequest) == premium_products

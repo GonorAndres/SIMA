@@ -17,6 +17,16 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+# Counted from the checkout rather than written as a literal, mirroring how
+# main.py derives the same number on the server. A literal here went stale the
+# moment a13_old_age_closure.py landed and failed the deploy it was meant to
+# guard; counting both sides turns the check into what it should always have
+# been -- an assertion that the deployed image matches this source tree.
+ENGINE_MODULE_COUNT = len(
+    list((Path(__file__).resolve().parent.parent / "backend" / "engine").glob("a[0-9][0-9]_*.py"))
+)
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "https://sima-451451662791.us-central1.run.app"
 API = f"{BASE_URL}/api"
@@ -61,8 +71,19 @@ def check(test_id: str, condition: bool, msg: str):
 
 print("\n=== A: Health ===")
 health = get("/health")
+# data_source collapses to "real" only when EVERY dataset is real; it reads
+# "mixed" if any one of them fell back to a mock fixture.
 check("A1", health["data_source"] == "real", f"data_source={health['data_source']}")
-check("A2", health["engine_modules"] == 12, f"engine_modules={health['engine_modules']}")
+check("A2", health["engine_modules"] == ENGINE_MODULE_COUNT,
+      f"engine_modules={health['engine_modules']} (checkout has {ENGINE_MODULE_COUNT})")
+# A1 is a summary and can be satisfied in ways that hide the specific lie this
+# check exists to catch: synthetic HMD files sitting in the real-data directory
+# and being served as genuine USA/Spain mortality. Assert those two by name.
+sources = health.get("data_sources", {})
+for _ds in ("usa", "spain", "mexico"):
+    check(f"A3-{_ds}", sources.get(_ds) == "real", f"data_sources[{_ds}]={sources.get(_ds)}")
+check("A4", health.get("pipelines_loaded") == 9,
+      f"pipelines_loaded={health.get('pipelines_loaded')} (expect 9: 3 Mexico + 3 USA + 3 Spain)")
 
 # ── B: Mortality Engine ────────────────────────────────────
 
@@ -135,7 +156,11 @@ cc = post("/pricing/cross-country", {
     "sum_assured": 1_000_000, "interest_rate": 0.05, "sex": "male"
 })
 entries = {e["country"]: e for e in cc["entries"]}
-mx_p = entries["Mexico"]["annual_premium"]
+# "México", not "Mexico": these keys are the labels the API actually emits,
+# from COUNTRY_LABELS in pricing_service.py. The accent arrived when the
+# cross-country figures started coming from the engine instead of constants,
+# and this lookup was left behind -- a KeyError here aborts the cutover.
+mx_p = entries["México"]["annual_premium"]
 usa_p = entries["Estados Unidos"]["annual_premium"]
 spain_p = entries["España"]["annual_premium"]
 check("C6", mx_p > usa_p > spain_p,

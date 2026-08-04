@@ -19,11 +19,15 @@
   font-weight: 500;
 }
 
+/* 16px is not a style choice: iOS Safari zooms the whole page when a field
+   under 16px takes focus, and the user is left scrolled sideways. */
 .input {
   padding: 10px 12px;
+  min-height: var(--tap-target);
+  width: 100%;
   border: 1px solid var(--color-gray-200);
   border-radius: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-family: var(--font-mono);
   outline: none;
   transition: border-color 0.15s ease;
@@ -35,9 +39,11 @@
 
 .select {
   padding: 10px 12px;
+  min-height: var(--tap-target);
+  width: 100%;
   border: 1px solid var(--color-gray-200);
   border-radius: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   background: var(--color-white);
   outline: none;
   cursor: pointer;
@@ -57,6 +63,7 @@
 
 .submitBtn {
   padding: 12px 24px;
+  min-height: var(--tap-target);
   background-color: var(--color-accent);
   color: var(--color-white);
   text-transform: uppercase;

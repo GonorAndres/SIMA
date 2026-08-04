@@ -33,17 +33,29 @@ export interface LifeTableResponse {
   max_age: number;
 }
 
+export interface HealthResponse {
+  status: string;
+  /** Derived by main.py from a glob over engine/aNN_*.py -- never a literal. */
+  engine_modules: number;
+  pipelines_loaded: number;
+  version: string;
+  data_source: string;
+  year_range?: number[];
+}
+
 export interface ProjectionResponse {
   projected_years: number[];
   kt_central: number[];
   drift: number;
   sigma: number;
   sex: string;
+  projection_year: number;
   life_table?: LifeTableResponse;
 }
 
 export interface ValidationResponse {
   name: string;
+  projection_year: number;
   rmse: number;
   max_ratio: number;
   min_ratio: number;
@@ -318,7 +330,8 @@ export interface LISFRiskModuleInfo {
   lisf_reference: string;
   description_es: string;
   description_en: string;
-  standard_shock: string;
+  standard_shock_es: string;
+  standard_shock_en: string;
   shock_basis: string;
 }
 
@@ -333,8 +346,10 @@ export interface LISFComplianceResponse {
   risk_margin_rate: number;
   risk_margin_basis_es: string;
   risk_margin_basis_en: string;
-  coverage: string[];
-  limitations: string[];
+  coverage_es: string[];
+  coverage_en: string[];
+  limitations_es: string[];
+  limitations_en: string[];
 }
 
 export interface SCRResponse {

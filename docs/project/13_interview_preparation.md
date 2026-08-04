@@ -2,23 +2,127 @@
 
 ## Key Numbers to Memorize
 
+Rule for this document: **only quote a number you can point at in the codebase.**
+Every figure below is either measured by the engine or countable from the repo. If a
+number is not on this list, say "I would have to recompute that" rather than guessing --
+which is exactly the failure mode described in "The Synthetic Data Incident" further down.
+
+### Lee-Carter parameters -- measured 2026-08-02 on real data
+
+All three fits use the same window: **years 1990-2019, ages 0-100**, unisex
+(`backend/api/services/precomputed.py`). Mexico is INEGI deaths / CONAPO exposure;
+USA and Spain are HMD 1x1.
+
+| Pipeline | Drift (k_t units/year) | Sigma | Explained variance |
+|----------|-----------------------|-------|--------------------|
+| Mexico (INEGI/CONAPO) | -1.0858 | 1.8218 | 77.52% |
+| USA (HMD) | -1.0207 | 1.2288 | 85.53% |
+| Spain (HMD) | -2.7675 | 2.1740 | 95.19% |
+
+Measured 2026-08-03, *after* the INEGI open-interval fix. Note that the Mexican row moved:
+before that fix the same pipeline returned -1.0764 / 1.7889 / 77.67%, because the "85 y mas"
+aggregate was being summed into single age 85. USA and Spain are unaffected -- HMD publishes
+no duplicated open-age row. If you see -1.0764 quoted anywhere, it predates the fix.
+
+The two comparisons worth saying out loud:
+
+- **Spain improves 2.55x faster than Mexico** (-2.7675 / -1.0858). Spain also has the
+  cleanest fit -- 95.19% of the variance in one rank-1 component.
+- **The USA improves at essentially the same rate as Mexico** -- 0.94x, i.e. marginally
+  *slower*. Do not lean on the direction of that last 6%: it is inside the noise of a
+  30-year window and it flips with the sex and the fit window. The honest statement is
+  "the same rate". This is the more interesting finding, and the one an interviewer is likely to
+  push on: a much richer country with a much higher health spend is not pulling away from
+  Mexico on the *rate* of improvement. Level and rate are different things; Lee-Carter
+  drift measures rate only.
+
+**Do not attribute causes to drift.** Drift is a fitted slope on k_t. It does not
+identify universal healthcare, epidemiological transition, health spending, or anything
+else. If asked "why is Spain faster?", the correct answer is: "the model does not say --
+it measures the rate; explaining it would need a separate causal design."
+
+### Portfolio, capital and engineering figures
+
 | Metric | Value | Context |
 |--------|-------|---------|
-| Explained variance (Mexico) | 77.7% | Lower than Spain (94.8%) due to demographic heterogeneity |
-| Drift (pre-COVID) | -1.076/year | Mortality improving ~1% per year |
-| Drift (full period) | -0.855/year | COVID slowed improvement by 20% |
-| Spain drift | -2.89/year | 2.7x faster improvement than Mexico |
-| SCR total | ~$568K | For sample portfolio |
-| Diversification benefit | 14.4% | Mortality-longevity natural hedge |
-| Interest rate SCR | 79.7% of total | Dominates because of long-duration discounting |
-| BEL annuity share | 83% of total BEL | Annuities dominate liabilities |
-| Interest rate premium spread | 101% | 2% to 8% on whole life age 40 |
-| Mexico vs Spain premium gap | ~30% higher | Structural, all ages |
-| COVID premium impact | +3-10% | Depends on age |
-| Graduation roughness reduction | ~70% | Lambda = 10^5 |
-| Tests | 242 | 196 unit + 46 API |
 | Engine modules | 12 | a01 (LifeTable) through a12 (SCR) |
 | API endpoints | 24 | Including health and compliance endpoints |
+| Tests | full suite gated in CI | Quote the CI badge, not a count -- counts rot between sessions |
+| Diversification benefit | 18.97% | `total_aggregation.diversification_pct`, POST /api/scr/defaults |
+| Interest rate SCR | 644,179 of 998,677 summed (~65%) | Dominates because of long-duration discounting |
+| BEL annuity share | 78.0% of total BEL | 3,734,740 annuity / 4,785,472 total, POST /api/portfolio/bel |
+| Graduation roughness reduction | ~70% | Lambda = 10^5 |
+
+> **Recompute before quoting.** Every currency amount and every percentage in this
+> document is downstream of the Mexican mortality pipeline, and that pipeline changed on
+> 2026-08-02 (real HMD data replacing synthetic fixtures) and again on 2026-08-03 (the
+> INEGI open-interval "85 y mas" row was being double-counted into single age 85, which
+> moved e_65 by +4.37% and the age-60 whole-life premium by -3.29%). Run the engine and
+> read the current value rather than reciting one from here. The *shapes* of the results
+> -- interest rate dominates, the shock response is convex, diversification is a discount,
+> Spain improves much faster than Mexico -- are stable; the digits are not.
+>
+> The commands that produce every figure in the table above:
+> `POST /api/scr/defaults` (diversification, per-module SCR), `POST /api/portfolio/bel`
+> (BEL split), `GET /api/sensitivity/cross-country` (drift, sigma, explained variance,
+> q60 and the age-40 premium for all three countries),
+> `GET /api/sensitivity/covid-comparison` (pre-COVID vs full-period fit and its premium
+> impact). All four are computed live from the engine -- none of them returns a constant.
+
+---
+
+## The Synthetic Data Incident (tell this story deliberately)
+
+This is the strongest engineering story in the project. It is a real incident, it was
+found in this codebase, and it is worth ninety seconds in an interview.
+
+**What happened.** Development started against synthetic HMD fixtures generated by a
+Gompertz-Makeham script, so the pipeline could be built before the mortality.org account
+was approved. Those fixtures were copied to the deployment bucket, and from there they
+reached the production container. The public site then reported Lee-Carter parameters
+fitted on invented data for months.
+
+**Why the tests did not catch it.** Every test validated *format*: correct columns, parseable
+years, ages within range, no NaNs where none were allowed. The synthetic files satisfied all
+of that perfectly -- they were generated to. The deploy pipeline was no better: its data
+gate was six `test -f` existence checks, which pass on an empty file. Nothing anywhere
+asked whether the *values* were plausible.
+
+**The tell.** The site claimed Spain's drift was -2.89/year. That number was not measured;
+it was a readback of a constant hardcoded in the generator
+(`"drift": -0.029,  # Spain improves faster`). The model was faithfully recovering a
+parameter someone had typed in. Worse, a causal narrative had been attached to it --
+"universal healthcare and completed epidemiological transition" -- explaining a number
+that came from a Python dict. The real measured value is -2.7675.
+
+**The fix.** Real HMD data replaced the fixtures, and format validation was supplemented
+with five *statistical authenticity* checks that a generator cannot fake without
+reimplementing demography:
+
+1. **Year coverage** -- real USA starts 1933, Spain 1908; the fixtures started 1990.
+2. **Implied national population** -- sum the exposures; it has to land near 330M / 47M.
+3. **COVID signal** -- any genuine file covering 2020 shows roughly +18% excess deaths.
+   Smooth synthetic data shows none.
+4. **Sex ratio at the young-adult accident hump** -- real male/female mortality at ages
+   20-24 is ~2.5-3.0x. A flat multiplier gives ~1.35.
+5. **Poisson roughness** -- log death rates from real counts cannot be smoother than the
+   sampling noise floor sqrt(6/D). Synthetic curves are far too smooth.
+
+These now run in CI and, critically, **gate the production deploy**: the build fails before
+the traffic cutover if the data does not look real. The mock files are kept deliberately,
+at `backend/data/mock/`, wired only to CI -- fast, deterministic, and off every deploy path.
+
+**The lesson, phrased for an interviewer.** Schema validation proves a file is *well-formed*,
+not that it is *true*. For any model whose output someone will act on, at least one test
+must assert a property of the world -- something that is true of real data and expensive to
+fake. And a number quoted in a report should be traceable to a computation, not to another
+document that quoted it.
+
+**Likely follow-up: "how did the fabricated number survive review?"** Because it was
+plausible and it had a story attached. -2.89 vs -1.08 sounded right, and the healthcare
+explanation made it *feel* verified. The narrative was doing the work that a measurement
+should have done. That is the general failure: a causal story makes an unverified number
+feel checked.
 
 ---
 
@@ -33,7 +137,7 @@
    The k_t re-estimation step (Brent's method) can fail because the death residual function becomes non-monotone (U-shaped). This happened with graduated Mexican data at ages 77, 78, 85. Solution: use adaptive bracket search or skip re-estimation (SVD k_t is consistent with the log-bilinear formulation).
 
 3. **Why does Mexico have lower explained variance than Spain?**
-   Mexico's mortality has more age-specific noise: the young-adult mortality hump (violence/accidents at ages 15-35), regional disparities, and the differentiated COVID impact. Spain's mortality follows a more regular Gompertz pattern with uniform improvement across ages.
+   77.67% against 95.19%. Explained variance measures how well a single rank-1 term a_x + b_x*k_t reproduces the surface, so the honest answer is descriptive: Mexico's surface is less separable. Visible in the data are the young-adult mortality hump (ages 15-35), age-specific improvement that is far from proportional across ages, and a differentiated COVID impact; Spain's surface is closer to a regular Gompertz shape improving fairly uniformly. Those are features consistent with the residuals, not identified causes -- attributing the gap to violence or to regional inequality would need a separate analysis, and the model does not provide it.
 
 4. **What is the graduation-reestimation incompatibility?**
    Whittaker-Henderson graduation can create negative b_x values (graduation inverts relative mortality at certain ages). The k_t re-estimation assumes b_x > 0 everywhere for monotonicity. Solution: either don't re-estimate k_t with graduated data, or use the adaptive bracket approach.
@@ -69,8 +173,8 @@
 13. **Why is mortality-longevity correlation negative?**
     They are natural opposites: a pandemic (higher mortality) increases death claims but reduces annuity obligations (people die sooner). An insurer writing both product types has a natural hedge. The Solvency II standard correlation is -0.25.
 
-14. **What does the 14.4% diversification benefit mean?**
-    If you sum the four individual SCR components, you get X. But the correlation-aggregated SCR is 14.4% less than X. This is the capital saved by the natural hedge between mortality and longevity risk. It's why diversified insurers are more capital-efficient.
+14. **What does the 18.97% diversification benefit mean?**
+    The four individual SCR components sum to 998,677. The correlation-aggregated SCR is 809,207 -- 18.97% less. That difference, 189,470, is the capital saved by the natural hedge between mortality and longevity risk (correlation -0.25 in the aggregation matrix). It's why diversified insurers are more capital-efficient. Recompute it with POST /api/scr/defaults before quoting: it is a function of the demo portfolio mix, and it changes when the portfolio does.
 
 15. **How is the catastrophe shock calibrated?**
     COVID-calibrated: the Lee-Carter k_t reversed ~6.76 units above trend during 2020-2021. Conservative estimate: +35% one-year mortality spike at working ages. Unlike the permanent +15% mortality shock, catastrophe is a one-year spike affecting only first-year excess deaths.

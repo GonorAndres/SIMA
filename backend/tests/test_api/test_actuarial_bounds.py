@@ -147,9 +147,21 @@ def test_coverage_proportionality(client):
 
 
 def test_cross_country_drift_ordering(client):
-    """THEORY: Mexico has slowest mortality improvement (least negative drift),
-    Spain has fastest (most negative). This holds for both real and mock data
-    because HMD data preserves relative country mortality dynamics."""
+    """THEORY: all three populations are improving, and Spain is improving
+    materially faster than either Mexico or the USA.
+
+    This test previously asserted a strict ordering Mexico > USA > Spain. That
+    ordering came from synthetic Gompertz-Makeham fixtures, where the improvement
+    rate of each country was a planted constant. On the real HMD and INEGI data
+    it is false: Mexico and the USA improve at essentially the same rate (drift
+    -1.0858 vs -1.0207, a 6% difference), and which of the two leads is not a
+    structural fact about the two countries -- it is noise on a 30-year window,
+    and it flips with the fit window or the sex.
+
+    What survives contact with real data is the Spain gap, which is large
+    (roughly 2.5x Mexico) and robust. So that is what is asserted. A test that
+    pins a distinction the data cannot support is worse than no test.
+    """
     resp = client.get("/api/sensitivity/cross-country")
     assert resp.status_code == 200
     countries = {c["country"]: c for c in resp.json()["countries"]}
@@ -161,8 +173,18 @@ def test_cross_country_drift_ordering(client):
     assert mx_drift < 0, "Mexico drift must be negative (mortality improving)"
     assert usa_drift < 0, "USA drift must be negative"
     assert spain_drift < 0, "Spain drift must be negative"
-    assert mx_drift > usa_drift > spain_drift, (
-        f"Drift ordering: Mexico ({mx_drift}) > USA ({usa_drift}) > Spain ({spain_drift})"
+
+    assert spain_drift < mx_drift, (
+        f"Spain ({spain_drift}) must improve faster than Mexico ({mx_drift})"
+    )
+    assert spain_drift < usa_drift, (
+        f"Spain ({spain_drift}) must improve faster than the USA ({usa_drift})"
+    )
+    # Mexico and the USA sit within a factor of 1.5 of each other in either
+    # direction -- close enough that the page must not claim one leads the other.
+    ratio = mx_drift / usa_drift
+    assert 1 / 1.5 < ratio < 1.5, (
+        f"Mexico ({mx_drift}) and USA ({usa_drift}) drifts should be comparable, ratio={ratio:.3f}"
     )
 
 

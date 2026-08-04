@@ -36,6 +36,7 @@ import numpy as np
 
 from .a01_life_table import LifeTable
 from .a08_lee_carter import LeeCarter
+from .a13_old_age_closure import DEFAULT_CLOSURE_AGE, DEFAULT_FIT_AGES, close_qx
 from .exceptions import ActuarialValidationError
 
 
@@ -293,6 +294,9 @@ class MortalityProjection:
         radix: float = 100_000,
         age_min: int | None = None,
         age_max: int | None = None,
+        close_old_age: bool = True,
+        closure_age: int = DEFAULT_CLOSURE_AGE,
+        fit_ages: tuple[int, int] = DEFAULT_FIT_AGES,
     ) -> LifeTable:
         """
         Convert projected mortality rates to a LifeTable for a specific year.
@@ -303,9 +307,14 @@ class MortalityProjection:
         Steps:
         1. Get projected m_x for the year (central projection)
         2. Convert m_x -> q_x via: q_x = 1 - exp(-m_x)
-        3. Build l_x from q_x: l_{x+1} = l_x * (1 - q_x)
-        4. Force terminal q_omega = 1.0
-        5. Return LifeTable(ages, l_x)
+        3. Close the old-age tail with Kannisto (see a13). Without this the
+           projected q_x *decreases* above age 94, because b_x is inflated
+           there by a CONAPO extreme-age denominator artifact that Lee-Carter
+           extrapolates as if it were trend. Pass close_old_age=False to see
+           the raw extrapolation.
+        4. Build l_x from q_x: l_{x+1} = l_x * (1 - q_x)
+        5. Force terminal q_omega = 1.0
+        6. Return LifeTable(ages, l_x)
 
         Parameters
         ----------
@@ -336,8 +345,17 @@ class MortalityProjection:
         # Step 2: Convert m_x -> q_x (constant force assumption)
         qx = 1.0 - np.exp(-mx)
 
-        # Step 3: Force terminal q = 1.0
-        qx[-1] = 1.0
+        # Step 3: Close the old-age tail (Kannisto). Forces the terminal q to
+        # 1.0 itself, so the closed branch does not repeat that below.
+        if close_old_age:
+            qx = close_qx(
+                np.asarray(ages),
+                qx,
+                fit_ages=fit_ages,
+                closure_age=closure_age,
+            )
+        else:
+            qx[-1] = 1.0
 
         # Step 4: Ensure q_x is in [0, 1]
         qx = np.clip(qx, 0.0, 1.0)
@@ -429,17 +447,30 @@ class MortalityProjection:
         """
         Validate projection results.
 
-        Checks:
-            drift_is_negative: mortality should be improving (drift < 0)
+        Only two of these are correctness checks. The other two describe the
+        projection, and reading them as pass/fail misleads: a longevity stress
+        scenario deliberately projects mortality improving faster, and a
+        mortality-deterioration scenario projects it worsening, which makes the
+        drift positive and the trend rise without either being a defect. The
+        keys are named accordingly.
+
+        Checks (must hold):
             sigma_positive: volatility must be positive
-            central_extends_trend: last projected k_t < last observed
             no_nan_in_central: no NaN in central projection
+
+        Descriptive (scenario-dependent, not pass/fail):
+            drift_indicates_improvement: drift < 0, i.e. mortality is falling
+            central_continues_downward: last projected k_t < last observed
         """
         return {
-            "drift_is_negative": bool(self.drift < 0),
             "sigma_positive": bool(self.sigma > 0),
-            "central_extends_trend": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
             "no_nan_in_central": bool(not np.any(np.isnan(self.kt_central))),
+            "drift_indicates_improvement": bool(self.drift < 0),
+            "central_continues_downward": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
+            # Kept so existing callers do not break on the rename. Same value,
+            # clearer name above; prefer the new keys in new code.
+            "drift_is_negative": bool(self.drift < 0),
+            "central_extends_trend": bool(self.kt_central[-1] < self.lee_carter.kt[-1]),
         }
 
     def summary(self) -> dict:

@@ -46,9 +46,17 @@
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
-  gap: 24px;
+  /* 140px matches the other pages' metric rows, so figures pair up on a phone
+     instead of costing one screen of scrolling each. */
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-md);
   margin: 24px 0;
+}
+
+@media (min-width: 768px) {
+  .metricsRow {
+    gap: var(--space-lg);
+  }
 }
 
 .formulaContainer {

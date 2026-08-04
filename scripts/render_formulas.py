@@ -26,6 +26,9 @@ FORMULAS = {
     "rcs_aggregation": r"RCS = \sqrt{\vec{S}^{\,T} \cdot C \cdot \vec{S}}",
     "term_premium": r"P = SA \cdot \frac{M_x - M_{x+n}}{N_x - N_{x+n}}",
     "endowment_premium": r"P = SA \cdot \frac{M_x - M_{x+n} + D_{x+n}}{N_x - N_{x+n}}",
+    # Pure endowment pays only on survival to x+n, so the numerator carries no
+    # M term: it is the discounted survivors D_{x+n} alone.
+    "pure_endowment_premium": r"P = SA \cdot \frac{D_{x+n}}{N_x - N_{x+n}}",
 }
 
 LATEX_TEMPLATE = r"""\documentclass[border=2pt,varwidth]{standalone}

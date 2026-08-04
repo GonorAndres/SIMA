@@ -64,7 +64,7 @@ def cnsf_life_table():
 def emssa_life_table():
     """Load mock EMSSA-2009 regulatory table as LifeTable."""
     return LifeTable.from_regulatory_table(
-        filepath=str(Path(MOCK_DIR) / "mock_emssa_2009.csv"),
+        filepath=str(Path(MOCK_DIR) / "mock_emssa_97.csv"),
         sex="male",
         radix=100_000.0,
     )

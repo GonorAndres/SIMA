@@ -56,3 +56,57 @@ def test_reset_portfolio(client):
     assert response.status_code == 200
     data = response.json()
     assert data["n_policies"] == 12
+
+
+def test_portfolio_is_per_session(client):
+    """THEORY: two callers get independent portfolios.
+
+    The portfolio used to be one module-level object shared by every request,
+    so a second visitor adding a policy moved the first visitor's BEL and SCR.
+    Each caller now gets a session cookie keying its own portfolio.
+    """
+    from fastapi.testclient import TestClient
+
+    from backend.api.main import app
+
+    # Two clients, each with its own cookie jar -> two sessions.
+    with TestClient(app) as alice, TestClient(app) as bob:
+        alice.post("/api/portfolio/reset")
+        bob.post("/api/portfolio/reset")
+
+        baseline = bob.get("/api/portfolio/summary").json()["n_policies"]
+
+        added = alice.post(
+            "/api/portfolio/policy",
+            json={
+                "policy_id": "SESSION-ISOLATION-01",
+                "product_type": "whole_life",
+                "issue_age": 40,
+                "sum_assured": 1_000_000,
+            },
+        )
+        assert added.status_code == 200
+
+        assert alice.get("/api/portfolio/summary").json()["n_policies"] == baseline + 1
+        # Bob must not see Alice's policy.
+        assert bob.get("/api/portfolio/summary").json()["n_policies"] == baseline
+        bob_ids = [p["policy_id"] for p in bob.get("/api/portfolio/summary").json()["policies"]]
+        assert "SESSION-ISOLATION-01" not in bob_ids
+
+
+def test_session_cookie_is_set_and_reused(client):
+    """THEORY: the API mints a session cookie once and honours it thereafter."""
+    from fastapi.testclient import TestClient
+
+    from backend.api.main import app
+
+    with TestClient(app) as c:
+        first = c.get("/api/portfolio/summary")
+        assert "sima_session" in first.cookies or "sima_session" in c.cookies
+        sid = c.cookies.get("sima_session")
+        assert sid and sid.isalnum()
+
+        c.get("/api/portfolio/summary")
+        # The id must be stable across requests, otherwise every call would
+        # silently start a fresh portfolio.
+        assert c.cookies.get("sima_session") == sid

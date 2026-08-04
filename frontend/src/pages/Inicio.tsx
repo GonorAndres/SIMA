@@ -6,23 +6,51 @@ import DeepDiveLink from '../components/data/DeepDiveLink';
 import InsightCard from '../components/data/InsightCard';
 import LineChart from '../components/charts/LineChart';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import { useGet, usePost } from '../hooks/useApi';
-import type { LeeCarterFitResponse, SCRResponse } from '../types';
+import type {
+  CovidComparisonResponse,
+  HealthResponse,
+  LeeCarterFitResponse,
+  SCRResponse,
+} from '../types';
 import styles from './Inicio.module.css';
 
 export default function Inicio() {
   const { t } = useTranslation();
   const lc = useGet<LeeCarterFitResponse>('/mortality/lee-carter');
   const scr = usePost<object, SCRResponse>('/scr/compute');
+  const covid = useGet<CovidComparisonResponse>('/sensitivity/covid-comparison');
+  // El conteo de modulos se leia como "12" fijo en la copia. main.py lo deriva
+  // con un glob sobre engine/aNN_*.py, asi que al agregar a13 la frase quedo
+  // desactualizada de inmediato. Ahora se lee del mismo lugar que lo cuenta.
+  const health = useGet<HealthResponse>('/health');
 
   // `execute` is stable (memoized on the endpoint) so depending on the refs is safe.
   const { execute: runLc } = lc;
   const { execute: runScr } = scr;
+  const { execute: runCovid } = covid;
+  const { execute: runHealth } = health;
 
   useEffect(() => {
     runLc();
     runScr({ available_capital: 1_000_000 });
-  }, [runLc, runScr]);
+    runCovid();
+    runHealth();
+  }, [runLc, runScr, runCovid, runHealth]);
+
+  // El teaser de COVID mostraba "+0.22" y "3-10%" fijos en el codigo. Ambas
+  // cifras se calculan ahora en el endpoint (que dejo de devolver constantes el
+  // 2026-08-03), asi que se leen de ahi y no pueden volver a desviarse del motor.
+  const covidDriftShift = covid.data
+    ? covid.data.full_period.drift - covid.data.pre_covid.drift
+    : null;
+  const covidPremiumRange = covid.data
+    ? [
+        Math.min(...covid.data.premium_impact.map(r => r.pct_change)),
+        Math.max(...covid.data.premium_impact.map(r => r.pct_change)),
+      ]
+    : null;
 
   return (
     <PageLayout>
@@ -38,7 +66,7 @@ export default function Inicio() {
             <p className={styles.contextParagraph}>{t('inicio.contextP2')}</p>
             <p className={styles.contextParagraph}>{t('inicio.contextP3')}</p>
             <p className={styles.contextParagraph}>
-              {t('inicio.contextP4')}
+              {health.data && t('inicio.contextP4', { modules: health.data.engine_modules })}
               {' '}
               <a
                 href="https://github.com/GonorAndres/SIMA"
@@ -60,6 +88,16 @@ export default function Inicio() {
 
           {lc.loading && <LoadingState message={t('inicio.loadingMortality')} />}
           {scr.loading && <LoadingState message={t('inicio.loadingSCR')} />}
+
+          {/* Sin esta rama, un backend frio o caido dejaba el panel de metricas
+              completamente vacio: la primera impresion era una pagina rota sin
+              explicacion ni forma de reintentar. */}
+          {lc.error && !lc.loading && (
+            <ErrorState message={lc.error} onRetry={() => runLc()} />
+          )}
+          {scr.error && !scr.loading && (
+            <ErrorState message={scr.error} onRetry={() => runScr({ available_capital: 1_000_000 })} />
+          )}
 
           {lc.data && (
             <>
@@ -97,7 +135,9 @@ export default function Inicio() {
 
       {/* Elevator pitch */}
       <InsightCard variant="insight" title={t('inicio.portfolioTitle')}>
-        <p>{t('inicio.portfolioPitch')}</p>
+        {health.data && (
+          <p>{t('inicio.portfolioPitch', { modules: health.data.engine_modules })}</p>
+        )}
       </InsightCard>
 
       {/* Skills badges */}
@@ -152,8 +192,15 @@ export default function Inicio() {
         <h3 className={styles.covidTeaserTitle}>{t('inicio.covidTeaser')}</h3>
         <p className={styles.covidTeaserDesc}>{t('inicio.covidTeaserDesc')}</p>
         <div className={styles.covidTeaserMetrics}>
-          <MetricBlock label={t('inicio.covidTeaserDrift')} value="+0.22" unit={t('inicio.yearUnit')} />
-          <MetricBlock label={t('inicio.covidTeaserPremium')} value="3-10%" />
+          <MetricBlock
+            label={t('inicio.covidTeaserDrift')}
+            value={covidDriftShift === null ? '--' : `${covidDriftShift > 0 ? '+' : ''}${covidDriftShift.toFixed(2)}`}
+            unit={t('inicio.yearUnit')}
+          />
+          <MetricBlock
+            label={t('inicio.covidTeaserPremium')}
+            value={covidPremiumRange === null ? '--' : `${covidPremiumRange[0].toFixed(1)}-${covidPremiumRange[1].toFixed(1)}%`}
+          />
         </div>
         <DeepDiveLink text={t('inicio.viewCovid')} to="/sensibilidad" />
       </div>

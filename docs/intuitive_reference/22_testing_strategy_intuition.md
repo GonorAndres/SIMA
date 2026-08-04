@@ -1,6 +1,6 @@
 # Testing Strategy: Intuitive Reference
 
-**Source files:** `backend/tests/` (19 files, 191 tests)
+**Source files:** `backend/tests/` -- the suite is gated in CI. Deliberately not quoting a count: it has gone 191 -> 238 -> 242 -> 367 and every written-down figure has been stale within a session. Run `pytest backend/tests -q` for the current number.
 
 ---
 
@@ -171,7 +171,7 @@ The `conftest.py` creates a `TestClient` with `scope="module"` so the precompute
 ## Coverage Matrix: What's Tested vs What's Not
 
 ```
-TESTED (191 tests):
+TESTED (the CI-gated suite):
   [x] All 12 engine modules (a01 through a12)
   [x] Full HMD pipeline (USA, Spain)
   [x] Full Mexican pipeline (mock INEGI/CONAPO)

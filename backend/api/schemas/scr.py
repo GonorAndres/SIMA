@@ -126,7 +126,8 @@ class LISFRiskModuleInfo(BaseModel):
     lisf_reference: str
     description_es: str
     description_en: str
-    standard_shock: str
+    standard_shock_es: str
+    standard_shock_en: str
     shock_basis: str
 
 
@@ -143,8 +144,10 @@ class LISFComplianceResponse(BaseModel):
     risk_margin_rate: float
     risk_margin_basis_es: str
     risk_margin_basis_en: str
-    coverage: list[str]
-    limitations: list[str]
+    coverage_es: list[str]
+    coverage_en: list[str]
+    limitations_es: list[str]
+    limitations_en: list[str]
 
 
 class SCRResponse(BaseModel):

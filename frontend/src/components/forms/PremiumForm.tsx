@@ -26,7 +26,8 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
   const [term, setTerm] = useState(20);
   const [interestRate, setInterestRate] = useState(0.05);
 
-  const needsTerm = productType === 'term' || productType === 'endowment';
+  const needsTerm =
+    productType === 'term' || productType === 'endowment' || productType === 'pure_endowment';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +53,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
           <option value="whole_life">{t('forms.wholeLife')}</option>
           <option value="term">{t('forms.termLife')}</option>
           <option value="endowment">{t('forms.endowment')}</option>
+          <option value="pure_endowment">{t('forms.pureEndowment')}</option>
         </select>
         <span className={styles.hint}>{t('hints.product')}</span>
       </div>
@@ -73,7 +75,7 @@ export default function PremiumForm({ onSubmit, loading }: PremiumFormProps) {
       <SliderInput
         label={t('forms.age')}
         min={20}
-        max={70}
+        max={90}
         step={1}
         value={age}
         onChange={setAge}

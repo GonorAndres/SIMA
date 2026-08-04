@@ -20,5 +20,9 @@ EXPOSE ${PORT}
 RUN groupadd -r sima && useradd -r -g sima sima
 USER sima
 
-# Single worker -- Cloud Run handles horizontal scaling
-CMD uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT}
+# Single worker -- Cloud Run handles horizontal scaling.
+# Exec (JSON) form, and `exec` inside the sh -c wrapper, so uvicorn replaces
+# the shell as PID 1 and receives Cloud Run's SIGTERM directly. Shell form
+# would leave /bin/sh as PID 1 swallowing the signal (killed revisions).
+# The sh -c wrapper exists only to expand ${PORT:-8080}.
+CMD ["sh", "-c", "exec uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

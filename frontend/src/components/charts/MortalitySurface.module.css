@@ -1,0 +1,10 @@
+/* Affordance for the 3D scene. A surface reads as a picture until something
+   tells you it turns — most visibly true on a phone, where there is no
+   hover state and no modebar to hint at interaction. */
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-gray-700);
+  text-align: center;
+  margin: var(--space-xs) 0 0;
+  font-style: italic;
+}
