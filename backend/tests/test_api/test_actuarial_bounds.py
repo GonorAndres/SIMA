@@ -10,7 +10,6 @@ measures a property of the real series rather than a structural invariant.
 
 from .conftest import real_data
 
-
 # --- Pricing Structural Properties ---
 
 

@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient
 
 from backend.api.main import app
 
-
 _DATA_DIR = Path(__file__).parent.parent.parent / "data"
 REAL_DEATHS = _DATA_DIR / "inegi" / "inegi_deaths.csv"
 REAL_POP = _DATA_DIR / "conapo" / "conapo_population.csv"
