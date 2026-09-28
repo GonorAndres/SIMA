@@ -17,7 +17,7 @@
 - `backend/engine/a05_reserves.py` (renamed)
 - Updated `backend/engine/__init__.py`
 - Updated test files with new import paths
-- Updated `.claude/CLAUDE.md` with reading order section
+- Updated `.claude/AGENTS.md` with reading order section
 
 ## Chronology
 
